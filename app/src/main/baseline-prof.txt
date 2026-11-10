@@ -1,0 +1,8 @@
+# Code that is compiled to machine code when the app is installed (release builds), instead of
+# waiting for the runtime to notice that it is used a lot. For a sound engine this is the
+# difference between clean playback from the first note and a stutter while the code warms up.
+HSPLjxpix/proger/mps/engine/**;->**(**)**
+Ljxpix/proger/mps/engine/**;
+HSPLjxpix/proger/mps/audio/AudioOutput;->**(**)**
+Ljxpix/proger/mps/audio/AudioOutput;
+HSPLjxpix/proger/mps/audio/AudioOutput$*;->**(**)**

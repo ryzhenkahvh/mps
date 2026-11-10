@@ -2,6 +2,7 @@ package jxpix.proger.mps
 
 import jxpix.proger.mps.engine.Devices
 import jxpix.proger.mps.engine.Engine
+import jxpix.proger.mps.engine.EngineWarmup
 import jxpix.proger.mps.engine.Instrument
 import jxpix.proger.mps.engine.OfflineRenderer
 import jxpix.proger.mps.engine.PPQ
@@ -213,6 +214,42 @@ class EngineTest {
             val wav = Wav.read(file)
             println("info solo %-2d %-10s peak %.3f rms %.4f limiter %.1f".format(project.channels.indexOf(ch), ch.instrument.preset ?: ch.instrument.param("type").toInt().toString(), res.peak, rms(wav.left), res.limiterDb))
         }
+    }
+
+    /** The warm-up only helps if it really runs every kind of device the app has. */
+    @Test
+    fun warmUpPlaysEveryKindOfDevice() {
+        val pool = SamplePool()
+        val project = EngineWarmup.buildProject(pool, rate)
+        assertEquals(Devices.instruments.map { it.id }.toSet(), project.channels.map { it.instrument.type }.toSet())
+        assertEquals(
+            Devices.effects.map { it.id }.toSet(),
+            (project.channels.flatMap { it.effects } + project.masterEffects).map { it.type }.toSet(),
+        )
+        val drums = project.channels.filter { it.instrument.type == Devices.DRUM.id }.map { it.instrument.param("type").toInt() }
+        assertEquals((0 until DrumSynth.TYPE_COUNT).toList(), drums)
+        assertEquals(Presets.synth.size, project.channels.count { it.instrument.type == Devices.SYNTH.id })
+
+        // every channel is heard during one bar
+        val engine = Engine(rate)
+        engine.setProject(project, pool)
+        engine.songMode = true
+        engine.stopAtEnd = false
+        engine.play(0)
+        val buf = FloatArray(192 * 2)
+        val heard = HashMap<Int, Float>()
+        repeat((rate * 60 / 140 * 4) / 192) {
+            engine.render(buf, 192)
+            for (ch in project.channels) heard[ch.id] = max(heard[ch.id] ?: 0f, engine.takeChannelPeak(ch.id))
+        }
+        for (ch in project.channels) {
+            assertTrue("channel ${project.channels.indexOf(ch)} (${ch.instrument.type}) is silent", (heard[ch.id] ?: 0f) > 0.003f)
+        }
+
+        val result = EngineWarmup.run(rate, 192)
+        assertTrue(result.frames >= (2.5 * rate).toLong())
+        assertTrue("peak ${result.peak}", result.peak > 0.05f && result.peak < 1.2f)
+        println("info warm-up: %.1f s of sound (%d channels) in %d ms".format(result.frames.toDouble() / rate, project.channels.size, result.millis))
     }
 
     @Test

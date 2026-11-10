@@ -14,6 +14,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import jxpix.proger.mps.data.Prefs
 import jxpix.proger.mps.data.ThemeMode
+import jxpix.proger.mps.engine.EngineWarmup
 import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.ui.App
 import jxpix.proger.mps.ui.theme.MpsTheme
@@ -35,6 +36,8 @@ class MainActivity : ComponentActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
 
         val studio = studio
+        // compile the sound engine in the background while the user is still looking at the start screen
+        EngineWarmup.start(studio.output.sampleRate, studio.output.framesPerBurst)
         // Texts created by the studio (names of new patterns, messages) follow the chosen language.
         // An application-level context is used so that the activity is not kept alive by the studio.
         val textContext = localized(applicationContext, studio.prefs.language)

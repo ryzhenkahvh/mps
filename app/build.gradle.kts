@@ -25,6 +25,9 @@ android {
             optimization {
                 enable = false
             }
+            // Signed with the debug key so that the release variant can be installed straight from
+            // Android Studio: it is the one to judge latency and CPU load with. Use your own key to publish.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

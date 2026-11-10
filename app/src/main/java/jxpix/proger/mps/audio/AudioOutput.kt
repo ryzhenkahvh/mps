@@ -84,11 +84,24 @@ class AudioOutput(context: Context) {
     @Volatile
     var profile = LatencyProfile.AUTO
         set(value) {
+            if (field != value) learnedBursts = 0
             field = value
             profileChanged = true
         }
 
     @Volatile private var profileChanged = false
+
+    /**
+     * Buffer size (in bursts) the automatic profile has arrived at. Kept while the app lives, so the
+     * same glitches are not needed again every time the output is reopened (coming back from
+     * another app, plugging in headphones).
+     */
+    @Volatile private var learnedBursts = 0
+
+    private fun startBursts(): Int {
+        val p = profile
+        return if (p.canGrow) max(p.bursts, learnedBursts) else p.bursts
+    }
     private var thread: Thread? = null
 
     /**
@@ -166,8 +179,8 @@ class AudioOutput(context: Context) {
             .build()
         val bytesPerFrame = if (encoding == AudioFormat.ENCODING_PCM_FLOAT) 8 else 4
         val minBytes = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, encoding)
-        // room to grow up to 16 bursts if the device needs it
-        val capacity = max(max(minBytes, 0), framesPerBurst * 16 * bytesPerFrame)
+        // room to grow if the device needs it
+        val capacity = max(max(minBytes, 0), framesPerBurst * MAX_BURSTS * bytesPerFrame)
         return try {
             val track = AudioTrack.Builder()
                 .setAudioAttributes(
@@ -262,7 +275,7 @@ class AudioOutput(context: Context) {
         }
 
         lowLatency = track.performanceMode == AudioTrack.PERFORMANCE_MODE_LOW_LATENCY
-        var bursts = profile.bursts
+        var bursts = startBursts()
         applyProfile(track, bursts)
         profileChanged = false
 
@@ -271,6 +284,9 @@ class AudioOutput(context: Context) {
         val timestamp = AudioTimestamp()
         var written = 0L
         var lastUnderruns = track.underrunCount
+        // A track that has just been opened starts with an empty buffer and often reports a few
+        // underruns before it settles. They say nothing about the speed of the phone.
+        var settling = SETTLE_CHECKS
         var statsCountdown = 0
         var loadAvg = 0f
         val statsEvery = max(1, sampleRate / burst / 4) // about four times per second
@@ -312,16 +328,20 @@ class AudioOutput(context: Context) {
                     load = loadAvg
                     if (profileChanged) {
                         profileChanged = false
-                        bursts = profile.bursts
+                        bursts = startBursts()
                         applyProfile(track, bursts)
                     }
                     val u = track.underrunCount
-                    if (u != lastUnderruns) {
+                    if (settling > 0) {
+                        settling--
+                        lastUnderruns = u
+                    } else if (u != lastUnderruns) {
                         underruns += (u - lastUnderruns).coerceAtLeast(0)
                         lastUnderruns = u
                         // the device could not keep up: give it one more burst of safety
-                        if (profile.canGrow && bursts < 16) {
+                        if (profile.canGrow && bursts < MAX_BURSTS) {
                             bursts++
+                            learnedBursts = bursts
                             applyProfile(track, bursts)
                         }
                     }
@@ -361,5 +381,11 @@ class AudioOutput(context: Context) {
 
         /** Typical delay of the fast output path behind the app's own buffer. */
         const val HARDWARE_GUESS_MS = 12f
+
+        /** Largest buffer the automatic profile may grow to, in bursts. */
+        const val MAX_BURSTS = 16
+
+        /** Number of statistics rounds (a quarter of a second each) a new track gets to settle. */
+        const val SETTLE_CHECKS = 3
     }
 }
