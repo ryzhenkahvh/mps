@@ -61,6 +61,7 @@ import jxpix.proger.mps.model.Note
 import jxpix.proger.mps.model.Pattern
 import jxpix.proger.mps.model.isBlackKey
 import jxpix.proger.mps.model.noteName
+import jxpix.proger.mps.model.repeatPoints
 import jxpix.proger.mps.model.setNotes
 import jxpix.proger.mps.model.updatePattern
 import jxpix.proger.mps.studio.Studio
@@ -85,7 +86,7 @@ import kotlin.math.roundToInt
 private const val LOW_PITCH = 12     // C0
 private const val HIGH_PITCH = 119   // B8
 private const val ROWS = HIGH_PITCH - LOW_PITCH + 1
-private val KEY_WIDTH = 46.dp
+internal val KEY_WIDTH = 46.dp
 private val RULER_HEIGHT = 24.dp
 private val ROW_HEIGHT = 22.dp
 
@@ -152,6 +153,7 @@ fun PianoRollTab(studio: Studio) {
                 HintBanner(stringResource(R.string.hint_piano), { studio.prefs.markHintSeen("piano") }, Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
             }
             RollCanvas(studio, pattern, channel, notes, selected, Modifier.weight(1f).fillMaxWidth())
+            if (ui.rollAutomation) AutomationLane(studio, pattern, channel)
             if (selected.isNotEmpty()) {
                 SelectionBar(
                     count = selected.size,
@@ -243,7 +245,11 @@ fun PianoRollTab(studio: Studio) {
                 studio.edit { p ->
                     val length = p.patternLength(pattern)
                     p.updatePattern(pattern.id) { pat ->
-                        pat.copy(bars = pat.bars * 2, notes = pat.notes.mapValues { (_, list) -> list + list.map { it.copy(start = it.start + length) } })
+                        pat.copy(
+                            bars = pat.bars * 2,
+                            notes = pat.notes.mapValues { (_, list) -> list + list.map { it.copy(start = it.start + length) } },
+                            automation = pat.automation.map { lane -> lane.copy(points = repeatPoints(lane.points, length)) },
+                        )
                     }
                 }
                 moreSheet = false
@@ -254,6 +260,10 @@ fun PianoRollTab(studio: Studio) {
                 moreSheet = false
             }, icon = Ic.Clear, enabled = notes.isNotEmpty())
             SheetDivider()
+            SwitchRow(stringResource(R.string.automation), stringResource(R.string.automation_desc), ui.rollAutomation) {
+                ui.rollAutomation = it
+                moreSheet = false
+            }
             SwitchRow(stringResource(R.string.ghost_notes), null, ui.rollGhosts) { ui.rollGhosts = it }
             SheetItem(stringResource(R.string.zoom_in), { view.pxPerTick *= 1.5f }, icon = Ic.ZoomIn)
             SheetItem(stringResource(R.string.zoom_out), { view.pxPerTick /= 1.5f }, icon = Ic.ZoomOut)

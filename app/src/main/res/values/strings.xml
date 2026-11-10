@@ -98,6 +98,14 @@
     <string name="quantize">Snap to grid</string>
     <string name="clear_notes">Clear notes</string>
     <string name="ghost_notes">Show other channels</string>
+    <string name="automation">Automation</string>
+    <string name="automation_desc">Draw how a knob moves while the pattern plays</string>
+    <string name="auto_pick">What to move</string>
+    <string name="auto_draw">Drag here to draw a curve</string>
+    <string name="auto_clear">Delete curve</string>
+    <string name="auto_hide">Hide automation</string>
+    <string name="auto_lane">Automation: %s</string>
+    <string name="auto_knob">Knob: %s</string>
     <string name="zoom_in">Zoom in</string>
     <string name="zoom_out">Zoom out</string>
     <string name="n_selected">Selected: %d</string>
@@ -259,6 +267,8 @@
     <string name="help_3_text">Lay patterns out on the timeline to build the whole track. PAT plays one pattern in a loop, SONG plays the playlist.</string>
     <string name="help_4_title">Mixer</string>
     <string name="help_4_text">Set the volume and panning of every channel and add effects: reverb, delay, compressor, equalizer and more.</string>
+    <string name="help_auto_title">Automation</string>
+    <string name="help_auto_text">Make the sound change over time: on the Notes tab open the menu, turn on Automation, pick a knob and draw its curve. The knob follows the curve while the pattern plays.</string>
     <string name="help_5_title">Recording</string>
     <string name="help_5_text">Press ● to record: either notes played on the keys and pads, or your voice from the microphone.</string>
     <string name="help_6_title">Export</string>

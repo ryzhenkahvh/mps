@@ -81,6 +81,17 @@ class Engine(val sampleRate: Int) {
 
         /** Parameter array last pushed into the device; touched by the audio thread only. */
         var applied: FloatArray? = null
+
+        /**
+         * Working copy of the parameters while automation moves some of them, and the values the
+         * device got last. Created once, on the control thread, before a plan refers to them.
+         */
+        var auto: FloatArray? = null
+        var autoSent: FloatArray? = null
+
+        /** Automation wrote into [auto] during this block / the device currently runs on automated values. Audio thread only. */
+        var autoNow = false
+        var autoOn = false
     }
 
     private class SeqEntry {
@@ -159,6 +170,8 @@ class Engine(val sampleRate: Int) {
             )
         }
 
+        val autoEntries = LinkedHashSet<DeviceEntry>()
+        val autoStrips = LinkedHashSet<ChannelRuntime>()
         val patterns = Array(p.patterns.size) { pi ->
             val pat = p.patterns[pi]
             val seqs = arrayOfNulls<NoteSeq>(count)
@@ -169,7 +182,7 @@ class Engine(val sampleRate: Int) {
                     if (!notes.isNullOrEmpty()) seqs[ci] = sequence(pat.id, id, notes, p.swing, gen)
                 }
             }
-            PatternPlan(pat.id, max(1, pat.bars * p.ticksPerBar), seqs)
+            PatternPlan(pat.id, max(1, pat.bars * p.ticksPerBar), seqs, lanePlans(p, pat, channels, autoEntries, autoStrips))
         }
 
         val patternClips = ArrayList<ClipPlan>()
@@ -205,6 +218,8 @@ class Engine(val sampleRate: Int) {
             loopStart = p.loopStart * p.ticksPerBar,
             loopEnd = p.loopEnd * p.ticksPerBar,
             anySolo = anySolo,
+            autoEntries = autoEntries.toTypedArray(),
+            autoStrips = autoStrips.toTypedArray(),
         )
 
         // Forget DSP objects and caches that are no longer referenced.
@@ -212,6 +227,48 @@ class Engine(val sampleRate: Int) {
         sequences.values.removeAll { it.generation != gen }
         runtimes.values.removeAll { it.generation != gen }
         return result
+    }
+
+    /** Compiles the automation curves of one pattern. Curves whose knob no longer exists are skipped. */
+    private fun lanePlans(
+        p: Project, pat: jxpix.proger.mps.model.Pattern, channels: Array<ChannelPlan>,
+        autoEntries: MutableSet<DeviceEntry>, autoStrips: MutableSet<ChannelRuntime>,
+    ): Array<LanePlan> {
+        if (pat.automation.isEmpty()) return NO_LANES
+        val out = ArrayList<LanePlan>(pat.automation.size)
+        for (lane in pat.automation) {
+            if (lane.points.isEmpty()) continue
+            val ci = p.channels.indexOfFirst { it.id == lane.channelId }
+            if (ci < 0) continue
+            val ticks = IntArray(lane.points.size) { lane.points[it].tick }
+            val values = FloatArray(lane.points.size) { lane.points[it].value.coerceIn(0f, 1f) }
+            var sorted = true
+            for (i in 1 until ticks.size) if (ticks[i] <= ticks[i - 1]) sorted = false
+            if (!sorted) continue
+            if (lane.device == jxpix.proger.mps.model.STRIP_DEVICE) {
+                val kind = when (lane.param) {
+                    jxpix.proger.mps.model.PARAM_VOLUME -> LANE_VOLUME
+                    jxpix.proger.mps.model.PARAM_PAN -> LANE_PAN
+                    else -> continue
+                }
+                val rt = channels[ci].runtime
+                autoStrips += rt
+                out += LanePlan(kind, rt, null, -1, null, ticks, values)
+            } else {
+                val ch = p.channels[ci]
+                if (ch.instrument.uid != lane.device && ch.effects.none { it.uid == lane.device }) continue
+                val e = devices[lane.device] ?: continue
+                val index = e.type.indexOf(lane.param)
+                if (index < 0) continue
+                if (e.auto == null) {
+                    e.autoSent = FloatArray(e.type.params.size)
+                    e.auto = FloatArray(e.type.params.size)
+                }
+                autoEntries += e
+                out += LanePlan(LANE_PARAM, null, e, index, e.type.params[index], ticks, values)
+            }
+        }
+        return if (out.isEmpty()) NO_LANES else out.toTypedArray()
     }
 
     private fun effectPlans(list: List<jxpix.proger.mps.model.DeviceState>, gen: Int): Array<EffectPlan> {
@@ -318,7 +375,9 @@ class Engine(val sampleRate: Int) {
 
     private fun renderBlock(n: Int) {
         val plan = this.plan
+        var previous: Plan? = null
         if (plan !== active) {
+            previous = active
             applyPlan(plan)
             active = plan
         }
@@ -334,10 +393,15 @@ class Engine(val sampleRate: Int) {
 
         clickAt = -1
         segN = 0
+        if (previous != null) beginAutomation(previous)
+        beginAutomation(plan)
         if (isPlaying) {
             buildSegments(plan, n, tpf)
             for (s in 0 until segN) scheduleSegment(plan, s, tpf)
         }
+        finishAutomation(plan)
+        // knobs that only the replaced plan had curves for get their own value back
+        if (previous != null) finishAutomation(previous)
         collectNoteOffs(plan, n)
         applyCutGroups(plan)
 
@@ -400,6 +464,7 @@ class Engine(val sampleRate: Int) {
                 if (arr != null && e.applied !== arr) {
                     inst.setParams(arr)
                     e.applied = arr
+                    e.autoOn = false // automation has to be laid over the new knob values again
                 }
                 inst.setSample(cp.sample)
             }
@@ -459,7 +524,7 @@ class Engine(val sampleRate: Int) {
                     for (cp in plan.channels) {
                         if (cp.id == id) {
                             if (type == CMD_NOTE_ON) {
-                                cp.runtime.addEvent(0, EV_ON, CommandQueue.pitch(c), Float.fromBits(value))
+                                cp.runtime.addEvent(0, EV_ON, CommandQueue.pitch(c), java.lang.Float.intBitsToFloat(value))
                             } else {
                                 cp.runtime.addEvent(0, EV_OFF, CommandQueue.pitch(c), 0f)
                             }
@@ -560,7 +625,9 @@ class Engine(val sampleRate: Int) {
 
         if (!songMode) {
             if (patternIndex >= 0) {
-                schedulePattern(plan, plan.patterns[patternIndex], rangeStart, rangeEnd, 0.0, Int.MAX_VALUE, s, tpf)
+                val pat = plan.patterns[patternIndex]
+                schedulePattern(plan, pat, rangeStart, rangeEnd, 0.0, Int.MAX_VALUE, s, tpf)
+                if (pat.lanes.isNotEmpty()) automate(pat, rangeStart)
             }
             return
         }
@@ -576,6 +643,7 @@ class Engine(val sampleRate: Int) {
                 if (len - local < 1e-6) local = 0.0
                 val span = min(b - g, len - local)
                 schedulePattern(plan, pat, local, local + span, g - local, clip.end, s, tpf)
+                if (pat.lanes.isNotEmpty()) automate(pat, local)
                 g += max(span, 1e-6)
             }
         }
@@ -607,6 +675,81 @@ class Engine(val sampleRate: Int) {
                 rt.addEvent(frame, EV_ON, seq.pitch[i], seq.velocity[i])
                 rt.addOff(seq.pitch[i], frameCounter + frame + max(1L, (length / tpf).toLong()))
                 i++
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ automation (audio thread)
+
+    /*
+     * Automation is applied once per block: every pattern that is playing right now writes the
+     * values of its curves, then the devices whose values changed get their parameters. A knob
+     * that no curve moves any more (the pattern ended, playback stopped, the curve was deleted)
+     * goes back to the value the user set.
+     */
+
+    private fun beginAutomation(plan: Plan) {
+        for (e in plan.autoEntries) e.autoNow = false
+        for (rt in plan.autoStrips) {
+            rt.autoGainOn = false
+            rt.autoPanOn = false
+        }
+    }
+
+    /** Reads the curves of [pat] at the pattern position [local] (ticks). */
+    private fun automate(pat: PatternPlan, local: Double) {
+        for (lane in pat.lanes) {
+            val v = lane.valueAt(local)
+            when (lane.kind) {
+                LANE_VOLUME -> {
+                    val rt = lane.strip ?: continue
+                    rt.autoGain = faderToGain(v)
+                    rt.autoGainOn = true
+                }
+                LANE_PAN -> {
+                    val rt = lane.strip ?: continue
+                    rt.autoPan = v * 2f - 1f
+                    rt.autoPanOn = true
+                }
+                else -> {
+                    val e = lane.entry ?: continue
+                    val work = e.auto ?: continue
+                    val base = e.applied ?: continue
+                    val spec = lane.spec ?: continue
+                    if (base.size != work.size) continue
+                    if (!e.autoNow) {
+                        // start from the knob positions, then let the curves overwrite theirs
+                        System.arraycopy(base, 0, work, 0, work.size)
+                        e.autoNow = true
+                    }
+                    work[lane.index] = spec.fromNorm(v)
+                }
+            }
+        }
+    }
+
+    private fun finishAutomation(plan: Plan) {
+        for (e in plan.autoEntries) {
+            if (e.autoNow) {
+                val work = e.auto ?: continue
+                val sent = e.autoSent ?: continue
+                var changed = !e.autoOn
+                if (!changed) {
+                    for (i in work.indices) {
+                        if (work[i] != sent[i]) {
+                            changed = true
+                            break
+                        }
+                    }
+                }
+                if (changed) {
+                    e.device.setParams(work)
+                    System.arraycopy(work, 0, sent, 0, work.size)
+                    e.autoOn = true
+                }
+            } else if (e.autoOn) {
+                e.applied?.let { e.device.setParams(it) }
+                e.autoOn = false
             }
         }
     }
@@ -706,8 +849,10 @@ class Engine(val sampleRate: Int) {
         var tl = 0f
         var tr = 0f
         if (audible) {
-            tl = cp.gain * min(1f, 1f - cp.pan)
-            tr = cp.gain * min(1f, 1f + cp.pan)
+            val gain = if (rt.autoGainOn) rt.autoGain else cp.gain
+            val pan = if (rt.autoPanOn) rt.autoPan else cp.pan
+            tl = gain * min(1f, 1f - pan)
+            tr = gain * min(1f, 1f + pan)
         }
         if (rt.curL < 0f) {
             rt.curL = tl
@@ -823,6 +968,7 @@ class Engine(val sampleRate: Int) {
             if (entry.applied !== params) {
                 effect.setParams(params)
                 entry.applied = params
+                entry.autoOn = false // automation has to be laid over the new knob values again
             }
         }
     }
@@ -842,7 +988,32 @@ class Engine(val sampleRate: Int) {
         val sample: SampleData?,
     )
 
-    private class PatternPlan(val id: Int, val length: Int, val seqs: Array<NoteSeq?>)
+    private class PatternPlan(val id: Int, val length: Int, val seqs: Array<NoteSeq?>, val lanes: Array<LanePlan>)
+
+    /** One automation curve, ready for the audio thread. Values are knob positions 0..1. */
+    private class LanePlan(
+        val kind: Int,
+        val strip: ChannelRuntime?,
+        val entry: DeviceEntry?,
+        val index: Int,
+        val spec: ParamSpec?,
+        val ticks: IntArray,
+        val values: FloatArray,
+    ) {
+        fun valueAt(tick: Double): Float {
+            val last = ticks.size - 1
+            if (tick <= ticks[0]) return values[0]
+            if (tick >= ticks[last]) return values[last]
+            var lo = 0
+            var hi = last
+            while (hi - lo > 1) {
+                val mid = (lo + hi) ushr 1
+                if (ticks[mid] <= tick) lo = mid else hi = mid
+            }
+            val f = ((tick - ticks[lo]) / (ticks[hi] - ticks[lo])).toFloat()
+            return values[lo] + (values[hi] - values[lo]) * f
+        }
+    }
 
     private class ClipPlan(val start: Int, val end: Int, val pattern: Int)
 
@@ -864,6 +1035,9 @@ class Engine(val sampleRate: Int) {
         val loopStart: Int,
         val loopEnd: Int,
         val anySolo: Boolean,
+        /** Devices and mixer strips that some automation curve of this project moves. */
+        val autoEntries: Array<DeviceEntry>,
+        val autoStrips: Array<ChannelRuntime>,
     ) {
         fun patternIndexOf(id: Int): Int {
             for (i in patterns.indices) if (patterns[i].id == id) return i
@@ -873,7 +1047,7 @@ class Engine(val sampleRate: Int) {
         companion object {
             val EMPTY = Plan(
                 120.0, 4 * PPQ, emptyArray(), emptyArray(), emptyArray(), emptyArray(), emptyArray(),
-                1f, 0, false, 0, 0, false,
+                1f, 0, false, 0, 0, false, emptyArray(), emptyArray(),
             )
         }
     }
@@ -886,6 +1060,12 @@ class Engine(val sampleRate: Int) {
         var curL = -1f
         var curR = -1f
         var tailFrames = 0
+
+        // fader and balance while an automation curve moves them (set anew for every block)
+        var autoGainOn = false
+        var autoGain = 0f
+        var autoPanOn = false
+        var autoPan = 0f
 
         @Volatile
         var peak = 0f
@@ -961,6 +1141,11 @@ class Engine(val sampleRate: Int) {
         private const val EV_ON = 1
         private const val EV_OFF = 2
         private const val EV_CHOKE = 3
+
+        private const val LANE_PARAM = 0
+        private const val LANE_VOLUME = 1
+        private const val LANE_PAN = 2
+        private val NO_LANES = emptyArray<LanePlan>()
 
         private const val CMD_PLAY = 1
         private const val CMD_RESUME = 2

@@ -68,6 +68,40 @@ data class Channel(
     val isDrum: Boolean get() = instrument.type == Devices.DRUM.id
 }
 
+/** One point of an automation curve. */
+@Serializable
+data class AutoPoint(
+    /** Position inside the pattern, in ticks. */
+    val tick: Int,
+    /** Knob position 0..1 (see [jxpix.proger.mps.engine.ParamSpec.toNorm]). */
+    val value: Float,
+)
+
+/**
+ * Automation: a curve that turns one knob while its pattern plays - the volume or balance of
+ * a channel, or any parameter of its instrument and effects. Between the points the value
+ * moves in a straight line; before the first and after the last point it stays put.
+ * When the pattern is not playing the knob is back where the user left it.
+ */
+@Serializable
+data class AutoLane(
+    val channelId: Int,
+    /** Uid of the instrument or effect, or [STRIP_DEVICE] for the mixer strip of the channel. */
+    val device: Int = STRIP_DEVICE,
+    /** Parameter id; on the mixer strip [PARAM_VOLUME] or [PARAM_PAN]. */
+    val param: String,
+    /** Sorted by tick, one point per tick at most. */
+    val points: List<AutoPoint> = emptyList(),
+) {
+    fun targets(channelId: Int, device: Int, param: String): Boolean =
+        this.channelId == channelId && this.device == device && this.param == param
+}
+
+/** [AutoLane.device] of the lanes that move the fader or the balance knob of the mixer. */
+const val STRIP_DEVICE = 0
+const val PARAM_VOLUME = "volume"
+const val PARAM_PAN = "pan"
+
 /** A loop of notes for any number of channels (what FL Studio calls a pattern). */
 @Serializable
 data class Pattern(
@@ -77,9 +111,13 @@ data class Pattern(
     val bars: Int = 1,
     /** Notes per channel id. Lists are kept in insertion order; the engine sorts them. */
     val notes: Map<Int, List<Note>> = emptyMap(),
+    val automation: List<AutoLane> = emptyList(),
 ) {
     fun notesOf(channelId: Int): List<Note> = notes[channelId] ?: emptyList()
     val isEmpty: Boolean get() = notes.values.all { it.isEmpty() }
+
+    fun lane(channelId: Int, device: Int, param: String): AutoLane? =
+        automation.firstOrNull { it.targets(channelId, device, param) }
 }
 
 /** A block in the playlist: either a pattern instance or a piece of recorded/imported audio. */

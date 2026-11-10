@@ -1,6 +1,7 @@
 package jxpix.proger.mps.model
 
 import jxpix.proger.mps.engine.Devices
+import jxpix.proger.mps.engine.ParamSpec
 import jxpix.proger.mps.engine.TICKS_PER_STEP
 import jxpix.proger.mps.engine.instruments.DrumSynth
 
@@ -51,7 +52,11 @@ fun Project.removeChannel(id: Int): Project {
     if (channels.none { it.id == id }) return this
     return copy(
         channels = channels.filter { it.id != id },
-        patterns = patterns.map { p -> if (id in p.notes) p.copy(notes = p.notes - id) else p },
+        patterns = patterns.map { p ->
+            if (id in p.notes || p.automation.any { it.channelId == id }) {
+                p.copy(notes = p.notes - id, automation = p.automation.filter { it.channelId != id })
+            } else p
+        },
         clips = clips.filter { !(it.isAudio && it.channelId == id) },
     )
 }
@@ -63,17 +68,25 @@ fun Project.duplicateChannel(id: Int, newName: String): Pair<Project, Int> {
     val src = channels[index]
     var next = nextId
     val newId = next++
+    val uids = HashMap<Int, Int>()
+    uids[STRIP_DEVICE] = STRIP_DEVICE
     val copy = src.copy(
         id = newId,
         name = newName,
-        instrument = src.instrument.copy(uid = next++),
-        effects = src.effects.map { it.copy(uid = next++) },
+        instrument = src.instrument.copy(uid = next++.also { uids[src.instrument.uid] = it }),
+        effects = src.effects.map { fx -> fx.copy(uid = next++.also { uids[fx.uid] = it }) },
         solo = false,
     )
     val list = channels.toMutableList().also { it.add(index + 1, copy) }
     val pats = patterns.map { p ->
         val notes = p.notes[id]
-        if (notes.isNullOrEmpty()) p else p.copy(notes = p.notes + (newId to notes))
+        val lanes = p.automation.filter { it.channelId == id }.mapNotNull { lane ->
+            uids[lane.device]?.let { lane.copy(channelId = newId, device = it) }
+        }
+        if (notes.isNullOrEmpty() && lanes.isEmpty()) p else p.copy(
+            notes = if (notes.isNullOrEmpty()) p.notes else p.notes + (newId to notes),
+            automation = p.automation + lanes,
+        )
     }
     return copy(channels = list, patterns = pats, nextId = next) to newId
 }
@@ -93,9 +106,10 @@ fun Project.replaceInstrument(
     channelId: Int, type: String, params: Map<String, Float>? = null, preset: String? = null,
 ): Project {
     val t = Devices[type] ?: return this
+    val old = channel(channelId)?.instrument?.uid ?: return this
     return updateChannel(channelId) {
         it.copy(instrument = DeviceState(nextId, type, params ?: t.defaults(), preset = preset))
-    }.copy(nextId = nextId + 1)
+    }.withoutLanesOf(old).copy(nextId = nextId + 1)
 }
 
 // ------------------------------------------------------------------------------------ devices
@@ -159,7 +173,7 @@ fun Project.addEffect(ownerId: Int, type: String): Pair<Project, Int> {
 }
 
 fun Project.removeEffect(ownerId: Int, uid: Int): Project =
-    withEffects(ownerId, effectsOf(ownerId).filter { it.uid != uid })
+    withEffects(ownerId, effectsOf(ownerId).filter { it.uid != uid }).withoutLanesOf(uid)
 
 fun Project.moveEffect(ownerId: Int, uid: Int, delta: Int): Project {
     val list = effectsOf(ownerId).toMutableList()
@@ -213,6 +227,90 @@ fun Project.setNotes(patternId: Int, channelId: Int, notes: List<Note>): Project
         p.copy(notes = p.notes + (channelId to notes))
     }
 }
+
+// ------------------------------------------------------------------------------------ automation
+
+/** Most points one curve may have (a 16 bar pattern drawn at 1/32). */
+const val MAX_AUTO_POINTS = 512
+
+/**
+ * Sets the automation curve of one knob inside a pattern; an empty list removes the curve.
+ * [device] is the uid of an instrument or effect of the channel, or [STRIP_DEVICE].
+ */
+fun Project.setAutomation(patternId: Int, channelId: Int, device: Int, param: String, points: List<AutoPoint>): Project =
+    updatePattern(patternId) { p ->
+        val others = p.automation.filter { !it.targets(channelId, device, param) }
+        if (points.isEmpty()) {
+            if (others.size == p.automation.size) p else p.copy(automation = others)
+        } else {
+            p.copy(automation = others + AutoLane(channelId, device, param, cleanPoints(points)))
+        }
+    }
+
+/** Sorted, one point per tick (the later one wins), values inside 0..1. */
+fun cleanPoints(points: List<AutoPoint>): List<AutoPoint> {
+    val byTick = java.util.TreeMap<Int, Float>()
+    for (pt in points) if (pt.tick >= 0 && !pt.value.isNaN()) byTick[pt.tick] = pt.value.coerceIn(0f, 1f)
+    val out = ArrayList<AutoPoint>(byTick.size)
+    for ((tick, value) in byTick) {
+        if (out.size >= MAX_AUTO_POINTS) break
+        out += AutoPoint(tick, value)
+    }
+    return out
+}
+
+/** Value of a curve at [tick], the same way the engine reads it. Null for an empty curve. */
+fun autoValueAt(points: List<AutoPoint>, tick: Float): Float? {
+    if (points.isEmpty()) return null
+    if (tick <= points.first().tick) return points.first().value
+    if (tick >= points.last().tick) return points.last().value
+    var lo = 0
+    var hi = points.lastIndex
+    while (hi - lo > 1) {
+        val mid = (lo + hi) ushr 1
+        if (points[mid].tick <= tick) lo = mid else hi = mid
+    }
+    val a = points[lo]
+    val b = points[hi]
+    return a.value + (b.value - a.value) * (tick - a.tick) / (b.tick - a.tick)
+}
+
+/**
+ * The curve played twice in a row, for a pattern that is doubled from [length] ticks: the second
+ * pass starts with the value the curve had at its very beginning, just like a loop would.
+ */
+fun repeatPoints(points: List<AutoPoint>, length: Int): List<AutoPoint> {
+    if (points.isEmpty() || length <= 1 || points.all { it.value == points[0].value }) return points
+    val atStart = autoValueAt(points, 0f) ?: return points
+    val atEnd = autoValueAt(points, (length - 1).toFloat()) ?: return points
+    val out = ArrayList<AutoPoint>(points.size * 2 + 2)
+    for (pt in points) if (pt.tick < length) out += pt
+    out += AutoPoint(length - 1, atEnd)
+    out += AutoPoint(length, atStart)
+    for (pt in points) if (pt.tick > 0) out += pt.copy(tick = pt.tick + length)
+    return cleanPoints(out)
+}
+
+/** Forgets the curves that belonged to a device which is gone. */
+internal fun Project.withoutLanesOf(deviceUid: Int): Project {
+    if (deviceUid == STRIP_DEVICE || patterns.none { p -> p.automation.any { it.device == deviceUid } }) return this
+    return copy(patterns = patterns.map { p ->
+        if (p.automation.any { it.device == deviceUid }) p.copy(automation = p.automation.filter { it.device != deviceUid }) else p
+    })
+}
+
+/** The automatable parameter a lane points at, or null if it does not exist (any more). */
+fun Project.laneSpec(lane: AutoLane): ParamSpec? {
+    val ch = channel(lane.channelId) ?: return null
+    if (lane.device == STRIP_DEVICE) return null
+    val dev = if (ch.instrument.uid == lane.device) ch.instrument else ch.effects.firstOrNull { it.uid == lane.device }
+    return dev?.let { Devices[it.type]?.spec(lane.param) }
+}
+
+private fun Project.laneIsValid(lane: AutoLane): Boolean =
+    if (lane.device == STRIP_DEVICE) {
+        channel(lane.channelId) != null && (lane.param == PARAM_VOLUME || lane.param == PARAM_PAN)
+    } else laneSpec(lane) != null
 
 /** Changes the length of a pattern. Notes beyond the new end are kept (just not played). */
 fun Project.setPatternBars(patternId: Int, bars: Int): Project =
@@ -345,7 +443,15 @@ fun Project.sanitized(): Project {
         channels = channels.filter { Devices[it.instrument.type] != null }
             .map { c -> c.copy(effects = c.effects.filter { Devices[it.type] != null }) },
         masterEffects = masterEffects.filter { Devices[it.type] != null },
-        patterns = patterns.map { p -> p.copy(notes = p.notes.filterKeys { it in channelIds }, bars = p.bars.coerceIn(1, MAX_PATTERN_BARS)) },
+        patterns = patterns.map { p ->
+            p.copy(
+                notes = p.notes.filterKeys { it in channelIds },
+                bars = p.bars.coerceIn(1, MAX_PATTERN_BARS),
+                automation = p.automation.filter { laneIsValid(it) && it.points.isNotEmpty() }
+                    .distinctBy { Triple(it.channelId, it.device, it.param) }
+                    .map { it.copy(points = cleanPoints(it.points)) },
+            )
+        },
         clips = clips.filter { c ->
             c.length > 0 && c.track in 0 until MAX_TRACKS &&
                 (if (c.isAudio) c.channelId in channelIds else c.patternId in patternIds)

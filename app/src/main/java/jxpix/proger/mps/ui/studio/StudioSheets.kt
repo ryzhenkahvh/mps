@@ -263,7 +263,7 @@ fun PatternSheet(studio: Studio, onDismiss: () -> Unit) {
                         val i = list.indexOfFirst { it.id == current.id }
                         list.getOrNull(i + 1)?.let { studio.selectPattern(it.id) }
                     }, icon = Ic.Copy)
-                    Chip(stringResource(R.string.clear_pattern), { studio.edit { it.updatePattern(current.id) { pat -> pat.copy(notes = emptyMap()) } } }, icon = Ic.Clear, enabled = !current.isEmpty)
+                    Chip(stringResource(R.string.clear_pattern), { studio.edit { it.updatePattern(current.id) { pat -> pat.copy(notes = emptyMap(), automation = emptyList()) } } }, icon = Ic.Clear, enabled = !current.isEmpty || current.automation.isNotEmpty())
                     Chip(stringResource(R.string.delete), { delete = true }, icon = Ic.Delete, enabled = p.patterns.size > 1)
                 }
             }

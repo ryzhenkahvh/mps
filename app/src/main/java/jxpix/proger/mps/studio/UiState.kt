@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jxpix.proger.mps.engine.TICKS_PER_STEP
 import jxpix.proger.mps.model.Note
+import jxpix.proger.mps.model.PARAM_VOLUME
+import jxpix.proger.mps.model.STRIP_DEVICE
 
 enum class Tab { RACK, PIANO, PLAYLIST, MIXER, KEYS }
 
@@ -40,6 +42,11 @@ class UiState {
     var rollGhosts by mutableStateOf(true)
     var rollSelection by mutableStateOf<Set<Note>>(emptySet())
 
+    /** Automation lane under the piano roll: shown or not, and the knob it edits (device uid + parameter id). */
+    var rollAutomation by mutableStateOf(false)
+    var laneDevice by mutableIntStateOf(STRIP_DEVICE)
+    var laneParam by mutableStateOf(PARAM_VOLUME)
+
     // geometry of the piano roll, written by its layout and read by its (longer living) gesture code
     var rollGridW = 1f
     var rollMaxScrollY = 0f
@@ -69,6 +76,9 @@ class UiState {
         roll.scrollY = -1f
         roll.pxPerTick = 0f
         rollSelection = emptySet()
+        rollAutomation = false
+        laneDevice = STRIP_DEVICE
+        laneParam = PARAM_VOLUME
         playlist.scrollX = 0f
         playlist.scrollY = -1f
         playlist.pxPerTick = 0f

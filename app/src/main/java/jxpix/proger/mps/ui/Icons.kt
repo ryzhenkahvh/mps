@@ -39,6 +39,9 @@ object Ic {
     /** Material Symbols has no metronome, so this one is drawn by hand. */
     val Metronome: ImageVector get() = line("Metronome", "M9 3h6l4 18H5L9 3zM12 16l5-9M7.3 14h9.4")
 
+    /** Automation curve. */
+    val Curve: ImageVector get() = line("Curve", "M3 17.5l6-7.5 5 4.5 7-9")
+
     /** The wordmark of the app (letters M, P, S with equalizer bars inside the M). */
     val Logo: ImageVector
         get() = cache.getOrPut("Logo") {

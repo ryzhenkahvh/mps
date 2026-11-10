@@ -97,6 +97,14 @@
     <string name="quantize">Выровнять по сетке</string>
     <string name="clear_notes">Очистить ноты</string>
     <string name="ghost_notes">Показывать другие каналы</string>
+    <string name="automation">Автоматизация</string>
+    <string name="automation_desc">Нарисуйте, как меняется ручка, пока играет паттерн</string>
+    <string name="auto_pick">Что менять</string>
+    <string name="auto_draw">Проведите здесь пальцем, чтобы нарисовать кривую</string>
+    <string name="auto_clear">Удалить кривую</string>
+    <string name="auto_hide">Скрыть автоматизацию</string>
+    <string name="auto_lane">Автоматизация: %s</string>
+    <string name="auto_knob">Ручка: %s</string>
     <string name="zoom_in">Крупнее</string>
     <string name="zoom_out">Мельче</string>
     <string name="n_selected">Выбрано: %d</string>
@@ -258,6 +266,8 @@
     <string name="help_3_text">Раскладывайте паттерны по шкале времени, чтобы собрать целый трек. ПАТ играет один паттерн по кругу, ТРЕК — весь плейлист.</string>
     <string name="help_4_title">Микшер</string>
     <string name="help_4_text">Настраивайте громкость и панораму каждого канала и добавляйте эффекты: реверб, дилей, компрессор, эквалайзер и другие.</string>
+    <string name="help_auto_title">Автоматизация</string>
+    <string name="help_auto_text">Заставьте звук меняться во времени: на вкладке «Ноты» откройте меню, включите автоматизацию, выберите ручку и нарисуйте её кривую. Пока паттерн играет, ручка следует за кривой.</string>
     <string name="help_5_title">Запись</string>
     <string name="help_5_text">Нажмите ●, чтобы записать: либо ноты, сыгранные на клавишах и пэдах, либо голос с микрофона.</string>
     <string name="help_6_title">Экспорт</string>
