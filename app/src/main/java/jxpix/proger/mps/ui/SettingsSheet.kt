@@ -157,7 +157,7 @@ private fun AudioStats(studio: Studio) {
     ) {
         val style = androidx.compose.ui.text.TextStyle(color = c.textDim, fontSize = 12.sp, lineHeight = 17.sp)
         Text(stringResource(R.string.stats_output, out.sampleRate, out.bufferFrames), style = style)
-        Text(stringResource(R.string.stats_latency, out.latencyMs.roundToInt()), style = style)
+        Text(stringResource(R.string.stats_latency, out.effectiveLatencyMs.roundToInt()), style = style)
         Text(stringResource(if (out.lowLatency) R.string.stats_fast_yes else R.string.stats_fast_no), style = style)
         Text(stringResource(R.string.stats_load, (out.load * 100f).roundToInt().coerceIn(0, 999)), style = style)
         Text(stringResource(R.string.stats_underruns, out.underruns), style = style)

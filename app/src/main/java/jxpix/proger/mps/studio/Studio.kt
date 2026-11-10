@@ -459,7 +459,7 @@ class Studio(context: Context) {
 
     /** How far the sound we hear lags behind the engine position, in ticks. */
     private fun latencyTicks(extraMs: Float = 0f): Double =
-        (output.latencyMs + extraMs) / 1000.0 * project.bpm * PPQ / 60.0
+        (output.effectiveLatencyMs + extraMs) / 1000.0 * project.bpm * PPQ / 60.0
 
     fun play() {
         if (playing) return

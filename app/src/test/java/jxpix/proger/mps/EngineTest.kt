@@ -50,6 +50,7 @@ class EngineTest {
         for (t in ProjectFactory.templates) {
             val project = t.build(names)
             val file = outFile("${t.id}.wav")
+            val started = System.nanoTime()
             val result = if (project.clips.isEmpty()) {
                 val pattern = project.patterns.first()
                 if (pattern.isEmpty) continue
@@ -57,12 +58,16 @@ class EngineTest {
             } else {
                 OfflineRenderer.render(project, SamplePool(), file, rate)
             }
+            val took = (System.nanoTime() - started) / 1e9
             assertNotNull("${t.id} rendered nothing", result)
             val wav = Wav.read(file)
             assertEquals(rate, wav.sampleRate)
             assertTrue(wav.isStereo)
             val level = rms(wav.left)
-            println("template ${t.id}: %.1f s, peak %.3f, rms %.3f, limiter %.1f dB".format(result!!.seconds, result.peak, level, result.limiterDb))
+            println(
+                "template ${t.id}: %.1f s, peak %.3f, rms %.3f, limiter %.1f dB, rendered %.0fx faster than real time"
+                    .format(result!!.seconds, result.peak, level, result.limiterDb, result.seconds / took)
+            )
             assertTrue("${t.id} clips: ${result.peak}", result.peak <= 1.0f)
             assertTrue("${t.id} is too quiet: $level", level > 0.03)
         }

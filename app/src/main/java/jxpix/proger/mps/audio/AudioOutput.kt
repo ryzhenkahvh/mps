@@ -66,6 +66,18 @@ class AudioOutput(context: Context) {
     @Volatile var bufferFrames = 0; private set
     @Volatile var underruns = 0; private set
     @Volatile var latencyMs = 0f; private set
+    /**
+     * Output delay to work with: the measured value, or - while the device has not reported a
+     * time stamp yet (some never do) - an estimate from the buffer size.
+     */
+    val effectiveLatencyMs: Float
+        get() {
+            val measured = latencyMs
+            if (measured > 0f) return measured
+            val frames = bufferFrames
+            return if (frames > 0) frames * 1000f / sampleRate + HARDWARE_GUESS_MS else 0f
+        }
+
     /** Share of the available time used for rendering, 0..1+. */
     @Volatile var load = 0f; private set
 
@@ -346,5 +358,8 @@ class AudioOutput(context: Context) {
 
     private companion object {
         const val TAG = "MPS-Audio"
+
+        /** Typical delay of the fast output path behind the app's own buffer. */
+        const val HARDWARE_GUESS_MS = 12f
     }
 }

@@ -175,8 +175,11 @@ fun RackTab(studio: Studio) {
                         if (step in 0 until stepCount) {
                             val x0 = left.toPx()
                             val w = (size.width - x0 - SIDE_PAD.toPx()) / stepCount
+                            // the band ends with the last channel, not at the bottom of the screen
+                            val below = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "add" }
+                            val bottom = (below?.offset?.toFloat() ?: size.height).coerceIn(0f, size.height)
                             drawRoundRect(
-                                bandColor, topLeft = Offset(x0 + step * w, 0f), size = Size(w, size.height),
+                                bandColor, topLeft = Offset(x0 + step * w, 0f), size = Size(w, bottom),
                                 cornerRadius = CornerRadius(4.dp.toPx()),
                             )
                         }

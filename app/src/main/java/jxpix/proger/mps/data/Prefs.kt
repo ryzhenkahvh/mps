@@ -3,6 +3,7 @@ package jxpix.proger.mps.data
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jxpix.proger.mps.audio.LatencyProfile
@@ -45,7 +46,7 @@ class Prefs(context: Context) {
         private set
 
     /** Extra shift applied to microphone recordings, in milliseconds (positive = earlier). */
-    var recordOffsetMs by mutableStateOf(sp.getInt("recordOffsetMs", 0))
+    var recordOffsetMs by mutableIntStateOf(sp.getInt("recordOffsetMs", 0))
         private set
 
     var hintsSeen by mutableStateOf(sp.getStringSet("hints", emptySet())?.toSet() ?: emptySet())
