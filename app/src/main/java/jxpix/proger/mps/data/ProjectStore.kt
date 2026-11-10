@@ -247,14 +247,12 @@ class ProjectStore(private val root: File) {
      */
     @Throws(IOException::class)
     fun adoptSample(id: String, source: File): String {
-        val safe = safeSampleName(source.name.substringBeforeLast('.'))
         val dir = samplesDir(id)
+        SoundLibrary.findSame(dir, source)?.let { return it }
+        val safe = safeSampleName(source.name.substringBeforeLast('.'))
         var name = "$safe.wav"
         var n = 2
-        while (File(dir, name).exists()) {
-            if (SoundLibrary.sameContent(File(dir, name), source)) return name
-            name = "$safe $n.wav".also { n++ }
-        }
+        while (File(dir, name).exists()) name = "$safe $n.wav".also { n++ }
         source.copyTo(File(dir, name), overwrite = true)
         return name
     }

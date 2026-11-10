@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.studio
 
+import jxpix.proger.mps.ui.components.PanelColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -106,9 +107,14 @@ fun ChannelEditor(studio: Studio, ownerId: Int) {
     }
     val tab = if (isMaster) 1 else ui.editorTab.coerceIn(0, 2)
     val color = channel?.let { c.channel(it.color) } ?: c.accent
+    // on its side the phone has little height: title, preset and tabs share one row
+    val compact = isWideAndShort()
+    var presetSheet by remember { mutableStateOf(false) }
+    val hasPresets = channel != null && !channel.isAudio && Devices[channel.instrument.type] != null
+    val tabs = listOf(stringResource(R.string.tab_instrument), stringResource(R.string.tab_effects), stringResource(R.string.tab_channel))
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().height(48.dp).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(48.dp).padding(end = if (compact) 12.dp else 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconBtn(Ic.Back, stringResource(R.string.back), { ui.editor = null })
             if (channel != null) {
                 Box(Modifier.size(12.dp).clip(CircleShape).background(color))
@@ -118,12 +124,19 @@ fun ChannelEditor(studio: Studio, ownerId: Int) {
                 channel?.name ?: stringResource(R.string.master_effects), Modifier.weight(1f), color = c.text, fontSize = 16.sp,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
+            if (compact && channel != null) {
+                if (hasPresets && tab == 0) {
+                    Chip(
+                        presetName(channel.instrument) ?: stringResource(R.string.preset_custom), { presetSheet = true }, icon = Ic.Library,
+                        trailing = Ic.DropDown, maxWidth = 190.dp,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                Segmented(tabs, tab, { ui.editorTab = it }, Modifier.width(340.dp), equalWidth = true)
+            }
         }
-        if (channel != null) {
-            Segmented(
-                listOf(stringResource(R.string.tab_instrument), stringResource(R.string.tab_effects), stringResource(R.string.tab_channel)),
-                tab, { ui.editorTab = it }, Modifier.padding(horizontal = 12.dp).fillMaxWidth(), equalWidth = true,
-            )
+        if (channel != null && !compact) {
+            Segmented(tabs, tab, { ui.editorTab = it }, Modifier.padding(horizontal = 12.dp).fillMaxWidth(), equalWidth = true)
             Spacer(Modifier.height(8.dp))
         }
         Column(
@@ -133,7 +146,7 @@ fun ChannelEditor(studio: Studio, ownerId: Int) {
             when {
                 tab == 1 -> EffectsPage(studio, ownerId, color)
                 tab == 2 && channel != null -> ChannelPage(studio, channel)
-                channel != null -> InstrumentPage(studio, channel, color)
+                channel != null -> InstrumentPage(studio, channel, color, presetRow = !compact) { presetSheet = true }
             }
         }
         // something to play the sound with while turning the knobs
@@ -142,12 +155,15 @@ fun ChannelEditor(studio: Studio, ownerId: Int) {
             if (channel.isDrum) {
                 AuditionPad(studio, channel, color)
             } else {
-                BoxWithConstraints(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 8.dp, vertical = 6.dp)) {
+                BoxWithConstraints(Modifier.fillMaxWidth().height(if (compact) 62.dp else 76.dp).padding(horizontal = 8.dp, vertical = 6.dp)) {
                     val keys = (maxWidth / 46.dp).toInt().coerceIn(7, 22)
                     Keyboard(studio, channel, (ui.octave + 1) * 12, keys, null, 0, Modifier.fillMaxSize())
                 }
             }
         }
+    }
+    if (presetSheet && channel != null) {
+        PresetSheet(studio, channel.instrument.uid, { presetSheet = false }) { studio.preview(channel.id, channel.rootNote, millis = 350) }
     }
 }
 
@@ -159,7 +175,7 @@ private fun AuditionPad(studio: Studio, channel: Channel, color: Color) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(if (isWideAndShort()) 58.dp else 72.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(if (down) color else color.copy(alpha = 0.22f))
@@ -196,12 +212,11 @@ private fun AuditionPad(studio: Studio, channel: Channel, color: Color) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InstrumentPage(studio: Studio, channel: Channel, color: Color) {
+private fun InstrumentPage(studio: Studio, channel: Channel, color: Color, presetRow: Boolean, onPresets: () -> Unit) {
     val c = Mps.colors
     val ui = studio.ui
     val state = channel.instrument
     val type = Devices[state.type]
-    var presetSheet by remember { mutableStateOf(false) }
 
     if ("knob" !in studio.prefs.hintsSeen && !channel.isAudio) {
         HintBanner(stringResource(R.string.knob_hint), { studio.prefs.markHintSeen("knob") })
@@ -241,47 +256,28 @@ private fun InstrumentPage(studio: Studio, channel: Channel, color: Color) {
                     }
                 }
             }
+            if (presetRow) PresetRow(state, onPresets)
             DeviceParams(type, state, color, onParam, onEnd, skip = setOf("type"))
         }
         else -> {
-            if (state.type == Devices.SYNTH.id) {
-                val preset = Presets.find(state.type, state.preset)
-                Panel(null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.preset), Modifier.weight(1f), color = c.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Chip(
-                            preset?.let { stringResource(it.nameRes) } ?: stringResource(R.string.preset_custom), { presetSheet = true },
-                            icon = Ic.Library, trailing = Ic.DropDown, maxWidth = 220.dp,
-                        )
-                    }
-                }
-            } else if (state.type == Devices.SAMPLER.id) {
-                SamplePanel(studio, channel, color)
-            }
-            DeviceParams(type, state, color, onParam, onEnd)
+            if (presetRow) PresetRow(state, onPresets)
+            // the sound file of a sampler sits among the knob panels, so that it gets a column of its own on a wide screen
+            val before: List<@Composable () -> Unit> =
+                if (state.type == Devices.SAMPLER.id) listOf({ SamplePanel(studio, channel, color) }) else emptyList()
+            DeviceParams(type, state, color, onParam, onEnd, before = before)
         }
     }
 
-    if (presetSheet) {
-        val groups = remember { Presets.synth.groupBy { it.categoryRes } }
-        AppSheet({ presetSheet = false }, title = stringResource(R.string.preset)) {
-            for ((category, list) in groups) {
-                Text(
-                    stringResource(category), Modifier.padding(start = 20.dp, top = 10.dp), color = c.text, fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                FlowRow(
-                    Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    for (preset in list) {
-                        Chip(stringResource(preset.nameRes), {
-                            studio.edit { it.applyPreset(state.uid, preset) }
-                            studio.preview(channel.id, channel.rootNote, millis = 350)
-                        }, selected = preset.id == state.preset)
-                    }
-                }
-            }
+}
+
+/** "Preset: Deep bass" with a button that opens the list of presets. */
+@Composable
+private fun PresetRow(state: DeviceState, onOpen: () -> Unit) {
+    val c = Mps.colors
+    Panel(null) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.preset), Modifier.weight(1f), color = c.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Chip(presetName(state) ?: stringResource(R.string.preset_custom), onOpen, icon = Ic.Library, trailing = Ic.DropDown, maxWidth = 220.dp)
         }
     }
 }
@@ -297,6 +293,7 @@ private fun SamplePanel(studio: Studio, channel: Channel, color: Color) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) studio.importSample(uri, channel.id)
     }
+    var fromLibrary by remember { mutableStateOf(false) }
     Panel(stringResource(R.string.sample_file)) {
         Column {
             if (data == null) {
@@ -339,15 +336,23 @@ private fun SamplePanel(studio: Studio, channel: Channel, color: Color) {
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Chip(stringResource(if (data == null) R.string.load_file else R.string.replace_file), {
-                try {
-                    picker.launch(arrayOf("audio/*"))
-                } catch (_: Exception) {
-                    studio.message = res.getString(R.string.msg_import_failed)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip(stringResource(R.string.sounds_title), { fromLibrary = true }, icon = Ic.Library)
+                Chip(stringResource(if (data == null) R.string.load_file else R.string.replace_file), {
+                    try {
+                        picker.launch(arrayOf("audio/*"))
+                    } catch (_: Exception) {
+                        studio.message = res.getString(R.string.msg_import_failed)
+                    }
+                }, icon = Ic.Upload)
+                val sample = state.sample
+                if (data != null && sample != null) {
+                    Chip(stringResource(R.string.sound_keep), { studio.saveToLibrary(sample) }, icon = Ic.Save)
                 }
-            }, icon = Ic.Upload)
+            }
         }
     }
+    if (fromLibrary) SoundsSheet(studio, SoundTarget.Sampler(channel.id), { fromLibrary = false })
 }
 
 // ------------------------------------------------------------------------------------ effects
@@ -396,9 +401,14 @@ private fun EffectsPage(studio: Studio, ownerId: Int, color: Color) {
 private fun EffectCard(studio: Studio, ownerId: Int, fx: DeviceState, name: String, color: Color, first: Boolean, last: Boolean) {
     val c = Mps.colors
     val type = Devices[fx.type] ?: return
+    var presets by remember { mutableStateOf(false) }
+    // the name of the preset next to the name of the effect: "Reverb · Hall"
+    val title = presetName(fx)?.let { "$name · $it" } ?: name
     Panel(
-        name,
+        title,
         trailing = {
+            IconBtn(Ic.Library, stringResource(R.string.preset) + ": " + name, { presets = true }, tint = c.textDim, size = 34.dp, iconSize = 18.dp)
+            Spacer(Modifier.width(4.dp))
             IconBtn(
                 Ic.Power, stringResource(R.string.fx_bypass) + ": " + name, { studio.edit { it.updateDevice(fx.uid) { d -> d.copy(enabled = !d.enabled) } } },
                 tint = if (fx.enabled) c.onAccent else c.textDim, background = if (fx.enabled) c.accent else c.surfaceHigh, size = 34.dp, iconSize = 18.dp,
@@ -417,6 +427,7 @@ private fun EffectCard(studio: Studio, ownerId: Int, fx: DeviceState, name: Stri
             modifier = Modifier.alpha(if (fx.enabled) 1f else 0.45f), framed = false,
         )
     }
+    if (presets) PresetSheet(studio, fx.uid, { presets = false })
 }
 
 // ------------------------------------------------------------------------------------ channel
@@ -426,6 +437,9 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
     val c = Mps.colors
     var rename by remember { mutableStateOf(false) }
 
+    // on a wide screen the panels stand in two columns
+    val panels = ArrayList<@Composable () -> Unit>()
+    panels += {
     Panel(stringResource(R.string.name)) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { rename = true }.padding(vertical = 4.dp),
@@ -435,6 +449,8 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
             IconBtn(Ic.Rename, stringResource(R.string.ch_rename), { rename = true }, tint = c.textDim, size = 36.dp)
         }
     }
+    }
+    panels += {
     Panel(stringResource(R.string.ch_color)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             val label = stringResource(R.string.ch_color)
@@ -454,7 +470,9 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
             }
         }
     }
+    }
     if (!channel.isAudio) {
+        panels += {
         Panel(stringResource(R.string.instrument_type)) {
             Column {
                 val types = remember { listOf(Devices.DRUM, Devices.SYNTH, Devices.SAMPLER) }
@@ -479,6 +497,8 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
                 Text(stringResource(R.string.instrument_type_hint), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
             }
         }
+        }
+        panels += {
         Panel(stringResource(R.string.step_note)) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -499,6 +519,8 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
                 Text(stringResource(R.string.step_note_hint), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
             }
         }
+        }
+        panels += {
         Panel(stringResource(R.string.cut_group)) {
             Column {
                 Segmented(
@@ -509,7 +531,9 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
                 Text(stringResource(R.string.cut_group_hint), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
             }
         }
+        }
     }
+    PanelColumns(panels)
     if (rename) {
         TextInputDialog(
             stringResource(R.string.ch_rename), channel.name,

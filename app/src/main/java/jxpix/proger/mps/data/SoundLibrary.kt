@@ -61,6 +61,22 @@ class SoundLibrary(private val dir: File) {
         return name
     }
 
+    /**
+     * Copies a WAV file (a sound of a project) into the library and returns its name there.
+     * A sound that is already in the library under the same title is not stored twice.
+     */
+    @Throws(IOException::class)
+    fun adopt(source: File): String {
+        dir.mkdirs()
+        findSame(dir, source)?.let { return it }
+        val safe = ProjectStore.safeSampleName(source.name.substringBeforeLast('.'))
+        var name = "$safe.wav"
+        var n = 2
+        while (File(dir, name).exists()) name = "$safe $n.wav".also { n++ }
+        source.copyTo(File(dir, name), overwrite = true)
+        return name
+    }
+
     fun load(name: String): SampleData? = try {
         val f = file(name)
         if (f.isFile) Wav.read(f) else null
@@ -85,6 +101,15 @@ class SoundLibrary(private val dir: File) {
     fun fileOf(name: String): File = file(name)
 
     companion object {
+        /** Name of a file in [dir] that holds exactly the same audio as [source], whatever it is called. */
+        fun findSame(dir: File, source: File): String? {
+            val size = source.length()
+            val candidates = dir.listFiles { f -> f.isFile && f.length() == size && f.name.endsWith(".wav", ignoreCase = true) } ?: return null
+            if (candidates.isEmpty()) return null
+            val wanted = checksum(source)
+            return candidates.sortedBy { it.name }.firstOrNull { checksum(it) == wanted }?.name
+        }
+
         /** True when two files hold exactly the same bytes. */
         fun sameContent(a: File, b: File): Boolean {
             if (!a.isFile || !b.isFile || a.length() != b.length()) return false

@@ -78,6 +78,9 @@ object Fmt {
         return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
     }
 
+    /** Length of a sound: short ones in seconds with a decimal ("0.4 s"), long ones as minutes ("1:15"). */
+    fun soundLength(seconds: Float): String = if (seconds < 10f) num(seconds, 1) + " s" else time(seconds)
+
     /** Megabytes with one decimal below ten: 1.4, 21. */
     fun megabytes(bytes: Double): String {
         val mb = bytes / (1024.0 * 1024.0)

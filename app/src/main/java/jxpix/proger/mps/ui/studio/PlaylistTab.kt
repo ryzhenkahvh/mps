@@ -134,6 +134,7 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     var patternSheet by remember { mutableStateOf(false) }
     var audioSheet by remember { mutableStateOf(false) }
     var moreSheet by remember { mutableStateOf(false) }
+    var soundsSheet by remember { mutableStateOf(false) }
     val selected = p.clip(ui.selectedClip)
     val res = LocalResources.current
 
@@ -205,8 +206,13 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
                     studio.message = res.getString(R.string.msg_import_failed)
                 }
             }, icon = Ic.AudioFile)
+            SheetItem(stringResource(R.string.sounds_title), {
+                audioSheet = false
+                soundsSheet = true
+            }, icon = Ic.Library, description = stringResource(R.string.sounds_playlist_desc))
         }
     }
+    if (soundsSheet) SoundsSheet(studio, SoundTarget.Playlist) { soundsSheet = false }
     if (moreSheet) {
         val view = ui.playlist
         AppSheet({ moreSheet = false }, title = stringResource(R.string.tab_playlist)) {
@@ -287,6 +293,10 @@ private fun ClipBar(studio: Studio, clip: Clip) {
                     studio.selectPattern(clip.patternId)
                     ui.tab = Tab.RACK
                 }, size = 42.dp)
+            } else {
+                // a recording worth keeping goes to "My sounds", where every project can use it
+                val sample = clip.sample
+                if (sample != null) IconBtn(Ic.Save, stringResource(R.string.sound_keep), { studio.saveToLibrary(sample) }, size = 42.dp)
             }
             IconBtn(Ic.Copy, stringResource(R.string.duplicate), {
                 var id = 0

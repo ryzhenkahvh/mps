@@ -1,5 +1,12 @@
 package jxpix.proger.mps.studio
 
+import jxpix.proger.mps.model.DeviceState
+import jxpix.proger.mps.model.applyParams
+import jxpix.proger.mps.model.USER_PRESET_PREFIX
+import jxpix.proger.mps.data.UserPreset
+import jxpix.proger.mps.data.PresetStore
+import jxpix.proger.mps.data.SoundInfo
+import jxpix.proger.mps.data.SoundLibrary
 import jxpix.proger.mps.model.trackForNewAudio
 import jxpix.proger.mps.model.MAX_CHANNELS
 import kotlin.math.min
@@ -104,6 +111,8 @@ class Studio(context: Context) {
 
     val prefs = Prefs(app)
     val store = ProjectStore(app)
+    val library = SoundLibrary(app)
+    val presetStore = PresetStore(app)
     val samples = SamplePool()
     val output = AudioOutput(app)
     val engine = Engine(output.sampleRate)
@@ -149,6 +158,19 @@ class Studio(context: Context) {
     var canUndo by mutableStateOf(false)
         private set
     var canRedo by mutableStateOf(false)
+        private set
+
+    /** "My sounds": the user's own collection of audio, shared by all projects. */
+    var sounds by mutableStateOf<List<SoundInfo>>(emptyList())
+        private set
+
+    /** The sound of the library that is playing right now (its file name), or null. */
+    var previewingSound by mutableStateOf<String?>(null)
+        private set
+    private var previewLoaded = false
+
+    /** The user's own presets, by device type id. */
+    var userPresets by mutableStateOf<Map<String, List<UserPreset>>>(emptyMap())
         private set
 
     /** One-line message for the snackbar. */
@@ -198,6 +220,11 @@ class Studio(context: Context) {
         output.onFocusLost = { main.post { if (playing) pause() } }
         engine.metronome = prefs.metronome
         refreshProjects()
+        scope.launch {
+            val loaded = withContext(Dispatchers.IO) { library.list() to presetStore.loadAll() }
+            sounds = loaded.first
+            userPresets = loaded.second
+        }
     }
 
     /** Call when the app comes to the foreground. */
@@ -597,6 +624,11 @@ class Studio(context: Context) {
             animating = true
         } else if (inputLevel.floatValue != 0f) inputLevel.floatValue = 0f
 
+        // a sound of the library that has played to its end
+        if (previewingSound != null) {
+            if (previewLoaded && !engine.auditioning) previewingSound = null else animating = true
+        }
+
         if (animating || loud) {
             frame.longValue++
             return true
@@ -925,7 +957,12 @@ class Studio(context: Context) {
 
     /** Imports an audio file and puts it into the playlist at the play head, on a free track. */
     fun importToPlaylist(uri: Uri) {
-        importAudio(uri) { name, data ->
+        importAudio(uri) { name, data -> placeAudio(name, data) }
+    }
+
+    /** Puts audio that is already in the project into the playlist at the play head. */
+    private fun placeAudio(name: String, data: SampleData) {
+        run {
             var clipId = 0
             var clipTrack = 0
             edit { p0 ->
@@ -949,6 +986,195 @@ class Studio(context: Context) {
             ui.selectedClip = clipId
             ui.revealTrack = clipTrack
         }
+    }
+
+    // ------------------------------------------------------------------------ my sounds
+
+    /** Adds audio files from the phone to "My sounds". */
+    fun importSounds(uris: List<Uri>) {
+        if (uris.isEmpty() || busy != null) return
+        busy = -1f
+        busyText = strings(R.string.busy_importing)
+        scope.launch {
+            var failed = 0
+            val list = withContext(Dispatchers.IO) {
+                for (uri in uris) {
+                    try {
+                        library.add(displayName(uri), AudioDecoder.decode(app, uri))
+                    } catch (e: Exception) {
+                        failed++
+                    }
+                }
+                library.list()
+            }
+            busy = null
+            sounds = list
+            message = when {
+                failed == 0 -> strings(R.string.msg_sounds_added)
+                failed == uris.size -> strings(R.string.msg_import_failed)
+                else -> String.format(Locale.ROOT, strings(R.string.msg_sounds_some_failed), failed)
+            }
+        }
+    }
+
+    fun renameSound(file: String, title: String) {
+        if (previewingSound == file) previewSound(null)
+        scope.launch {
+            var renamed: String? = null
+            val list = withContext(Dispatchers.IO) {
+                renamed = library.rename(file, title)
+                library.list()
+            }
+            sounds = list
+            if (renamed == null) message = strings(R.string.msg_name_taken)
+        }
+    }
+
+    fun deleteSound(file: String) {
+        if (previewingSound == file) previewSound(null)
+        scope.launch {
+            sounds = withContext(Dispatchers.IO) {
+                library.delete(file)
+                library.list()
+            }
+        }
+    }
+
+    /** Plays a sound of the library; the same sound again, or null, stops it. */
+    fun previewSound(file: String?) {
+        if (file == null || file == previewingSound) {
+            engine.audition(null)
+            previewingSound = null
+            return
+        }
+        previewingSound = file
+        previewLoaded = false
+        scope.launch {
+            val data = withContext(Dispatchers.IO) { library.load(file) }
+            if (previewingSound != file) return@launch
+            if (data == null) {
+                previewingSound = null
+                message = strings(R.string.msg_import_failed)
+            } else {
+                engine.audition(data)
+                previewLoaded = true
+            }
+        }
+    }
+
+    /** Copies a sound of the library into the open project; [onReady] gets the name to refer to it by. */
+    private fun useSound(file: String, onReady: (String, SampleData) -> Unit) {
+        val id = projectId ?: return
+        if (busy != null) return
+        previewSound(null)
+        busy = -1f
+        busyText = strings(R.string.busy_importing)
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val name = store.adoptSample(id, library.fileOf(file))
+                    val data = samples[name] ?: store.loadSample(id, name)
+                    if (data == null) null else name to data
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            busy = null
+            if (result == null || projectId != id) {
+                message = strings(R.string.msg_import_failed)
+            } else {
+                samples.put(result.first, result.second)
+                samplesChanged()
+                onReady(result.first, result.second)
+            }
+        }
+    }
+
+    /** A new sampler channel that plays the sound. */
+    fun soundToNewChannel(file: String, onCreated: (Int) -> Unit = {}) {
+        if (project.channels.size >= MAX_CHANNELS) {
+            message = strings(R.string.limit_channels)
+            return
+        }
+        val title = file.substringBeforeLast('.').take(24)
+        useSound(file) { name, _ ->
+            var created = 0
+            edit { p ->
+                val (q, id) = p.addChannel(Devices.SAMPLER.id, title)
+                val uid = q.channel(id)?.instrument?.uid ?: return@edit p
+                created = id
+                q.updateDevice(uid) { it.copy(sample = name) }
+            }
+            if (created != 0) {
+                selectChannel(created)
+                preview(created, 60)
+                onCreated(created)
+            }
+        }
+    }
+
+    /** Loads the sound into an existing sampler channel. */
+    fun soundToSampler(file: String, channelId: Int) {
+        useSound(file) { name, _ ->
+            val channel = project.channel(channelId) ?: return@useSound
+            edit { p -> p.updateDevice(channel.instrument.uid) { it.copy(sample = name) } }
+            preview(channelId, channel.instrument.params["root"]?.roundToInt() ?: 60)
+        }
+    }
+
+    /** Puts the sound into the playlist as an audio clip. */
+    fun soundToPlaylist(file: String) {
+        useSound(file) { name, data -> placeAudio(name, data) }
+    }
+
+    /** Keeps audio of the open project (a recording, a loaded file) in "My sounds" for other projects. */
+    fun saveToLibrary(sample: String) {
+        val id = projectId ?: return
+        scope.launch {
+            val list = withContext(Dispatchers.IO) {
+                try {
+                    val file = File(store.samplesDir(id), File(sample).name)
+                    if (!file.isFile) return@withContext null
+                    library.adopt(file)
+                    library.list()
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (list == null) {
+                message = strings(R.string.msg_save_failed)
+            } else {
+                sounds = list
+                message = strings(R.string.msg_sound_saved)
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------ presets
+
+    fun presetsOf(type: String): List<UserPreset> = userPresets[type] ?: emptyList()
+
+    /** Saves the current knob positions of a device under a name (replacing a preset of the same name). */
+    fun savePreset(device: DeviceState, name: String) {
+        val clean = name.trim().take(PresetStore.MAX_NAME)
+        if (clean.isEmpty()) return
+        scope.launch {
+            val list = withContext(Dispatchers.IO) { presetStore.save(device.type, UserPreset(clean, device.params)) }
+            userPresets = userPresets + (device.type to list)
+            edit { it.updateDevice(device.uid) { d -> if (d.preset == USER_PRESET_PREFIX + clean) d else d.copy(preset = USER_PRESET_PREFIX + clean) } }
+            message = strings(R.string.msg_preset_saved)
+        }
+    }
+
+    fun deletePreset(type: String, name: String) {
+        scope.launch {
+            val list = withContext(Dispatchers.IO) { presetStore.delete(type, name) }
+            userPresets = if (list.isEmpty()) userPresets - type else userPresets + (type to list)
+        }
+    }
+
+    fun applyUserPreset(uid: Int, preset: UserPreset) {
+        edit { it.applyParams(uid, preset.params, USER_PRESET_PREFIX + preset.name) }
     }
 
     private fun importAudio(uri: Uri, onReady: (String, SampleData) -> Unit) {

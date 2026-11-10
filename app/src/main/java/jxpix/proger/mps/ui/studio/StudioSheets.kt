@@ -185,6 +185,7 @@ fun MenuSheet(
     onDismiss: () -> Unit,
     onExport: () -> Unit,
     onProjectFile: () -> Unit,
+    onSounds: () -> Unit,
     onTempo: () -> Unit,
     onMaster: () -> Unit,
     onRename: () -> Unit,
@@ -198,6 +199,7 @@ fun MenuSheet(
     AppSheet(onDismiss, title = title) {
         SheetItem(stringResource(R.string.menu_export), onExport, icon = Ic.Download, description = stringResource(R.string.menu_export_desc))
         SheetItem(stringResource(R.string.project_export), onProjectFile, icon = Ic.Save, description = stringResource(R.string.project_export_desc))
+        SheetItem(stringResource(R.string.sounds_title), onSounds, icon = Ic.Library, description = stringResource(R.string.sounds_menu_desc))
         SheetItem(stringResource(R.string.menu_song_settings), onTempo, icon = Ic.Speed)
         SheetItem(stringResource(R.string.master_effects), onMaster, icon = Ic.Tune)
         SheetItem(stringResource(R.string.menu_rename), onRename, icon = Ic.Rename)
@@ -414,7 +416,15 @@ fun AddChannelSheet(studio: Studio, onDismiss: () -> Unit, onCreated: (Int) -> U
         onDismiss()
     }
 
+    var fromSounds by remember { mutableStateOf(false) }
+    if (fromSounds) {
+        SoundsSheet(studio, SoundTarget.NewChannel, onDismiss)
+        return
+    }
+
     AppSheet(onDismiss, title = stringResource(R.string.add_channel_title)) {
+        SheetItem(stringResource(R.string.sounds_title), { fromSounds = true }, icon = Ic.Library, description = stringResource(R.string.sounds_add_channel_desc))
+        SheetDivider()
         SheetLabel(stringResource(R.string.dev_drum))
         Text(stringResource(R.string.dev_drum_desc), Modifier.padding(horizontal = 20.dp), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
         FlowRow(

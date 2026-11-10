@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.components
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -155,6 +156,7 @@ fun DeviceParams(
     modifier: Modifier = Modifier,
     skip: Set<String> = emptySet(),
     framed: Boolean = true,
+    before: List<@Composable () -> Unit> = emptyList(),
 ) {
     val specs = remember(type, skip) { type.params.filter { it.id !in skip } }
     // consecutive parameters of the same group form one panel
@@ -173,8 +175,9 @@ fun DeviceParams(
         if (current.isNotEmpty()) out += group to current
         out
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        for ((group, list) in groups) {
+    val panels = ArrayList<@Composable () -> Unit>(before)
+    for ((group, list) in groups) {
+        panels += {
             val grid: @Composable () -> Unit = {
                 CellGrid(list.size) { i ->
                     val spec = list[i]
@@ -182,6 +185,30 @@ fun DeviceParams(
                 }
             }
             if (framed) Panel(if (group != 0) stringResource(group) else null) { grid() } else grid()
+        }
+    }
+    PanelColumns(panels, modifier, allowTwo = framed)
+}
+
+/**
+ * Panels one under another - or, when the screen is wide enough (a phone on its side, a tablet),
+ * in two columns, so that twice as many knobs are in view without scrolling.
+ */
+@Composable
+fun PanelColumns(panels: List<@Composable () -> Unit>, modifier: Modifier = Modifier, allowTwo: Boolean = true) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        if (allowTwo && panels.size > 1 && maxWidth >= 640.dp) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (side in 0..1) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        for (i in panels.indices) if (i % 2 == side) panels[i]()
+                    }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (panel in panels) panel()
+            }
         }
     }
 }

@@ -76,7 +76,7 @@ import jxpix.proger.mps.ui.components.TextInputDialog
 import jxpix.proger.mps.ui.theme.Mps
 import jxpix.proger.mps.ui.theme.NumberStyle
 
-private enum class Sheet { NONE, TEMPO, RECORD, MENU, EXPORT, RENAME }
+private enum class Sheet { NONE, TEMPO, RECORD, MENU, EXPORT, RENAME, SOUNDS }
 
 /** The open project: transport on top, the five workspaces below. */
 @Composable
@@ -213,6 +213,7 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
                     studio.message = saveFailed
                 }
             },
+            onSounds = { sheet = Sheet.SOUNDS },
             onTempo = { sheet = Sheet.TEMPO },
             onMaster = {
                 sheet = Sheet.NONE
@@ -230,6 +231,7 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             },
         )
         Sheet.EXPORT -> ExportSheet(studio) { sheet = Sheet.NONE }
+        Sheet.SOUNDS -> SoundsSheet(studio, SoundTarget.Browse) { sheet = Sheet.NONE }
         Sheet.RENAME -> TextInputDialog(
             stringResource(R.string.rename_project), studio.project.name,
             onConfirm = { name ->
@@ -300,6 +302,10 @@ private fun RecordingBar(studio: Studio) {
  */
 @Composable
 fun isShortScreen(): Boolean = LocalConfiguration.current.screenHeightDp < 480
+
+/** A phone on its side: wide but low. Editors merge their header rows there to win height. */
+@Composable
+fun isWideAndShort(): Boolean = with(LocalConfiguration.current) { screenHeightDp < 480 && screenWidthDp >= 640 }
 
 /** Name offered for the file of an exported project. */
 fun projectFileName(name: String): String =
