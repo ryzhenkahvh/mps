@@ -15,19 +15,31 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 
+/** The kinds of audio file a track can be exported as. */
+enum class ExportFormat(val extension: String, val mime: String) {
+    /** Uncompressed. */
+    WAV("wav", "audio/x-wav"),
+
+    /** Plays everywhere. */
+    MP3("mp3", "audio/mpeg"),
+
+    /** AAC in an MPEG-4 file. */
+    M4A("m4a", "audio/mp4"),
+}
+
 /** Saves rendered audio to the phone's Music folder and shares it with other apps. */
 object AudioExporter {
 
     const val FOLDER = "MPS"
 
-    /** Copies [file] into Music/MPS and returns its public Uri. */
+    /** Copies [file] into Music/MPS (or a folder inside it) and returns its public Uri. */
     @Throws(IOException::class)
-    fun saveToMusic(context: Context, file: File, displayName: String, mime: String): Uri {
+    fun saveToMusic(context: Context, file: File, displayName: String, mime: String, subFolder: String? = null): Uri {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, displayName)
             put(MediaStore.Audio.Media.MIME_TYPE, mime)
-            put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/" + FOLDER)
+            put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/" + FOLDER + if (subFolder != null) "/$subFolder" else "")
             put(MediaStore.Audio.Media.IS_PENDING, 1)
         }
         val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -45,15 +57,24 @@ object AudioExporter {
         return uri
     }
 
-    fun shareIntent(uri: Uri, mime: String, title: String): Intent =
-        Intent.createChooser(
-            Intent(Intent.ACTION_SEND).apply {
-                type = mime
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            },
-            title,
-        )
+    /** One file, or several at once (the separate tracks of a song). */
+    fun shareIntent(uris: List<Uri>, mime: String, title: String): Intent {
+        val send = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris[0])
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }
+        send.type = mime
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return Intent.createChooser(send, title)
+    }
+
+    fun delete(context: Context, uri: Uri) {
+        try {
+            context.contentResolver.delete(uri, null, null)
+        } catch (_: Exception) {
+        }
+    }
 
     /**
      * Compresses a 16-bit stereo WAV (as written by the offline renderer) to AAC in an .m4a file,

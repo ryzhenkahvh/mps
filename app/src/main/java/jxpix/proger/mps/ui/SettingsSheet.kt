@@ -1,5 +1,7 @@
 package jxpix.proger.mps.ui
 
+import jxpix.proger.mps.ui.components.Segmented
+import jxpix.proger.mps.data.OrientationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,7 +55,20 @@ fun SettingsSheet(studio: Studio, onDismiss: () -> Unit, onLanguageChanged: () -
     val prefs = studio.prefs
     val context = LocalContext.current
     AppSheet(onDismiss, title = stringResource(R.string.settings)) {
+        // ---- which way the phone is held
+        SheetLabel(stringResource(R.string.settings_orientation))
+        Segmented(
+            listOf(stringResource(R.string.orient_landscape), stringResource(R.string.orient_auto), stringResource(R.string.orient_portrait)),
+            prefs.orientation.ordinal, { prefs.updateOrientation(OrientationMode.entries[it]) },
+            Modifier.padding(horizontal = 20.dp, vertical = 4.dp).fillMaxWidth(), height = 40.dp, equalWidth = true,
+        )
+        Text(
+            stringResource(R.string.orient_desc), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 12.sp,
+            lineHeight = 16.sp,
+        )
+
         // ---- look
+        SheetDivider()
         SheetLabel(stringResource(R.string.settings_look))
         Option(stringResource(R.string.theme_light), prefs.theme == ThemeMode.LIGHT, Ic.Light) { prefs.updateTheme(ThemeMode.LIGHT) }
         Option(stringResource(R.string.theme_dark), prefs.theme == ThemeMode.DARK, Ic.Dark) { prefs.updateTheme(ThemeMode.DARK) }
@@ -134,6 +149,7 @@ fun SettingsSheet(studio: Studio, onDismiss: () -> Unit, onLanguageChanged: () -
             color = c.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
         )
         Text(stringResource(R.string.about_plugins), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp)
+        Text(stringResource(R.string.about_mp3), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp)
         Spacer(Modifier.size(8.dp))
     }
 }

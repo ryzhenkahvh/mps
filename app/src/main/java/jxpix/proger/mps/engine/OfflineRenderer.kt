@@ -18,6 +18,8 @@ object OfflineRenderer {
      * @param patternId when non-zero, only this pattern is rendered ([loops] times);
      *                  otherwise the whole song (playlist) is rendered.
      * @param tailSeconds extra time after the end so reverbs and delays can ring out.
+     * @param fixedTail keep the whole tail even when it is silent: files rendered one channel
+     *                  at a time (stems) must all have exactly the same length.
      * @param progress called with 0..1; return false to cancel.
      */
     fun render(
@@ -28,6 +30,7 @@ object OfflineRenderer {
         patternId: Int = 0,
         loops: Int = 1,
         tailSeconds: Double = 3.0,
+        fixedTail: Boolean = false,
         progress: (Float) -> Boolean = { true },
     ): Result? {
         val engine = Engine(sampleRate)
@@ -82,7 +85,7 @@ object OfflineRenderer {
                 tail += n
                 done += n
                 quiet = if (blockPeak < 0.0003f) quiet + n else 0
-                if (tail >= minTail && quiet > sampleRate / 5) break
+                if (!fixedTail && tail >= minTail && quiet > sampleRate / 5) break
                 if (!progress(done.toFloat() / (bodyFrames + maxTail))) return null
             }
             ok = true

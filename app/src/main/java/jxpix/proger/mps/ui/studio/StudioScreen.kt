@@ -1,5 +1,8 @@
 package jxpix.proger.mps.ui.studio
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.contentDescription
+import jxpix.proger.mps.data.ProjectStore
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -98,6 +101,12 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         }
     }
 
+    val projectFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        val id = studio.projectId
+        if (uri != null && id != null) studio.exportProjectFile(id) { context.contentResolver.openOutputStream(uri, "wt") }
+    }
+    val saveFailed = stringResource(R.string.msg_project_export_failed)
+
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         val wide = maxWidth >= 600.dp && maxWidth > maxHeight
         val roomy = maxWidth >= 400.dp
@@ -159,6 +168,14 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             studio,
             onDismiss = { sheet = Sheet.NONE },
             onExport = { sheet = Sheet.EXPORT },
+            onProjectFile = {
+                sheet = Sheet.NONE
+                try {
+                    projectFile.launch(projectFileName(studio.project.name))
+                } catch (_: Exception) {
+                    studio.message = saveFailed
+                }
+            },
             onTempo = { sheet = Sheet.TEMPO },
             onMaster = {
                 sheet = Sheet.NONE
@@ -187,6 +204,17 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         Sheet.NONE -> {}
     }
 }
+
+/**
+ * A phone on its side has very little height: rows of the rack and of the playlist
+ * are made lower there so that more of them fit.
+ */
+@Composable
+fun isShortScreen(): Boolean = LocalConfiguration.current.screenHeightDp < 480
+
+/** Name offered for the file of an exported project. */
+fun projectFileName(name: String): String =
+    name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().ifEmpty { "MPS" } + "." + ProjectStore.FILE_EXTENSION
 
 // ------------------------------------------------------------------------------------ transport
 
@@ -266,6 +294,36 @@ private fun PositionText(studio: Studio, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * Minutes and seconds: where the play head is and how long the whole track is
+ * (in pattern mode: how long the pattern is).
+ */
+@Composable
+private fun TimeText(studio: Studio, modifier: Modifier = Modifier) {
+    val c = Mps.colors
+    val text by remember(studio) {
+        derivedStateOf {
+            val p = studio.project
+            val total = if (studio.songMode) p.songEnd else studio.currentPattern?.let { p.patternLength(it) } ?: 0
+            Fmt.clock(studio.playhead.doubleValue * p.secondsPerTick) + " / " + Fmt.time((total * p.secondsPerTick).toFloat())
+        }
+    }
+    val label = stringResource(R.string.cd_time, text)
+    Text(
+        text, modifier.semantics { contentDescription = label }, color = c.textDim, fontSize = 11.sp, lineHeight = 13.sp,
+        style = NumberStyle, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
+    )
+}
+
+/** Bars and beats on top, minutes and seconds below. */
+@Composable
+private fun PositionBlock(studio: Studio, modifier: Modifier = Modifier, alignment: Alignment.Horizontal = Alignment.Start) {
+    Column(modifier, horizontalAlignment = alignment, verticalArrangement = Arrangement.Center) {
+        PositionText(studio)
+        if (!studio.countingIn) TimeText(studio)
+    }
+}
+
 @Composable
 private fun ModeSwitch(studio: Studio, onMode: (Boolean) -> Unit) {
     Segmented(
@@ -297,7 +355,7 @@ private fun TransportCompact(
                 studio.project.name, Modifier.weight(1f).padding(horizontal = 4.dp), color = c.text, fontSize = 15.sp,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
-            PositionText(studio, Modifier.padding(horizontal = 6.dp))
+            PositionBlock(studio, Modifier.padding(horizontal = 6.dp), Alignment.End)
             IconBtn(Ic.Undo, stringResource(R.string.cd_undo), { studio.undo() }, enabled = studio.canUndo, size = 40.dp)
             IconBtn(Ic.Redo, stringResource(R.string.cd_redo), { studio.redo() }, enabled = studio.canRedo, size = 40.dp)
             IconBtn(Ic.More, stringResource(R.string.cd_menu), onMenu, size = 40.dp)
@@ -337,7 +395,7 @@ private fun TransportWide(studio: Studio, onRecord: () -> Unit, onMode: (Boolean
             Spacer(Modifier.width(4.dp))
             MetronomeButton(studio)
             Spacer(Modifier.width(10.dp))
-            PositionText(studio)
+            PositionBlock(studio)
             Text(
                 studio.project.name, Modifier.weight(1f).padding(horizontal = 12.dp), color = c.text, fontSize = 15.sp,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,

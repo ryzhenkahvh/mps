@@ -85,6 +85,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 private val ROW_HEIGHT = 52.dp
+private val ROW_HEIGHT_SHORT = 44.dp
 private val SIDE_PAD = 8.dp
 private val MUTE_WIDTH = 30.dp
 private val NAME_WIDTH = 84.dp
@@ -213,7 +214,7 @@ private fun ChannelRow(
     val color = c.channel(ch.color)
     val muteLabel = stringResource(R.string.mute)
     Row(
-        Modifier.fillMaxWidth().height(ROW_HEIGHT).padding(horizontal = SIDE_PAD, vertical = 3.dp),
+        Modifier.fillMaxWidth().height(if (isShortScreen()) ROW_HEIGHT_SHORT else ROW_HEIGHT).padding(horizontal = SIDE_PAD, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // "LED": lit = the channel sounds, dark = muted

@@ -1,5 +1,9 @@
 package jxpix.proger.mps
 
+import jxpix.proger.mps.data.OrientationMode
+import androidx.compose.runtime.LaunchedEffect
+import android.content.pm.ActivityInfo
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
@@ -36,6 +40,7 @@ class MainActivity : ComponentActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
 
         val studio = studio
+        applyOrientation(studio.prefs.orientation)
         // compile the sound engine in the background while the user is still looking at the start screen
         EngineWarmup.start(studio.output.sampleRate, studio.output.framesPerBurst)
         // Texts created by the studio (names of new patterns, messages) follow the chosen language.
@@ -44,6 +49,8 @@ class MainActivity : ComponentActivity() {
         studio.strings = { textContext.getString(it) }
 
         setContent {
+            val orientation = studio.prefs.orientation
+            LaunchedEffect(orientation) { applyOrientation(orientation) }
             val dark = when (studio.prefs.theme) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
@@ -71,6 +78,20 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         // A music editor has no reason to make sound (or use the battery) in the background.
         if (!isChangingConfigurations) studio.stopAudio()
+    }
+
+    /**
+     * A studio is at its best with the phone on its side: more steps, more bars, more mixer strips
+     * fit the screen. That is how the app opens; the settings offer auto-rotation and portrait too.
+     */
+    @SuppressLint("SourceLockedOrientationActivity")
+    private fun applyOrientation(mode: OrientationMode) {
+        val wanted = when (mode) {
+            OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            OrientationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            OrientationMode.AUTO -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+        if (requestedOrientation != wanted) requestedOrientation = wanted
     }
 
     private fun localized(base: Context, language: String): Context {

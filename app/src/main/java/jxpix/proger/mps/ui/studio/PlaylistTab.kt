@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.studio
 
+import androidx.compose.ui.platform.LocalConfiguration
 import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -89,6 +90,7 @@ import kotlin.math.roundToInt
 private val HEADER_WIDTH = 30.dp
 private val RULER_HEIGHT = 26.dp
 private val TRACK_HEIGHT = 58.dp
+private val TRACK_HEIGHT_SHORT = 48.dp
 
 /** What a pattern clip shows inside: one thin lane per channel that has notes. */
 private class PatternPreview(val lanes: Int, val marks: FloatArray)
@@ -146,6 +148,17 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
                     pattern?.name ?: "—", { patternSheet = true }, Modifier.weight(1f, fill = false),
                     dot = pattern?.let { c.channel(it.color) }, trailing = Ic.DropDown, maxWidth = 170.dp,
                 )
+                if (p.clips.isNotEmpty()) {
+                    // how long the whole track is, in minutes and seconds
+                    val time = Fmt.time(p.songSeconds.toFloat())
+                    val label = stringResource(R.string.track_length, time)
+                    val roomy = LocalConfiguration.current.screenWidthDp >= 560
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (roomy) label else time, Modifier.semantics { contentDescription = label }, color = c.textDim, fontSize = 12.sp,
+                        style = NumberStyle, maxLines = 1, softWrap = false,
+                    )
+                }
             }
             Spacer(Modifier.width(6.dp))
             Chip(snapNames[ui.playlistSnap.coerceIn(0, 2)], { ui.playlistSnap = (ui.playlistSnap + 1) % 3 }, icon = Ic.Grid)
@@ -308,7 +321,7 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
     val dp = density.density
     val headerW = with(density) { HEADER_WIDTH.toPx() }
     val rulerH = with(density) { RULER_HEIGHT.toPx() }
-    val trackH = with(density) { TRACK_HEIGHT.toPx() }
+    val trackH = with(density) { (if (isShortScreen()) TRACK_HEIGHT_SHORT else TRACK_HEIGHT).toPx() }
     val ticksPerBar = p.ticksPerBar
     val res = LocalResources.current
 

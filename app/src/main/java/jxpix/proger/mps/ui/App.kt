@@ -159,13 +159,22 @@ private fun ExportDoneDialog(studio: Studio) {
         containerColor = c.bg,
         titleContentColor = c.text,
         textContentColor = c.textDim,
-        title = { Text(stringResource(R.string.export_done_title), fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-        text = { Text(stringResource(R.string.export_done_text, result.name), fontSize = 14.sp, lineHeight = 20.sp) },
+        title = {
+            Text(
+                stringResource(if (result.stems) R.string.export_done_stems_title else R.string.export_done_title), fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            val text = if (result.stems) stringResource(R.string.export_done_stems, result.uris.size, result.name)
+            else stringResource(R.string.export_done_text, result.name)
+            Text(text + "\n" + stringResource(R.string.track_length, Fmt.time(result.seconds.toFloat())), fontSize = 14.sp, lineHeight = 20.sp)
+        },
         confirmButton = {
             TextButton(onClick = {
                 studio.exportResult = null
                 try {
-                    context.startActivity(AudioExporter.shareIntent(result.uri, result.mime, shareTitle))
+                    context.startActivity(AudioExporter.shareIntent(result.uris, result.mime, shareTitle))
                 } catch (_: Exception) {
                 }
             }) { Text(shareTitle, fontWeight = FontWeight.Bold) }

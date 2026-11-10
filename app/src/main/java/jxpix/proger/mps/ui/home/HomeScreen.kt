@@ -1,5 +1,13 @@
 package jxpix.proger.mps.ui.home
 
+import jxpix.proger.mps.ui.studio.projectFileName
+import jxpix.proger.mps.ui.components.Chip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import android.text.format.DateUtils
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -68,69 +76,118 @@ import jxpix.proger.mps.ui.theme.Mps
 @Composable
 fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
     val c = Mps.colors
+    val context = LocalContext.current
     var menuFor by remember { mutableStateOf<ProjectInfo?>(null) }
     var renameFor by remember { mutableStateOf<ProjectInfo?>(null) }
     var deleteFor by remember { mutableStateOf<ProjectInfo?>(null) }
     var opening by remember { mutableStateOf(false) }
+    // the project whose file is being saved; survives the trip to the system file picker
+    var exportId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val templates = remember { ProjectFactory.templates.filter { it.id != ProjectFactory.DEMO_ID } }
     val demo = remember { ProjectFactory.template(ProjectFactory.DEMO_ID) }
     val projects = studio.projects
 
-    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(Modifier.fillMaxSize().widthIn(max = 720.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
-            item(key = "header") {
-                Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Ic.Logo, "MPS", Modifier.size(width = 96.dp, height = 34.dp), tint = c.text)
-                    Spacer(Modifier.weight(1f))
-                    IconBtn(Ic.Help, stringResource(R.string.help), onHelp, tint = c.textDim)
-                    IconBtn(Ic.Settings, stringResource(R.string.settings), onSettings, tint = c.textDim)
-                }
-                Text(
-                    stringResource(R.string.app_tagline), Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp), color = c.textDim,
-                    fontSize = 13.sp,
-                )
-            }
-            item(key = "start") { SectionTitle(stringResource(R.string.home_start)) }
-            item(key = "templates") {
-                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(templates, key = { it.id }) { t ->
-                        TemplateCard(t, enabled = !opening) {
-                            opening = true
-                            studio.createProject(t.id) { opening = false }
-                        }
-                    }
-                }
-            }
-            if (demo != null) {
-                item(key = "demo") {
-                    DemoCard(demo, enabled = !opening) {
-                        opening = true
-                        studio.createProject(demo.id) { opening = false }
-                    }
+    val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) studio.importProjectFile({ context.contentResolver.openInputStream(uri) })
+    }
+    val exportFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        val id = exportId
+        exportId = null
+        if (uri != null && id != null) studio.exportProjectFile(id) { context.contentResolver.openOutputStream(uri, "wt") }
+    }
+    val importFailed = stringResource(R.string.msg_project_import_failed)
+    val exportFailed = stringResource(R.string.msg_project_export_failed)
+
+    val header: @Composable () -> Unit = {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Ic.Logo, "MPS", Modifier.size(width = 96.dp, height = 34.dp), tint = c.text)
+            Spacer(Modifier.weight(1f))
+            IconBtn(Ic.Help, stringResource(R.string.help), onHelp, tint = c.textDim)
+            IconBtn(Ic.Settings, stringResource(R.string.settings), onSettings, tint = c.textDim)
+        }
+        Text(
+            stringResource(R.string.app_tagline), Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp), color = c.textDim,
+            fontSize = 13.sp,
+        )
+    }
+    val templateRow: @Composable () -> Unit = {
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(templates, key = { it.id }) { t ->
+                TemplateCard(t, enabled = !opening) {
+                    opening = true
+                    studio.createProject(t.id) { opening = false }
                 }
             }
-            item(key = "projects") { SectionTitle(stringResource(R.string.home_projects)) }
-            if (projects.isEmpty()) {
-                item(key = "empty") {
-                    Text(
-                        stringResource(R.string.home_empty), Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp),
-                        color = c.textDim, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
-                    )
+        }
+    }
+    val demoCard: @Composable () -> Unit = {
+        if (demo != null) {
+            DemoCard(demo, enabled = !opening) {
+                opening = true
+                studio.createProject(demo.id) { opening = false }
+            }
+        }
+    }
+    /** "My projects" with the button that opens a project file. */
+    val projectsTitle: @Composable () -> Unit = {
+        Row(Modifier.fillMaxWidth().padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { SectionTitle(stringResource(R.string.home_projects)) }
+            Chip(stringResource(R.string.project_import), {
+                try {
+                    importFile.launch(arrayOf("*/*"))
+                } catch (_: Exception) {
+                    studio.message = importFailed
                 }
-            } else {
-                items(projects, key = { it.id }) { info ->
-                    ProjectRow(
-                        info,
-                        onOpen = {
-                            if (!opening) {
-                                opening = true
-                                studio.openProject(info.id) { opening = false }
-                            }
-                        },
-                        onMenu = { menuFor = info },
-                    )
+            }, Modifier.padding(top = 12.dp), icon = Ic.Folder)
+        }
+    }
+    val emptyNote: @Composable () -> Unit = {
+        Text(
+            stringResource(R.string.home_empty), Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp),
+            color = c.textDim, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
+        )
+    }
+    val projectRow: @Composable (ProjectInfo) -> Unit = { info ->
+        ProjectRow(
+            info,
+            onOpen = {
+                if (!opening) {
+                    opening = true
+                    studio.openProject(info.id) { opening = false }
                 }
+            },
+            onMenu = { menuFor = info },
+        )
+    }
+
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.TopCenter) {
+        val wide = maxWidth >= 640.dp && maxWidth > maxHeight
+        if (wide) {
+            // on its side: new tracks on the left, saved projects on the right
+            Row(Modifier.fillMaxSize()) {
+                LazyColumn(Modifier.weight(0.47f).fillMaxHeight(), contentPadding = PaddingValues(bottom = 24.dp)) {
+                    item(key = "header") { header() }
+                    item(key = "start") { SectionTitle(stringResource(R.string.home_start)) }
+                    item(key = "templates") { templateRow() }
+                    item(key = "demo") { demoCard() }
+                }
+                Box(Modifier.width(1.dp).fillMaxHeight().background(c.line))
+                LazyColumn(Modifier.weight(0.53f).fillMaxHeight(), contentPadding = PaddingValues(bottom = 24.dp)) {
+                    item(key = "projects") { projectsTitle() }
+                    if (projects.isEmpty()) item(key = "empty") { emptyNote() }
+                    else items(projects, key = { it.id }) { info -> projectRow(info) }
+                }
+            }
+        } else {
+            LazyColumn(Modifier.fillMaxSize().widthIn(max = 720.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
+                item(key = "header") { header() }
+                item(key = "start") { SectionTitle(stringResource(R.string.home_start)) }
+                item(key = "templates") { templateRow() }
+                item(key = "demo") { demoCard() }
+                item(key = "projects") { projectsTitle() }
+                if (projects.isEmpty()) item(key = "empty") { emptyNote() }
+                else items(projects, key = { it.id }) { info -> projectRow(info) }
             }
         }
     }
@@ -149,6 +206,16 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             SheetItem(stringResource(R.string.duplicate), icon = Ic.Copy, onClick = {
                 menuFor = null
                 studio.duplicateProject(info.id, copyName)
+            })
+            SheetItem(stringResource(R.string.project_export), icon = Ic.Save, description = stringResource(R.string.project_export_desc), onClick = {
+                menuFor = null
+                exportId = info.id
+                try {
+                    exportFile.launch(projectFileName(info.name))
+                } catch (_: Exception) {
+                    exportId = null
+                    studio.message = exportFailed
+                }
             })
             SheetItem(stringResource(R.string.delete), icon = Ic.Delete, danger = true, onClick = {
                 menuFor = null

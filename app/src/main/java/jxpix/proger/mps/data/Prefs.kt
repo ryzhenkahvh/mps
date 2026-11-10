@@ -6,9 +6,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import jxpix.proger.mps.audio.ExportFormat
 import jxpix.proger.mps.audio.LatencyProfile
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/** Which way the screen is held: on its side (the most room for the grids), any way, or upright. */
+enum class OrientationMode { LANDSCAPE, AUTO, PORTRAIT }
 
 /** Small persistent settings, exposed as observable state for the UI. */
 class Prefs(context: Context) {
@@ -26,6 +30,15 @@ class Prefs(context: Context) {
         private set
 
     var latency by mutableStateOf(enumOf("latency", LatencyProfile.AUTO))
+        private set
+
+    var orientation by mutableStateOf(enumOf("orientation", OrientationMode.LANDSCAPE))
+        private set
+
+    /** The choices of the last export, offered again next time. */
+    var exportFormat by mutableStateOf(enumOf("exportFormat", ExportFormat.WAV))
+        private set
+    var exportKbps by mutableIntStateOf(sp.getInt("exportKbps", 192))
         private set
 
     /** "" = follow the system, otherwise a language tag such as "ru". */
@@ -56,6 +69,12 @@ class Prefs(context: Context) {
         private set
 
     fun updateTheme(value: ThemeMode) { theme = value; sp.edit().putString("theme", value.name).apply() }
+    fun updateOrientation(value: OrientationMode) { orientation = value; sp.edit().putString("orientation", value.name).apply() }
+    fun updateExport(format: ExportFormat, kbps: Int) {
+        exportFormat = format
+        exportKbps = kbps
+        sp.edit().putString("exportFormat", format.name).putInt("exportKbps", kbps).apply()
+    }
     fun updateLatency(value: LatencyProfile) { latency = value; sp.edit().putString("latency", value.name).apply() }
     /** Written synchronously: the activity is recreated right after and reads the value back at once. */
     @SuppressLint("ApplySharedPref")

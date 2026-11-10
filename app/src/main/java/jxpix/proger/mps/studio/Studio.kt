@@ -1,5 +1,15 @@
 package jxpix.proger.mps.studio
 
+import jxpix.proger.mps.model.usedSamples
+import jxpix.proger.mps.model.stemOf
+import jxpix.proger.mps.model.audibleChannels
+import jxpix.proger.mps.audio.Mp3Encoder
+import jxpix.proger.mps.audio.ExportFormat
+import kotlinx.coroutines.CoroutineStart
+import java.util.Locale
+import java.io.OutputStream
+import java.io.InputStream
+import java.io.IOException
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
@@ -55,7 +65,18 @@ import kotlin.math.roundToInt
 
 enum class RecordMode { NONE, NOTES, AUDIO }
 
-class ExportResult(val uri: Uri, val name: String, val mime: String, val seconds: Double)
+/** What the user asked for in the export sheet. */
+class ExportOptions(
+    val format: ExportFormat = ExportFormat.WAV,
+    /** One WAV file per channel instead of the finished mix. */
+    val stems: Boolean = false,
+    val mp3Kbps: Int = 192,
+)
+
+/**
+ * @param name the file name - or, for separate tracks, the name of the folder they are in.
+ */
+class ExportResult(val uris: List<Uri>, val name: String, val mime: String, val seconds: Double, val stems: Boolean = false)
 
 /** Level meter of one mixer strip; updated once per frame, read while drawing. */
 class Meter {
@@ -263,7 +284,7 @@ class Studio(context: Context) {
         saveNow()
         val id = projectId
         if (id != null) {
-            val used = usedSamples(project)
+            val used = project.usedSamples()
             // files that only the undo history still points to are not needed any more
             scope.launch(Dispatchers.IO) { store.pruneSamples(id, used) }
         }
@@ -298,15 +319,8 @@ class Studio(context: Context) {
         }
     }
 
-    private fun usedSamples(p: Project): Set<String> {
-        val out = HashSet<String>()
-        for (c in p.channels) c.instrument.sample?.let { out += it }
-        for (c in p.clips) c.sample?.let { out += it }
-        return out
-    }
-
     private fun loadSamples(id: String, p: Project) {
-        val names = usedSamples(p)
+        val names = p.usedSamples()
         if (names.isEmpty()) return
         loadingSamples = names.size
         for (name in names) {
@@ -906,13 +920,20 @@ class Studio(context: Context) {
 
     // ------------------------------------------------------------------------ export
 
+    @Volatile
     private var exportJob: Job? = null
+
+    /** Sample rate of exported files: the phone's own rate when it is a standard one. */
+    private fun exportRate(): Int = engine.sampleRate.let { if (it == 44100 || it == 48000) it else 48000 }
+
+    private fun safeFileName(name: String, fallback: String = "MPS"): String =
+        name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trim('.').take(60).ifEmpty { fallback }
 
     /**
      * Renders the song (or, when the playlist is empty, the current pattern four times)
-     * and saves it to Music/MPS.
+     * and saves it to Music/MPS: as one file, or as one WAV per channel.
      */
-    fun export(aac: Boolean) {
+    fun export(options: ExportOptions) {
         if (busy != null) return
         if (playing) stop()
         val p = project
@@ -924,47 +945,167 @@ class Studio(context: Context) {
         }
         busy = 0f
         busyText = strings(R.string.busy_exporting)
-        val rate = engine.sampleRate
-        val safeName = p.name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().ifEmpty { "MPS" }
-        exportJob = scope.launch {
-            var cancelled = false
-            val result = withContext(Dispatchers.Default) {
-                val wav = File(app.cacheDir, "export.wav")
-                val m4a = File(app.cacheDir, "export.m4a")
+        val rate = exportRate()
+        val patternId = if (usePattern) pattern!!.id else 0
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            var result: ExportResult? = null
+            var failed = false
+            try {
+                result = withContext(Dispatchers.Default) {
+                    try {
+                        if (options.stems) exportStems(p, patternId, rate) else exportMix(p, patternId, rate, options)
+                    } catch (e: Exception) {
+                        failed = true
+                        null
+                    }
+                }
+            } finally {
+                // also reached when the user cancels: the dialog must always go away
+                busy = null
+                if (result != null) exportResult = result
+                else if (failed || exportJob?.isCancelled != true) message = strings(R.string.msg_export_failed)
+            }
+        }
+        exportJob = job
+        job.start()
+    }
+
+    private fun exporting(): Boolean = exportJob?.isActive == true
+
+    /** Runs on a background thread. Returns null when cancelled. */
+    private fun exportMix(p: Project, patternId: Int, rate: Int, options: ExportOptions): ExportResult? {
+        val wav = File(app.cacheDir, "export.wav")
+        val packed = File(app.cacheDir, "export." + options.format.extension + ".tmp")
+        try {
+            val format = options.format
+            // rendering is most of the work; packing gets the rest of the progress bar
+            val share = if (format == ExportFormat.WAV) 1f else 0.6f
+            val rendered = OfflineRenderer.render(p, samples, wav, rate, patternId = patternId, loops = 4) { progress ->
+                reportProgress(progress * share)
+                exporting()
+            } ?: return null
+            val file = when (format) {
+                ExportFormat.WAV -> wav
+                ExportFormat.MP3 -> {
+                    val done = Mp3Encoder.encode(wav, packed, rate, kbps = options.mp3Kbps, title = p.name) { progress ->
+                        reportProgress(share + (1f - share) * progress)
+                        exporting()
+                    }
+                    if (!done) return null
+                    packed
+                }
+                ExportFormat.M4A -> {
+                    val done = AudioExporter.encodeAac(wav, packed, rate) { progress ->
+                        reportProgress(share + (1f - share) * progress)
+                        exporting()
+                    }
+                    if (!done) {
+                        if (exporting()) throw IOException("AAC encoder failed")
+                        return null
+                    }
+                    packed
+                }
+            }
+            val name = safeFileName(p.name) + "." + format.extension
+            val uri = AudioExporter.saveToMusic(app, file, name, format.mime)
+            return ExportResult(listOf(uri), name, format.mime, rendered.seconds)
+        } finally {
+            wav.delete()
+            packed.delete()
+        }
+    }
+
+    /**
+     * One WAV per audible channel, all of the same length, in a folder of their own.
+     * Runs on a background thread. Returns null when cancelled.
+     */
+    private fun exportStems(p: Project, patternId: Int, rate: Int): ExportResult? {
+        val channels = p.audibleChannels()
+        if (channels.isEmpty()) throw IOException("Nothing is audible")
+        val folder = safeFileName(p.name) + " " + strings(R.string.stems_folder)
+        val wav = File(app.cacheDir, "stem.wav")
+        val uris = ArrayList<Uri>()
+        var seconds = 0.0
+        var ok = false
+        try {
+            for ((i, channel) in channels.withIndex()) {
+                val rendered = OfflineRenderer.render(
+                    p.stemOf(channel.id), samples, wav, rate, patternId = patternId, loops = 4, tailSeconds = STEM_TAIL_SECONDS,
+                    fixedTail = true,
+                ) { progress ->
+                    reportProgress((i + progress) / channels.size)
+                    exporting()
+                } ?: return null
+                seconds = rendered.seconds
+                // a channel that plays nothing in this song gets no file
+                if (rendered.peak < 0.0005f) continue
+                val name = String.format(Locale.ROOT, "%02d ", uris.size + 1) + safeFileName(channel.name, "Track") + ".wav"
+                uris += AudioExporter.saveToMusic(app, wav, name, ExportFormat.WAV.mime, subFolder = folder)
+            }
+            if (uris.isEmpty()) throw IOException("Every channel is silent")
+            ok = true
+            return ExportResult(uris, folder, ExportFormat.WAV.mime, seconds, stems = true)
+        } finally {
+            wav.delete()
+            // half a set of tracks is of no use to anyone
+            if (!ok) for (uri in uris) AudioExporter.delete(app, uri)
+        }
+    }
+
+    // ------------------------------------------------------------------------ project files
+
+    /**
+     * Saves a project with all its audio into one file (see [ProjectStore.exportTo]).
+     *
+     * @param open opens the file the user picked; called on a background thread.
+     */
+    fun exportProjectFile(id: String, open: () -> OutputStream?) {
+        if (busy != null) return
+        if (id == projectId) saveNow()
+        busy = -1f
+        busyText = strings(R.string.busy_project_saving)
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
                 try {
-                    val rendered = OfflineRenderer.render(
-                        p, samples, wav, rate,
-                        patternId = if (usePattern) pattern!!.id else 0, loops = 4,
-                    ) { progress ->
-                        reportProgress(progress * if (aac) 0.7f else 1f)
-                        exportJob?.isActive == true
-                    }
-                    if (rendered == null) {
-                        cancelled = exportJob?.isActive != true
-                        return@withContext null
-                    }
-                    if (aac) {
-                        val ok = AudioExporter.encodeAac(wav, m4a, rate) { progress ->
-                            reportProgress(0.7f + 0.3f * progress)
-                            exportJob?.isActive == true
-                        }
-                        if (!ok) return@withContext null
-                        val uri = AudioExporter.saveToMusic(app, m4a, "$safeName.m4a", "audio/mp4")
-                        ExportResult(uri, "$safeName.m4a", "audio/mp4", rendered.seconds)
-                    } else {
-                        val uri = AudioExporter.saveToMusic(app, wav, "$safeName.wav", "audio/x-wav")
-                        ExportResult(uri, "$safeName.wav", "audio/x-wav", rendered.seconds)
-                    }
+                    val out = open() ?: return@withContext false
+                    out.use { store.exportTo(id, it) }
+                    true
                 } catch (e: Exception) {
-                    null
-                } finally {
-                    wav.delete()
-                    m4a.delete()
+                    false
                 }
             }
             busy = null
-            if (result != null) exportResult = result
-            else if (!cancelled) message = strings(R.string.msg_export_failed)
+            message = strings(if (ok) R.string.msg_project_exported else R.string.msg_project_export_failed)
+        }
+    }
+
+    /** Adds a project saved with [exportProjectFile] to the list. [onReady] gets its id, or null. */
+    fun importProjectFile(open: () -> InputStream?, onReady: (String?) -> Unit = {}) {
+        if (busy != null) return
+        busy = -1f
+        busyText = strings(R.string.busy_project_opening)
+        val taken = projects.map { it.name }.toSet()
+        scope.launch {
+            val id = withContext(Dispatchers.IO) {
+                try {
+                    val input = open() ?: return@withContext null
+                    input.use { stream ->
+                        store.importFrom(stream) { name ->
+                            if (name !in taken) name else generateSequence(2) { it + 1 }.map { "$name $it" }.first { it !in taken }
+                        }
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            busy = null
+            if (id == null) {
+                message = strings(R.string.msg_project_import_failed)
+            } else {
+                projects = withContext(Dispatchers.IO) { store.list() }
+                message = strings(R.string.msg_project_imported)
+            }
+            onReady(id)
         }
     }
 
@@ -1008,5 +1149,8 @@ class Studio(context: Context) {
 
         /** Typical delay between touching the glass and the app hearing about it. */
         const val TOUCH_LATENCY_MS = 25f
+
+        /** Room for echoes after the end of every separately exported track. */
+        const val STEM_TAIL_SECONDS = 2.0
     }
 }

@@ -178,6 +178,9 @@ data class Project(
     val songBars: Int get() = (songEnd + ticksPerBar - 1) / ticksPerBar
 
     val secondsPerTick: Double get() = 60.0 / (bpm * PPQ)
+
+    /** Length of the whole track (to the end of the last clip), in seconds. */
+    val songSeconds: Double get() = songEnd * secondsPerTick
 }
 
 /** Id used to address the master strip wherever a channel id is expected. */

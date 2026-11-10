@@ -72,6 +72,18 @@ object Fmt {
         }
     }
 
+    /** Where the play head is: 75.9 -> "1:15" (a second is shown once it has fully passed). */
+    fun clock(seconds: Double): String {
+        val total = seconds.coerceAtLeast(0.0).toInt()
+        return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
+    }
+
+    /** Megabytes with one decimal below ten: 1.4, 21. */
+    fun megabytes(bytes: Double): String {
+        val mb = bytes / (1024.0 * 1024.0)
+        return if (mb < 9.95) num(mb.toFloat().coerceAtLeast(0.1f), 1) else mb.roundToInt().toString()
+    }
+
     /** 75.3 -> "1:15". */
     fun time(seconds: Float): String {
         val total = seconds.coerceAtLeast(0f).roundToInt()

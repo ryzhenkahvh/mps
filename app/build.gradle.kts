@@ -37,6 +37,10 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        // plain JVM tests may run code that writes to the Android log
+        unitTests.isReturnDefaultValues = true
+    }
     androidResources {
         // the app is translated into these languages; texts of libraries in other languages are left out
         localeFilters += listOf("en", "ru")
@@ -62,6 +66,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    // MP3 export: a Java port of the LAME encoder (LGPL 2.1), used as an unmodified library
+    implementation(libs.jump3r)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

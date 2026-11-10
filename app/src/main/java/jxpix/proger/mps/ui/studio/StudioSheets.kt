@@ -1,5 +1,10 @@
 package jxpix.proger.mps.ui.studio
 
+import androidx.compose.runtime.mutableIntStateOf
+import jxpix.proger.mps.model.audibleChannels
+import jxpix.proger.mps.studio.ExportOptions
+import jxpix.proger.mps.audio.Mp3Encoder
+import jxpix.proger.mps.audio.ExportFormat
 import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -179,6 +184,7 @@ fun MenuSheet(
     studio: Studio,
     onDismiss: () -> Unit,
     onExport: () -> Unit,
+    onProjectFile: () -> Unit,
     onTempo: () -> Unit,
     onMaster: () -> Unit,
     onRename: () -> Unit,
@@ -186,8 +192,12 @@ fun MenuSheet(
     onHelp: () -> Unit,
 ) {
     val c = Mps.colors
-    AppSheet(onDismiss, title = studio.project.name) {
-        SheetItem(stringResource(R.string.menu_export), onExport, icon = Ic.Download)
+    val p = studio.project
+    // the name of the track with its length, when there is something in the playlist
+    val title = if (p.clips.isEmpty()) p.name else p.name + " · " + Fmt.time(p.songSeconds.toFloat())
+    AppSheet(onDismiss, title = title) {
+        SheetItem(stringResource(R.string.menu_export), onExport, icon = Ic.Download, description = stringResource(R.string.menu_export_desc))
+        SheetItem(stringResource(R.string.project_export), onProjectFile, icon = Ic.Save, description = stringResource(R.string.project_export_desc))
         SheetItem(stringResource(R.string.menu_song_settings), onTempo, icon = Ic.Speed)
         SheetItem(stringResource(R.string.master_effects), onMaster, icon = Ic.Tune)
         SheetItem(stringResource(R.string.menu_rename), onRename, icon = Ic.Rename)
@@ -204,22 +214,88 @@ fun MenuSheet(
     }
 }
 
+/**
+ * Export: the finished mix as WAV, MP3 or M4A - or every channel as a WAV of its own,
+ * for mixing in another program.
+ */
 @Composable
 fun ExportSheet(studio: Studio, onDismiss: () -> Unit) {
     val c = Mps.colors
+    val p = studio.project
+    val prefs = studio.prefs
+    var stems by remember { mutableStateOf(false) }
+    var format by remember { mutableStateOf(prefs.exportFormat) }
+    var kbps by remember { mutableIntStateOf(prefs.exportKbps.takeIf { it in Mp3Encoder.BIT_RATES } ?: 192) }
+
+    // what will be rendered: the playlist, or four rounds of the pattern when the playlist is empty
+    val wholeSong = p.clips.isNotEmpty()
+    val seconds = if (wholeSong) p.songSeconds else (studio.currentPattern?.let { p.patternLength(it) } ?: 0) * 4 * p.secondsPerTick
+    val channels = remember(p.channels) { p.audibleChannels().size }
+    val wavBytes = seconds * 48000.0 * 4.0
+    val bytes = when {
+        stems -> wavBytes * channels
+        format == ExportFormat.WAV -> wavBytes
+        format == ExportFormat.MP3 -> seconds * kbps * 125.0
+        else -> seconds * 256 * 125.0
+    }
+
     AppSheet(onDismiss, title = stringResource(R.string.export_title)) {
         Text(
-            stringResource(if (studio.project.clips.isEmpty()) R.string.export_pattern else R.string.export_song),
-            Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp,
+            stringResource(if (wholeSong) R.string.export_song else R.string.export_pattern),
+            Modifier.padding(horizontal = 20.dp, vertical = 2.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp,
         )
-        SheetItem(stringResource(R.string.export_wav), {
-            onDismiss()
-            studio.export(aac = false)
-        }, icon = Ic.Wave, description = stringResource(R.string.export_wav_desc))
-        SheetItem(stringResource(R.string.export_m4a), {
-            onDismiss()
-            studio.export(aac = true)
-        }, icon = Ic.AudioFile, description = stringResource(R.string.export_m4a_desc))
+        Segmented(
+            listOf(stringResource(R.string.export_mix), stringResource(R.string.export_stems)), if (stems) 1 else 0, { stems = it == 1 },
+            Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth(), height = 40.dp, equalWidth = true,
+        )
+        if (stems) {
+            Text(
+                stringResource(R.string.export_stems_desc, channels), Modifier.padding(horizontal = 20.dp, vertical = 2.dp), color = c.textDim,
+                fontSize = 13.sp, lineHeight = 18.sp,
+            )
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.export_format), Modifier.weight(1f), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Segmented(ExportFormat.entries.map { it.name }, format.ordinal, { format = ExportFormat.entries[it] }, height = 40.dp)
+            }
+            Text(
+                stringResource(
+                    when (format) {
+                        ExportFormat.WAV -> R.string.export_wav_note
+                        ExportFormat.MP3 -> R.string.export_mp3_note
+                        ExportFormat.M4A -> R.string.export_m4a_note
+                    }
+                ),
+                Modifier.padding(horizontal = 20.dp, vertical = 2.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp,
+            )
+            if (format == ExportFormat.MP3) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.export_quality), Modifier.weight(1f), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Segmented(
+                        Mp3Encoder.BIT_RATES.map { it.toString() }, Mp3Encoder.BIT_RATES.indexOf(kbps), { kbps = Mp3Encoder.BIT_RATES[it] },
+                        height = 40.dp,
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.track_length, Fmt.time(seconds.toFloat())), color = c.text, fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold, style = NumberStyle,
+                )
+                Text(
+                    stringResource(R.string.export_size, Fmt.megabytes(bytes)) + " · " + stringResource(R.string.export_where),
+                    color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Chip(stringResource(R.string.export_go), {
+                prefs.updateExport(format, kbps)
+                onDismiss()
+                studio.export(ExportOptions(format, stems, kbps))
+            }, selected = true, icon = Ic.Download)
+        }
     }
 }
 

@@ -1,5 +1,14 @@
 package jxpix.proger.mps.data
 
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+import jxpix.proger.mps.model.usedSamples
 import android.content.Context
 import android.util.Log
 import jxpix.proger.mps.engine.SampleData
@@ -32,9 +41,10 @@ data class ProjectInfo(
  *     files/projects/<id>/meta.json      name, tempo, date (for the list)
  *     files/projects/<id>/samples/       recordings and imported audio (wav)
  */
-class ProjectStore(context: Context) {
+class ProjectStore(private val root: File) {
 
-    private val root = File(context.filesDir, "projects")
+    constructor(context: Context) : this(File(context.filesDir, "projects"))
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = false
@@ -73,10 +83,12 @@ class ProjectStore(context: Context) {
 
     /** Creates the folder for a new project and returns its id. */
     fun create(project: Project): String {
-        val id = UUID.randomUUID().toString().substring(0, 12)
+        val id = newId()
         save(id, project)
         return id
     }
+
+    private fun newId(): String = UUID.randomUUID().toString().substring(0, 12)
 
     @Synchronized
     fun save(id: String, project: Project) {
@@ -115,7 +127,7 @@ class ProjectStore(context: Context) {
 
     fun duplicate(id: String, newName: String): String? {
         val project = load(id) ?: return null
-        val newId = UUID.randomUUID().toString().substring(0, 12)
+        val newId = newId()
         return try {
             dir(id).copyRecursively(dir(newId), overwrite = true)
             save(newId, project.copy(name = newName))
@@ -129,6 +141,91 @@ class ProjectStore(context: Context) {
     fun rename(id: String, name: String) {
         val project = load(id) ?: return
         save(id, project.copy(name = name))
+    }
+
+    // ---------------------------------------------------------------- project files
+
+    /**
+     * Writes a project together with the audio it uses into one file: a zip archive, saved
+     * with the extension .mps. It is a backup and the way to move a project to another phone.
+     */
+    @Throws(IOException::class)
+    fun exportTo(id: String, out: OutputStream) {
+        val project = load(id) ?: throw IOException("Project not found")
+        ZipOutputStream(BufferedOutputStream(out, 1 shl 16)).use { zip ->
+            zip.putNextEntry(ZipEntry(ENTRY_INFO))
+            zip.write("{\"app\":\"MPS\",\"format\":$FILE_FORMAT}".toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry(ENTRY_PROJECT))
+            zip.write(json.encodeToString(Project.serializer(), project).toByteArray())
+            zip.closeEntry()
+            val dir = samplesDir(id)
+            for (name in project.usedSamples().sorted()) {
+                val file = File(dir, name)
+                if (!file.isFile) continue
+                zip.putNextEntry(ZipEntry(ENTRY_SAMPLES + name))
+                file.inputStream().use { it.copyTo(zip, 1 shl 16) }
+                zip.closeEntry()
+            }
+        }
+    }
+
+    /**
+     * Reads a file written by [exportTo] and adds it to the list as a new project.
+     *
+     * @param rename lets the caller avoid two projects with the same name.
+     * @return the id of the new project.
+     */
+    @Throws(IOException::class)
+    fun importFrom(input: InputStream, rename: (String) -> String = { it }): String {
+        val id = newId()
+        val dir = dir(id)
+        try {
+            val samples = File(dir, "samples").also { it.mkdirs() }
+            var project: Project? = null
+            var bytes = 0L
+            var entries = 0
+            val buffer = ByteArray(1 shl 16)
+            ZipInputStream(BufferedInputStream(input, 1 shl 16)).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (++entries > MAX_FILE_ENTRIES) throw IOException("Too many files in the archive")
+                    val name = entry.name
+                    if (entry.isDirectory) continue
+                    if (name == ENTRY_PROJECT) {
+                        val text = ByteArrayOutputStream()
+                        while (true) {
+                            val n = zip.read(buffer)
+                            if (n < 0) break
+                            if (text.size() + n > MAX_PROJECT_BYTES) throw IOException("The project is too large")
+                            text.write(buffer, 0, n)
+                        }
+                        project = json.decodeFromString(Project.serializer(), text.toString("UTF-8")).sanitized()
+                    } else if (name.startsWith(ENTRY_SAMPLES)) {
+                        val plain = name.substring(ENTRY_SAMPLES.length)
+                        // Plain file names only: an archive must not be able to write outside its folder.
+                        if (plain.isEmpty() || plain == "." || plain == ".." || plain.contains('/') || plain.contains('\\')) continue
+                        File(samples, plain).outputStream().use { out ->
+                            while (true) {
+                                val n = zip.read(buffer)
+                                if (n < 0) break
+                                bytes += n
+                                if (bytes > MAX_FILE_BYTES) throw IOException("The project is too large")
+                                out.write(buffer, 0, n)
+                            }
+                        }
+                    }
+                }
+            }
+            val loaded = (project ?: throw IOException("Not an MPS project")).let { it.copy(name = rename(it.name)) }
+            save(id, loaded)
+            if (!projectFile(id).isFile) throw IOException("The project could not be saved")
+            pruneSamples(id, loaded.usedSamples())
+            return id
+        } catch (e: Exception) {
+            dir.deleteRecursively()
+            throw if (e is IOException) e else IOException(e)
+        }
     }
 
     // ---------------------------------------------------------------- samples
@@ -158,7 +255,17 @@ class ProjectStore(context: Context) {
         for (f in files) if (f.name !in used) f.delete()
     }
 
-    private companion object {
-        const val TAG = "MPS-Store"
+    companion object {
+        private const val TAG = "MPS-Store"
+
+        /** Extension of exported project files. */
+        const val FILE_EXTENSION = "mps"
+        private const val FILE_FORMAT = 1
+        private const val ENTRY_INFO = "mps.json"
+        private const val ENTRY_PROJECT = "project.json"
+        private const val ENTRY_SAMPLES = "samples/"
+        private const val MAX_FILE_ENTRIES = 4000
+        private const val MAX_PROJECT_BYTES = 32 shl 20
+        private const val MAX_FILE_BYTES = 2L shl 30
     }
 }

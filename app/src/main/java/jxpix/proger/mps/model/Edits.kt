@@ -275,6 +275,29 @@ fun autoValueAt(points: List<AutoPoint>, tick: Float): Float? {
     return a.value + (b.value - a.value) * (tick - a.tick) / (b.tick - a.tick)
 }
 
+/** File names of the audio the project plays: sampler sounds and audio clips. */
+fun Project.usedSamples(): Set<String> {
+    val out = HashSet<String>()
+    for (c in channels) c.instrument.sample?.let { out += it }
+    for (c in clips) c.sample?.let { out += it }
+    return out
+}
+
+/** The channels that are heard in the mix: not muted, or - when something is soloed - only the soloed ones. */
+fun Project.audibleChannels(): List<Channel> {
+    val anySolo = channels.any { it.solo }
+    return channels.filter { if (anySolo) it.solo else !it.mute }
+}
+
+/**
+ * The project with a single channel left audible and nothing on the master strip - what is
+ * rendered for one "stem" file. Put together, the stems give the mix before master effects.
+ */
+fun Project.stemOf(channelId: Int): Project = copy(
+    masterEffects = emptyList(),
+    channels = channels.map { it.copy(solo = false, mute = it.id != channelId) },
+)
+
 /**
  * The curve played twice in a row, for a pattern that is doubled from [length] ticks: the second
  * pass starts with the value the curve had at its very beginning, just like a loop would.

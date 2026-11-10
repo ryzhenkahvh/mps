@@ -9,6 +9,12 @@ MPS — приложение для Android, в котором можно соб
 | **Микшер** | **Клавиши** | **Инструмент** |
 | ![Микшер](docs/screenshots/mixer_dark.png) | ![Клавиши](docs/screenshots/keys_dark.png) | ![Инструмент](docs/screenshots/editor_dark.png) |
 
+Приложение открывается в горизонтальном положении — так на экране помещается больше:
+
+| Плейлист | Экспорт |
+|:---:|:---:|
+| ![Плейлист в горизонтальном режиме](docs/screenshots/landscape_playlist.png) | ![Экспорт трека](docs/screenshots/landscape_export.png) |
+
 ## Что умеет
 
 **Сочинять**
@@ -38,7 +44,13 @@ MPS — приложение для Android, в котором можно соб
 - MIDI-клавиатуры: по USB, а также Bluetooth-устройства, уже подключённые к системе.
 - Метроном, tap tempo, свинг. Повторное нажатие «Стоп» обрывает хвосты реверба и эха.
 - Отмена и повтор действий, автосохранение.
-- Экспорт в WAV и AAC (.m4a) в папку `Music/MPS`, можно сразу поделиться.
+- Экспорт трека в WAV, MP3 (128–320 кбит/с) и AAC (.m4a) в папку `Music/MPS`, можно сразу поделиться.
+- Экспорт по дорожкам: каждый канал — отдельным WAV-файлом одной длины (стемы), чтобы доделать сведение в другой программе.
+- Проект целиком в одном файле `.mps` — ноты, настройки и все звуки: резервная копия и перенос на другой телефон.
+  Сохраняется из меню проекта, открывается кнопкой «Открыть файл» на главном экране.
+- Длина трека в минутах и секундах: рядом с позицией в панели управления, в плейлисте и в окне экспорта.
+- Горизонтальный экран: приложение открывается «на боку», где помещается больше шагов, тактов и каналов микшера;
+  в настройках можно включить автоповорот или вертикальный режим.
 - Шаблоны (House, Trap, Lo-fi) и демо-трек, который можно открыть и разобрать.
 - Две темы — бело-розовая и чёрно-розовая; русский и английский языки, переключаются в настройках.
 
@@ -100,10 +112,13 @@ app/src/main/java/jxpix/proger/mps/
 - тесты движка проходят;
 - все экраны отрисованы и «прокликаны» вне устройства (обе темы, оба языка, портрет и альбом, маленький экран):
   воспроизведение, зацикливание паттерна, запись нот, рисование шагов, нот и кривых автоматизации, перенос клипов, фейдеры,
-  отмена, сохранение и повторное открытие проекта.
+  отмена, сохранение и повторное открытие проекта, экспорт в WAV и MP3, экспорт по дорожкам,
+  сохранение проекта в файл и открытие из файла;
+- MP3-файлы, записанные приложением, прочитаны сторонним декодером (mpg123) и сверены с исходным звуком;
+  сумма отдельных дорожек совпадает с миксом без мастер-обработки.
 
 **Ещё не проверено на настоящем устройстве.** Только на нём можно увидеть реальную задержку и нагрузку,
-работу микрофона, MIDI-устройств, кодировщика AAC и системного выбора файлов.
+работу микрофона, MIDI-устройств, кодировщика AAC, системного выбора файлов и сохранения в папку «Музыка».
 
 Чего пока нет:
 - подключения сторонних плагинов (AAP — Android Audio Plugin) — в планах;
@@ -116,6 +131,10 @@ app/src/main/java/jxpix/proger/mps/
 
 Значки интерфейса — [Material Symbols](https://fonts.google.com/icons) (Apache License 2.0).
 
+MP3-кодировщик — [jump3r](https://git.iem.at/sciss/jump3r), перенос LAME на Java (GNU LGPL 2.1 или новее).
+Подключён как неизменённая библиотека из Maven Central; при публикации приложения упомяните её и лицензию
+в описании или в разделе «О приложении».
+
 ---
 
 ## In English
@@ -124,7 +143,8 @@ MPS is a pocket music studio for Android built around the FL Studio workflow: ch
 piano roll, playlist, mixer, keyboard and pads. It ships with a drum synthesizer, a polyphonic synthesizer with
 19 presets, a sampler, audio tracks with microphone recording, 11 effects, per-pattern automation curves for
 any channel knob, MIDI keyboard input, undo / redo,
-WAV and AAC export, light and dark pink themes, and English and Russian interfaces.
+WAV, MP3 and AAC export, per-channel stem export (WAV), self-contained project files (`.mps`) for backup and
+moving between phones, a landscape-first layout, light and dark pink themes, and English and Russian interfaces.
 
 The audio engine is written from scratch in Kotlin and follows real-time rules: native sample rate and burst
 size, low-latency `AudioTrack` mode, an adaptive buffer, and an audio thread that never allocates or locks.
