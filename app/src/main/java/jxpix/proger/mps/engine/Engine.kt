@@ -245,7 +245,7 @@ class Engine(val sampleRate: Int) {
 
     fun noteOff(channelId: Int, pitch: Int) = commands.offer(CMD_NOTE_OFF, channelId, pitch, 0)
 
-    /** Silences every instrument. */
+    /** Cuts all sound at once, including echo and reverb tails. */
     fun panic() = commands.offer(CMD_PANIC, 0, 0, 0)
 
     /** Peak level (0..1+) of a channel since the last call; for the mixer meters. */
@@ -416,7 +416,7 @@ class Engine(val sampleRate: Int) {
         }
     }
 
-    /** Last resort if a device blew up (NaN): silence and reset everything. */
+    /** Hard silence: every voice, echo and reverb tail is cut at once. Also the last resort after a NaN. */
     private fun recover(plan: Plan) {
         for (cp in plan.channels) {
             cp.instrument?.reset()
@@ -453,7 +453,7 @@ class Engine(val sampleRate: Int) {
                     pos = value.toDouble()
                     if (isPlaying) silence(plan)
                 }
-                CMD_PANIC -> silence(plan)
+                CMD_PANIC -> recover(plan)
                 CMD_NOTE_ON, CMD_NOTE_OFF -> {
                     val id = CommandQueue.channel(c)
                     for (cp in plan.channels) {

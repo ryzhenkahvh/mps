@@ -261,8 +261,11 @@ private fun ProjectRow(info: ProjectInfo, onOpen: () -> Unit, onMenu: () -> Unit
             // a project without anything in the playlist has no length yet
             val tempo = if (info.seconds > 0.5f) stringResource(R.string.project_meta, Fmt.bpm(info.bpm), Fmt.time(info.seconds))
             else Fmt.bpm(info.bpm) + " BPM"
-            val date = remember(info.modified) {
-                DateUtils.getRelativeTimeSpanString(info.modified, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+            val justNow = stringResource(R.string.just_now)
+            val date = remember(info.modified, justNow) {
+                val now = System.currentTimeMillis()
+                if (now - info.modified < DateUtils.MINUTE_IN_MILLIS) justNow
+                else DateUtils.getRelativeTimeSpanString(info.modified, now, DateUtils.MINUTE_IN_MILLIS).toString()
             }
             Text(
                 "$tempo · $date", color = c.textDim, fontSize = 12.sp,

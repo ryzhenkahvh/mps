@@ -495,10 +495,12 @@ class Studio(context: Context) {
         if (playing) pause() else play()
     }
 
-    /** Stops and jumps back to the beginning. */
+    /** Stops and jumps back to the beginning. Pressed again while stopped, it also cuts echo and reverb tails. */
     fun stop() {
+        val idle = !playing && recordMode == RecordMode.NONE
         if (recordMode != RecordMode.NONE) stopRecording()
         stopTransport()
+        if (idle) engine.panic()
         cursor = 0
         playhead.doubleValue = 0.0
     }

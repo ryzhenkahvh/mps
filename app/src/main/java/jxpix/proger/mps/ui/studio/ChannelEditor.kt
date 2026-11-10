@@ -68,6 +68,7 @@ import jxpix.proger.mps.model.effectsOf
 import jxpix.proger.mps.model.moveEffect
 import jxpix.proger.mps.model.noteName
 import jxpix.proger.mps.model.removeEffect
+import jxpix.proger.mps.model.replaceInstrument
 import jxpix.proger.mps.model.setParam
 import jxpix.proger.mps.model.updateChannel
 import jxpix.proger.mps.model.updateDevice
@@ -296,7 +297,7 @@ private fun SamplePanel(studio: Studio, channel: Channel, color: Color) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) studio.importSample(uri, channel.id)
     }
-    Panel(stringResource(R.string.sample)) {
+    Panel(stringResource(R.string.sample_file)) {
         Column {
             if (data == null) {
                 Text(
@@ -454,6 +455,30 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
         }
     }
     if (!channel.isAudio) {
+        Panel(stringResource(R.string.instrument_type)) {
+            Column {
+                val types = remember { listOf(Devices.DRUM, Devices.SYNTH, Devices.SAMPLER) }
+                Segmented(
+                    types.map { stringResource(it.nameRes) }, types.indexOfFirst { it.id == channel.instrument.type }.coerceAtLeast(0),
+                    { i ->
+                        val type = types[i]
+                        if (type.id != channel.instrument.type) {
+                            studio.edit { p ->
+                                when (type.id) {
+                                    Devices.DRUM.id -> p.replaceInstrument(channel.id, type.id, DrumSynth.defaultsFor(0))
+                                    Devices.SYNTH.id -> Presets.synth("init").let { p.replaceInstrument(channel.id, type.id, it.params, it.id) }
+                                    else -> p.replaceInstrument(channel.id, type.id)
+                                }
+                            }
+                            studio.preview(channel.id, channel.rootNote)
+                        }
+                    },
+                    Modifier.fillMaxWidth(), equalWidth = true,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(stringResource(R.string.instrument_type_hint), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
+            }
+        }
         Panel(stringResource(R.string.step_note)) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {

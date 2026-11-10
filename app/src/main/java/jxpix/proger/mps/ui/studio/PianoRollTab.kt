@@ -32,6 +32,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -345,6 +348,8 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
     }
     val model by rememberUpdatedState(RollModel(notes, selected, patternTicks, ui.rollSnap, channel.id, pattern.id))
     var pressedKey by remember { mutableIntStateOf(-1) }
+    var marquee by remember { mutableStateOf<Rect?>(null) }
+    val haptics = LocalHapticFeedback.current
 
     val labelPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
     val description = stringResource(R.string.tab_piano) + ": " + channel.name
@@ -521,8 +526,54 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                                     ui.rollSelection = if (wasSelected) m.selected - target else m.selected + target
                                 }
                             } else {
-                                // ---- empty space: drag to scroll, pinch to zoom, tap to add a note
-                                val tap = with(panZoom) { track(down, slop) }
+                                // ---- empty space: what the finger does next decides the gesture.
+                                // 0 = lifted (a tap), 1 = moved or joined by a second finger (scroll / zoom),
+                                // null = held still long enough (selection box)
+                                val early: Int? = if (y >= rulerH && x >= keyW) {
+                                    withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                        var outcome = -1
+                                        while (outcome < 0) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull { it.id == down.id }
+                                            outcome = when {
+                                                change == null || !change.pressed -> 0
+                                                event.changes.size > 1 -> 1
+                                                hypot(change.position.x - x, change.position.y - y) > slop -> 1
+                                                else -> -1
+                                            }
+                                        }
+                                        outcome
+                                    }
+                                } else 1
+
+                                if (early == null) {
+                                    // ---- selection box: every note it touches gets selected
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    marquee = Rect(x, y, x, y)
+                                    try {
+                                        while (true) {
+                                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                                            if (!change.pressed) break
+                                            change.consume()
+                                            val x1 = change.position.x.coerceIn(keyW, size.width.toFloat())
+                                            val y1 = change.position.y.coerceIn(rulerH, size.height.toFloat())
+                                            val box = Rect(min(x, x1), min(y, y1), max(x, x1), max(y, y1))
+                                            marquee = box
+                                            val fromTick = (box.left - keyW + sx) / px
+                                            val toTick = (box.right - keyW + sx) / px
+                                            val high = pitchAt(box.top)
+                                            val low = pitchAt(box.bottom)
+                                            ui.rollSelection = m.notes.filter {
+                                                it.pitch in low..high && it.end > fromTick && it.start < toTick
+                                            }.toSet()
+                                        }
+                                    } finally {
+                                        marquee = null
+                                    }
+                                    return@awaitEachGesture
+                                }
+
+                                val tap = if (early == 0) true else with(panZoom) { track(down, slop) }
                                 if (tap && y >= rulerH && x >= keyW) {
                                     if (m.selected.isNotEmpty()) {
                                         ui.rollSelection = emptySet()
@@ -677,6 +728,12 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
             }
             drawLine(c.lineStrong, Offset(keyW, 0f), Offset(keyW, bottom), thin)
             drawRect(c.surface, Offset(0f, 0f), Size(keyW - thin / 2, rulerH - thin / 2))
+
+            // selection box (hold and drag)
+            marquee?.let { box ->
+                drawRect(c.accent.copy(alpha = 0.16f), box.topLeft, box.size)
+                drawRect(c.accent, box.topLeft, box.size, style = Stroke(1.5f * dp))
+            }
         }
 
         // The play head lives in its own layer: while the pattern plays only this thin line is redrawn.

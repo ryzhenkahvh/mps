@@ -20,6 +20,7 @@
     <string name="home_demo">Демо-трек</string>
     <string name="home_demo_desc">Послушайте готовую песню и загляните внутрь</string>
     <string name="project_meta">%1$s BPM · %2$s</string>
+    <string name="just_now">только что</string>
     <string name="delete_project_title">Удалить проект?</string>
     <string name="delete_project_text">«%s» будет удалён навсегда.</string>
     <string name="rename_project">Переименовать проект</string>
@@ -84,7 +85,7 @@
     <string name="limit_channels">Достигнут предел числа каналов</string>
     <string name="add_channel_title">Новый канал</string>
     <string name="snap">Сетка</string>
-    <string name="hint_piano">Нажмите на сетку, чтобы добавить ноту. Тяните ноту, чтобы переместить, и её правый край, чтобы изменить длину. Нажмите на ноту, чтобы выбрать её.</string>
+    <string name="hint_piano">Нажмите на сетку, чтобы добавить ноту. Тяните ноту, чтобы переместить, и её правый край, чтобы изменить длину. Нажмите на ноту, чтобы выбрать её; чтобы выбрать несколько, задержите палец на пустом месте и тяните.</string>
     <string name="piano_audio_info">Это аудиодорожка. У неё нет нот: она играет записи, размещённые в плейлисте.</string>
     <string name="velocity">Сила</string>
     <string name="octave_up">На октаву выше</string>
@@ -164,7 +165,8 @@
     <string name="preset">Пресет</string>
     <string name="preset_custom">Свой звук</string>
     <string name="sample">Сэмпл</string>
-    <string name="sample_none">Аудио не загружено. Загрузите файл или запишите с микрофона.</string>
+    <string name="sample_none">Аудио ещё не загружено. Загрузите файл с телефона.</string>
+    <string name="sample_file">Аудиофайл</string>
     <string name="load_file">Загрузить файл</string>
     <string name="replace_file">Заменить файл</string>
     <string name="sample_meta">%1$.2f с · %2$d Гц · %3$s</string>
@@ -174,6 +176,8 @@
     <string name="cut_group_hint">Каналы одной группы обрывают друг друга — как закрытый хэт обрывает открытый.</string>
     <string name="step_note">Нота шага</string>
     <string name="step_note_hint">Нота, которую играют квадраты шагов</string>
+    <string name="instrument_type">Тип инструмента</string>
+    <string name="instrument_type_hint">При смене типа ноты остаются, а настройки звука сбрасываются.</string>
     <string name="knob_hint">Тяните ручку вверх или вниз. Двойное нажатие — сброс.</string>
     <string name="audition">Нажмите, чтобы послушать</string>
     <string name="rec_title">Что записываем?</string>

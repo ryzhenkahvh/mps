@@ -21,6 +21,7 @@
     <string name="home_demo">Demo track</string>
     <string name="home_demo_desc">Listen and look inside a finished song</string>
     <string name="project_meta">%1$s BPM · %2$s</string>
+    <string name="just_now">just now</string>
     <string name="delete_project_title">Delete project?</string>
     <string name="delete_project_text">“%s” will be deleted permanently.</string>
     <string name="rename_project">Rename project</string>
@@ -85,7 +86,7 @@
     <string name="limit_channels">Channel limit reached</string>
     <string name="add_channel_title">New channel</string>
     <string name="snap">Grid</string>
-    <string name="hint_piano">Tap the grid to add a note. Drag a note to move it, drag its right edge to change the length. Tap a note to select it.</string>
+    <string name="hint_piano">Tap the grid to add a note. Drag a note to move it, drag its right edge to change the length. Tap a note to select it; hold an empty spot and drag to select several.</string>
     <string name="piano_audio_info">This is an audio track. It has no notes: it plays the recordings placed in the playlist.</string>
     <string name="velocity">Velocity</string>
     <string name="octave_up">Octave up</string>
@@ -165,7 +166,8 @@
     <string name="preset">Preset</string>
     <string name="preset_custom">Custom</string>
     <string name="sample">Sample</string>
-    <string name="sample_none">No audio loaded. Load a file or record the microphone.</string>
+    <string name="sample_none">No audio loaded yet. Load a file from the phone.</string>
+    <string name="sample_file">Audio file</string>
     <string name="load_file">Load file</string>
     <string name="replace_file">Replace file</string>
     <string name="sample_meta">%1$.2f s · %2$d Hz · %3$s</string>
@@ -175,6 +177,8 @@
     <string name="cut_group_hint">Channels of one group silence each other, like a closed hi-hat stopping an open one.</string>
     <string name="step_note">Step note</string>
     <string name="step_note_hint">The note played by the step squares</string>
+    <string name="instrument_type">Instrument type</string>
+    <string name="instrument_type_hint">Switching the type keeps the notes and resets the sound settings.</string>
     <string name="knob_hint">Drag a knob up or down. Double-tap to reset.</string>
     <string name="audition">Tap to listen</string>
     <string name="rec_title">What do you want to record?</string>
