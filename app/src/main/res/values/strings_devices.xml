@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Names of instruments, effects, their parameters and presets. -->
+<resources>
+    <!-- Instruments -->
+    <string name="dev_synth">Synth</string>
+    <string name="dev_synth_desc">Bass, leads, pads and keys. Lots of ready-made sounds.</string>
+    <string name="dev_drum">Drum</string>
+    <string name="dev_drum_desc">Kick, snare, clap, hats and more. Tune each one to taste.</string>
+    <string name="dev_sampler">Sampler</string>
+    <string name="dev_sampler_desc">Play your own sound or recording like an instrument.</string>
+    <string name="dev_audio">Audio track</string>
+    <string name="dev_audio_desc">Record vocals or place audio files on the timeline.</string>
+
+    <!-- Effects -->
+    <string name="fx_eq">Equalizer</string>
+    <string name="fx_eq_desc">Boost or cut lows, mids and highs.</string>
+    <string name="fx_comp">Compressor</string>
+    <string name="fx_comp_desc">Evens out the volume and adds punch.</string>
+    <string name="fx_reverb">Reverb</string>
+    <string name="fx_reverb_desc">Adds the sound of a room or a hall.</string>
+    <string name="fx_delay">Delay</string>
+    <string name="fx_delay_desc">Echo that repeats in time with the beat.</string>
+    <string name="fx_filter">Filter</string>
+    <string name="fx_filter_desc">Removes highs or lows, can sweep by itself.</string>
+    <string name="fx_dist">Distortion</string>
+    <string name="fx_dist_desc">Makes the sound dirty and aggressive.</string>
+    <string name="fx_chorus">Chorus</string>
+    <string name="fx_chorus_desc">Makes the sound wider and richer.</string>
+    <string name="fx_phaser">Phaser</string>
+    <string name="fx_phaser_desc">Sweeping, swirling movement.</string>
+    <string name="fx_crush">Bitcrusher</string>
+    <string name="fx_crush_desc">Lo-fi, retro console character.</string>
+    <string name="fx_pump">Pump</string>
+    <string name="fx_pump_desc">Ducks the volume on every beat, like sidechain.</string>
+    <string name="fx_limiter">Limiter</string>
+    <string name="fx_limiter_desc">Makes the track louder without clipping.</string>
+
+    <!-- Parameter groups -->
+    <string name="g_osc1">Oscillator 1</string>
+    <string name="g_osc2">Oscillator 2</string>
+    <string name="g_mix">Extra layers</string>
+    <string name="g_unison">Unison</string>
+    <string name="g_filter">Filter</string>
+    <string name="g_amp_env">Volume envelope</string>
+    <string name="g_filter_env">Filter envelope</string>
+    <string name="g_lfo">Movement (LFO)</string>
+    <string name="g_voice">Playing</string>
+    <string name="g_drum">Drum sound</string>
+    <string name="g_sample">Sample</string>
+    <string name="g_playback">Playback</string>
+
+    <!-- Parameters -->
+    <string name="p_wave">Wave</string>
+    <string name="p_octave">Octave</string>
+    <string name="p_level">Level</string>
+    <string name="p_pulse_width">Pulse width</string>
+    <string name="p_semitones">Semitones</string>
+    <string name="p_detune">Detune</string>
+    <string name="p_sub">Sub</string>
+    <string name="p_noise">Noise</string>
+    <string name="p_voices">Voices</string>
+    <string name="p_stereo">Stereo</string>
+    <string name="p_type">Type</string>
+    <string name="p_cutoff">Cutoff</string>
+    <string name="p_resonance">Resonance</string>
+    <string name="p_env_amount">Envelope</string>
+    <string name="p_key_track">Key track</string>
+    <string name="p_drive">Drive</string>
+    <string name="p_attack">Attack</string>
+    <string name="p_decay">Decay</string>
+    <string name="p_sustain">Sustain</string>
+    <string name="p_release">Release</string>
+    <string name="p_rate">Rate</string>
+    <string name="p_to_pitch">Vibrato</string>
+    <string name="p_to_cutoff">Filter sweep</string>
+    <string name="p_to_volume">Tremolo</string>
+    <string name="p_mode">Mode</string>
+    <string name="p_glide">Glide</string>
+    <string name="p_velocity">Dynamics</string>
+    <string name="p_sound">Sound</string>
+    <string name="p_tune">Tune</string>
+    <string name="p_tone">Tone</string>
+    <string name="p_punch">Punch</string>
+    <string name="p_root_note">Root note</string>
+    <string name="p_fine">Fine tune</string>
+    <string name="p_start">Start</string>
+    <string name="p_end">End</string>
+    <string name="p_trigger">Trigger</string>
+    <string name="p_loop">Loop</string>
+    <string name="p_reverse">Reverse</string>
+    <string name="p_low">Low</string>
+    <string name="p_low_freq">Low freq</string>
+    <string name="p_mid">Mid</string>
+    <string name="p_mid_freq">Mid freq</string>
+    <string name="p_width">Width</string>
+    <string name="p_high">High</string>
+    <string name="p_high_freq">High freq</string>
+    <string name="p_lfo_rate">Sweep rate</string>
+    <string name="p_lfo_depth">Sweep depth</string>
+    <string name="p_output">Output</string>
+    <string name="p_mix">Mix</string>
+    <string name="p_bits">Bits</string>
+    <string name="p_downsample">Downsample</string>
+    <string name="p_threshold">Threshold</string>
+    <string name="p_ratio">Ratio</string>
+    <string name="p_makeup">Make-up</string>
+    <string name="p_gain">Gain</string>
+    <string name="p_ceiling">Ceiling</string>
+    <string name="p_depth">Depth</string>
+    <string name="p_recover">Recovery</string>
+    <string name="p_delay">Delay</string>
+    <string name="p_feedback">Feedback</string>
+    <string name="p_frequency">Frequency</string>
+    <string name="p_sync">Sync</string>
+    <string name="p_time">Time</string>
+    <string name="p_ping_pong">Ping-pong</string>
+    <string name="p_damping">Damping</string>
+    <string name="p_size">Size</string>
+    <string name="p_pre_delay">Pre-delay</string>
+    <string name="p_low_cut">Low cut</string>
+
+    <!-- Choices -->
+    <string-array name="arr_waves">
+        <item>Sine</item>
+        <item>Triangle</item>
+        <item>Saw</item>
+        <item>Square</item>
+        <item>Noise</item>
+    </string-array>
+    <string-array name="arr_lfo_waves">
+        <item>Sine</item>
+        <item>Triangle</item>
+        <item>Saw</item>
+        <item>Square</item>
+        <item>Random</item>
+    </string-array>
+    <string-array name="arr_synth_filters">
+        <item>Low-pass</item>
+        <item>Low-pass steep</item>
+        <item>High-pass</item>
+        <item>Band-pass</item>
+    </string-array>
+    <string-array name="arr_filter_types">
+        <item>Low-pass</item>
+        <item>High-pass</item>
+        <item>Band-pass</item>
+        <item>Notch</item>
+    </string-array>
+    <string-array name="arr_voice_modes">
+        <item>Chords</item>
+        <item>One note</item>
+        <item>Legato</item>
+    </string-array>
+    <string-array name="arr_drum_types">
+        <item>Kick</item>
+        <item>808 bass</item>
+        <item>Snare</item>
+        <item>Clap</item>
+        <item>Hi-hat</item>
+        <item>Open hat</item>
+        <item>Tom</item>
+        <item>Rimshot</item>
+        <item>Cowbell</item>
+        <item>Crash</item>
+        <item>Shaker</item>
+    </string-array>
+    <string-array name="arr_sampler_modes">
+        <item>One-shot</item>
+        <item>Hold</item>
+    </string-array>
+    <string-array name="arr_off_on">
+        <item>Off</item>
+        <item>On</item>
+    </string-array>
+    <string-array name="arr_poly_mono">
+        <item>Chords</item>
+        <item>One note</item>
+    </string-array>
+    <string-array name="arr_dist_types">
+        <item>Soft</item>
+        <item>Hard</item>
+        <item>Fold</item>
+        <item>Tube</item>
+    </string-array>
+    <string-array name="arr_pump_rates" translatable="false">
+        <item>1/2</item>
+        <item>1/4</item>
+        <item>1/8</item>
+        <item>1/16</item>
+    </string-array>
+    <string-array name="arr_delay_sync">
+        <item>Free</item>
+        <item>1/32</item>
+        <item>1/16T</item>
+        <item>1/16</item>
+        <item>1/8T</item>
+        <item>1/8</item>
+        <item>3/16</item>
+        <item>1/4T</item>
+        <item>1/4</item>
+        <item>3/8</item>
+        <item>1/2</item>
+    </string-array>
+
+    <!-- Preset categories and presets -->
+    <string name="cat_bass">Bass</string>
+    <string name="cat_lead">Lead</string>
+    <string name="cat_keys">Keys</string>
+    <string name="cat_pad">Pads</string>
+    <string name="cat_fx">Effects</string>
+
+    <string name="pre_init">Classic saw</string>
+    <string name="pre_deep_bass">Deep bass</string>
+    <string name="pre_sub_bass">Sub bass</string>
+    <string name="pre_reese">Reese bass</string>
+    <string name="pre_acid">Acid</string>
+    <string name="pre_wobble">Wobble</string>
+    <string name="pre_supersaw">Super saw</string>
+    <string name="pre_mono_lead">Solo lead</string>
+    <string name="pre_chip">8-bit</string>
+    <string name="pre_brass">Brass</string>
+    <string name="pre_pluck">Pluck</string>
+    <string name="pre_e_piano">Electric piano</string>
+    <string name="pre_organ">Organ</string>
+    <string name="pre_bell">Bell</string>
+    <string name="pre_soft_pad">Soft pad</string>
+    <string name="pre_strings">Strings</string>
+    <string name="pre_warm_chords">Warm chords</string>
+    <string name="pre_riser">Riser</string>
+    <string name="pre_air">Air</string>
+
+    <!-- Templates -->
+    <string name="tpl_empty">Empty project</string>
+    <string name="tpl_empty_desc">Drum kit, bass and keys. Start from scratch.</string>
+    <string name="tpl_house">House</string>
+    <string name="tpl_house_desc">Four-on-the-floor beat with a pumping bass.</string>
+    <string name="tpl_trap">Trap</string>
+    <string name="tpl_trap_desc">808 bass, rolling hats and a dark bell melody.</string>
+    <string name="tpl_lofi">Lo-fi</string>
+    <string name="tpl_lofi_desc">Lazy swing, dusty keys and jazzy chords.</string>
+    <string name="tpl_demo">Demo song</string>
+    <string name="tpl_demo_desc">A finished track. Open it to see how everything works.</string>
+
+    <!-- Default names -->
+    <string name="new_project_name">New project</string>
+    <string name="demo_name">Pink Horizon</string>
+    <string name="pattern_n">Pattern %d</string>
+    <string name="ch_kick">Kick</string>
+    <string name="ch_snare">Snare</string>
+    <string name="ch_clap">Clap</string>
+    <string name="ch_hat">Hi-hat</string>
+    <string name="ch_open_hat">Open hat</string>
+    <string name="ch_bass">Bass</string>
+    <string name="ch_keys">Keys</string>
+    <string name="ch_chords">Chords</string>
+    <string name="ch_pluck">Pluck</string>
+    <string name="ch_808">808</string>
+    <string name="ch_bell">Bell</string>
+    <string name="ch_pad">Pad</string>
+    <string name="ch_rim">Rimshot</string>
+    <string name="ch_crash">Crash</string>
+    <string name="ch_lead">Lead</string>
+    <string name="pat_beat">Beat</string>
+    <string name="pat_build">Build-up</string>
+    <string name="pat_fill">Fill</string>
+    <string name="pat_crash">Crash</string>
+    <string name="pat_chords">Chords</string>
+    <string name="pat_bass">Bass</string>
+    <string name="pat_arp">Arpeggio</string>
+    <string name="pat_lead">Lead</string>
+</resources>

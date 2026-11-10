@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Названия инструментов, эффектов, их параметров и пресетов. -->
+<resources>
+    <!-- Инструменты -->
+    <string name="dev_synth">Синтезатор</string>
+    <string name="dev_synth_desc">Басы, лиды, пэды и клавиши. Много готовых звуков.</string>
+    <string name="dev_drum">Ударные</string>
+    <string name="dev_drum_desc">Бочка, снейр, клэп, хэты и другое. Каждый звук настраивается.</string>
+    <string name="dev_sampler">Сэмплер</string>
+    <string name="dev_sampler_desc">Играйте своим звуком или записью как инструментом.</string>
+    <string name="dev_audio">Аудиодорожка</string>
+    <string name="dev_audio_desc">Запись голоса и аудиофайлы на таймлайне.</string>
+
+    <!-- Эффекты -->
+    <string name="fx_eq">Эквалайзер</string>
+    <string name="fx_eq_desc">Усиливает или убирает низкие, средние и высокие частоты.</string>
+    <string name="fx_comp">Компрессор</string>
+    <string name="fx_comp_desc">Выравнивает громкость и добавляет плотности.</string>
+    <string name="fx_reverb">Реверберация</string>
+    <string name="fx_reverb_desc">Добавляет звучание комнаты или зала.</string>
+    <string name="fx_delay">Дилей</string>
+    <string name="fx_delay_desc">Эхо, которое повторяется в ритм трека.</string>
+    <string name="fx_filter">Фильтр</string>
+    <string name="fx_filter_desc">Срезает высокие или низкие частоты, умеет двигаться сам.</string>
+    <string name="fx_dist">Дисторшн</string>
+    <string name="fx_dist_desc">Делает звук грязным и агрессивным.</string>
+    <string name="fx_chorus">Хорус</string>
+    <string name="fx_chorus_desc">Делает звук шире и богаче.</string>
+    <string name="fx_phaser">Фэйзер</string>
+    <string name="fx_phaser_desc">Плавное «плывущее» движение звука.</string>
+    <string name="fx_crush">Биткрашер</string>
+    <string name="fx_crush_desc">Lo-fi звучание в духе старых приставок.</string>
+    <string name="fx_pump">Качалка</string>
+    <string name="fx_pump_desc">Приглушает звук на каждую долю, как сайдчейн.</string>
+    <string name="fx_limiter">Лимитер</string>
+    <string name="fx_limiter_desc">Делает трек громче без перегруза.</string>
+
+    <!-- Группы параметров -->
+    <string name="g_osc1">Осциллятор 1</string>
+    <string name="g_osc2">Осциллятор 2</string>
+    <string name="g_mix">Дополнительные слои</string>
+    <string name="g_unison">Унисон</string>
+    <string name="g_filter">Фильтр</string>
+    <string name="g_amp_env">Огибающая громкости</string>
+    <string name="g_filter_env">Огибающая фильтра</string>
+    <string name="g_lfo">Движение (LFO)</string>
+    <string name="g_voice">Исполнение</string>
+    <string name="g_drum">Звук ударного</string>
+    <string name="g_sample">Сэмпл</string>
+    <string name="g_playback">Воспроизведение</string>
+
+    <!-- Параметры -->
+    <string name="p_wave">Волна</string>
+    <string name="p_octave">Октава</string>
+    <string name="p_level">Уровень</string>
+    <string name="p_pulse_width">Ширина импульса</string>
+    <string name="p_semitones">Полутоны</string>
+    <string name="p_detune">Расстройка</string>
+    <string name="p_sub">Суб</string>
+    <string name="p_noise">Шум</string>
+    <string name="p_voices">Голоса</string>
+    <string name="p_stereo">Стерео</string>
+    <string name="p_type">Тип</string>
+    <string name="p_cutoff">Срез</string>
+    <string name="p_resonance">Резонанс</string>
+    <string name="p_env_amount">Огибающая</string>
+    <string name="p_key_track">Слежение</string>
+    <string name="p_drive">Драйв</string>
+    <string name="p_attack">Атака</string>
+    <string name="p_decay">Спад</string>
+    <string name="p_sustain">Удержание</string>
+    <string name="p_release">Затухание</string>
+    <string name="p_rate">Скорость</string>
+    <string name="p_to_pitch">Вибрато</string>
+    <string name="p_to_cutoff">Качание фильтра</string>
+    <string name="p_to_volume">Тремоло</string>
+    <string name="p_mode">Режим</string>
+    <string name="p_glide">Скольжение</string>
+    <string name="p_velocity">Динамика</string>
+    <string name="p_sound">Звук</string>
+    <string name="p_tune">Высота</string>
+    <string name="p_tone">Тембр</string>
+    <string name="p_punch">Удар</string>
+    <string name="p_root_note">Основная нота</string>
+    <string name="p_fine">Подстройка</string>
+    <string name="p_start">Начало</string>
+    <string name="p_end">Конец</string>
+    <string name="p_trigger">Запуск</string>
+    <string name="p_loop">Петля</string>
+    <string name="p_reverse">Реверс</string>
+    <string name="p_low">Низкие</string>
+    <string name="p_low_freq">Частота НЧ</string>
+    <string name="p_mid">Средние</string>
+    <string name="p_mid_freq">Частота СЧ</string>
+    <string name="p_width">Ширина</string>
+    <string name="p_high">Высокие</string>
+    <string name="p_high_freq">Частота ВЧ</string>
+    <string name="p_lfo_rate">Скорость качания</string>
+    <string name="p_lfo_depth">Глубина качания</string>
+    <string name="p_output">Выход</string>
+    <string name="p_mix">Микс</string>
+    <string name="p_bits">Биты</string>
+    <string name="p_downsample">Огрубление</string>
+    <string name="p_threshold">Порог</string>
+    <string name="p_ratio">Степень</string>
+    <string name="p_makeup">Компенсация</string>
+    <string name="p_gain">Усиление</string>
+    <string name="p_ceiling">Потолок</string>
+    <string name="p_depth">Глубина</string>
+    <string name="p_recover">Возврат</string>
+    <string name="p_delay">Задержка</string>
+    <string name="p_feedback">Повторы</string>
+    <string name="p_frequency">Частота</string>
+    <string name="p_sync">Ритм</string>
+    <string name="p_time">Время</string>
+    <string name="p_ping_pong">Пинг-понг</string>
+    <string name="p_damping">Приглушение</string>
+    <string name="p_size">Размер</string>
+    <string name="p_pre_delay">Предзадержка</string>
+    <string name="p_low_cut">Срез низов</string>
+
+    <!-- Варианты -->
+    <string-array name="arr_waves">
+        <item>Синус</item>
+        <item>Треугольник</item>
+        <item>Пила</item>
+        <item>Квадрат</item>
+        <item>Шум</item>
+    </string-array>
+    <string-array name="arr_lfo_waves">
+        <item>Синус</item>
+        <item>Треугольник</item>
+        <item>Пила</item>
+        <item>Квадрат</item>
+        <item>Случайно</item>
+    </string-array>
+    <string-array name="arr_synth_filters">
+        <item>Срез верхов</item>
+        <item>Срез верхов крутой</item>
+        <item>Срез низов</item>
+        <item>Полосовой</item>
+    </string-array>
+    <string-array name="arr_filter_types">
+        <item>Срез верхов</item>
+        <item>Срез низов</item>
+        <item>Полосовой</item>
+        <item>Режектор</item>
+    </string-array>
+    <string-array name="arr_voice_modes">
+        <item>Аккорды</item>
+        <item>Одна нота</item>
+        <item>Легато</item>
+    </string-array>
+    <string-array name="arr_drum_types">
+        <item>Бочка</item>
+        <item>808 бас</item>
+        <item>Снейр</item>
+        <item>Клэп</item>
+        <item>Хай-хэт</item>
+        <item>Открытый хэт</item>
+        <item>Том</item>
+        <item>Римшот</item>
+        <item>Ковбелл</item>
+        <item>Крэш</item>
+        <item>Шейкер</item>
+    </string-array>
+    <string-array name="arr_sampler_modes">
+        <item>Целиком</item>
+        <item>Пока держишь</item>
+    </string-array>
+    <string-array name="arr_off_on">
+        <item>Выкл</item>
+        <item>Вкл</item>
+    </string-array>
+    <string-array name="arr_poly_mono">
+        <item>Аккорды</item>
+        <item>Одна нота</item>
+    </string-array>
+    <string-array name="arr_dist_types">
+        <item>Мягкий</item>
+        <item>Жёсткий</item>
+        <item>Фолд</item>
+        <item>Ламповый</item>
+    </string-array>
+    <string-array name="arr_delay_sync">
+        <item>Свободно</item>
+        <item>1/32</item>
+        <item>1/16T</item>
+        <item>1/16</item>
+        <item>1/8T</item>
+        <item>1/8</item>
+        <item>3/16</item>
+        <item>1/4T</item>
+        <item>1/4</item>
+        <item>3/8</item>
+        <item>1/2</item>
+    </string-array>
+
+    <!-- Категории пресетов и пресеты -->
+    <string name="cat_bass">Бас</string>
+    <string name="cat_lead">Лид</string>
+    <string name="cat_keys">Клавиши</string>
+    <string name="cat_pad">Пэды</string>
+    <string name="cat_fx">Эффекты</string>
+
+    <string name="pre_init">Классическая пила</string>
+    <string name="pre_deep_bass">Глубокий бас</string>
+    <string name="pre_sub_bass">Саб-бас</string>
+    <string name="pre_reese">Риз-бас</string>
+    <string name="pre_acid">Эйсид</string>
+    <string name="pre_wobble">Воббл</string>
+    <string name="pre_supersaw">Суперпила</string>
+    <string name="pre_mono_lead">Соло-лид</string>
+    <string name="pre_chip">8 бит</string>
+    <string name="pre_brass">Духовые</string>
+    <string name="pre_pluck">Плак</string>
+    <string name="pre_e_piano">Электропиано</string>
+    <string name="pre_organ">Орган</string>
+    <string name="pre_bell">Колокольчик</string>
+    <string name="pre_soft_pad">Мягкий пэд</string>
+    <string name="pre_strings">Струнные</string>
+    <string name="pre_warm_chords">Тёплые аккорды</string>
+    <string name="pre_riser">Нарастание</string>
+    <string name="pre_air">Воздух</string>
+
+    <!-- Шаблоны -->
+    <string name="tpl_empty">Пустой проект</string>
+    <string name="tpl_empty_desc">Ударные, бас и клавиши. Начните с чистого листа.</string>
+    <string name="tpl_house">Хаус</string>
+    <string name="tpl_house_desc">Прямая бочка и качающий бас.</string>
+    <string name="tpl_trap">Трэп</string>
+    <string name="tpl_trap_desc">808-й бас, дроби хэтов и мрачная мелодия.</string>
+    <string name="tpl_lofi">Lo-fi</string>
+    <string name="tpl_lofi_desc">Ленивый свинг, пыльные клавиши и джазовые аккорды.</string>
+    <string name="tpl_demo">Демо-трек</string>
+    <string name="tpl_demo_desc">Готовый трек. Откройте его, чтобы увидеть, как всё устроено.</string>
+
+    <!-- Названия по умолчанию -->
+    <string name="new_project_name">Новый проект</string>
+    <string name="demo_name">Розовый горизонт</string>
+    <string name="pattern_n">Паттерн %d</string>
+    <string name="ch_kick">Бочка</string>
+    <string name="ch_snare">Снейр</string>
+    <string name="ch_clap">Клэп</string>
+    <string name="ch_hat">Хай-хэт</string>
+    <string name="ch_open_hat">Открытый хэт</string>
+    <string name="ch_bass">Бас</string>
+    <string name="ch_keys">Клавиши</string>
+    <string name="ch_chords">Аккорды</string>
+    <string name="ch_pluck">Плак</string>
+    <string name="ch_808">808</string>
+    <string name="ch_bell">Колокольчик</string>
+    <string name="ch_pad">Пэд</string>
+    <string name="ch_rim">Римшот</string>
+    <string name="ch_crash">Крэш</string>
+    <string name="ch_lead">Лид</string>
+    <string name="pat_beat">Бит</string>
+    <string name="pat_build">Разгон</string>
+    <string name="pat_fill">Сбивка</string>
+    <string name="pat_crash">Крэш</string>
+    <string name="pat_chords">Аккорды</string>
+    <string name="pat_bass">Бас</string>
+    <string name="pat_arp">Арпеджио</string>
+    <string name="pat_lead">Лид</string>
+</resources>
