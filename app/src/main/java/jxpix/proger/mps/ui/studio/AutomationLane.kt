@@ -36,12 +36,14 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jxpix.proger.mps.R
@@ -74,6 +76,9 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 private val LANE_HEIGHT = 104.dp
+
+/** On a short screen (a phone on its side) the notes keep most of the room. */
+private val LANE_HEIGHT_SHORT = 60.dp
 
 /** One knob an automation curve can move. */
 internal class LaneTarget(
@@ -149,7 +154,9 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
     Column(modifier.fillMaxWidth().background(c.surface)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.lineStrong))
         Row(Modifier.fillMaxWidth().height(46.dp).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Chip(target.title, { sheet = true }, Modifier.weight(1f, fill = false), icon = Ic.Curve, trailing = Ic.DropDown, maxWidth = 230.dp)
+            // the chip never takes more than its share, so the value next to it stays readable
+            val chipMax = (LocalConfiguration.current.screenWidthDp * 0.42f).dp.coerceIn(120.dp, 260.dp)
+            Chip(target.title, { sheet = true }, icon = Ic.Curve, trailing = Ic.DropDown, maxWidth = chipMax)
             Spacer(Modifier.width(10.dp))
             val now = touching
             Text(
@@ -168,7 +175,8 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
             )
             IconBtn(Ic.Close, stringResource(R.string.auto_hide), { ui.rollAutomation = false }, size = 42.dp, tint = c.textDim)
         }
-        LaneCanvas(studio, pattern, channel, target, points, { touching = it })
+        val short = LocalConfiguration.current.screenHeightDp < 520
+        LaneCanvas(studio, pattern, channel, target, points, if (short) LANE_HEIGHT_SHORT else LANE_HEIGHT) { touching = it }
     }
 
     if (sheet) {
@@ -203,7 +211,7 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
 @Composable
 private fun LaneCanvas(
     studio: Studio, pattern: Pattern, channel: Channel, target: LaneTarget, points: List<AutoPoint>,
-    onTouch: (Float?) -> Unit,
+    height: Dp, onTouch: (Float?) -> Unit,
 ) {
     val c = Mps.colors
     val ui = studio.ui
@@ -228,7 +236,7 @@ private fun LaneCanvas(
     Canvas(
         Modifier
             .fillMaxWidth()
-            .height(LANE_HEIGHT)
+            .height(height)
             .semantics { contentDescription = description }
             .pointerInput(pattern.id, channel.id, target.device, target.param) {
                 awaitEachGesture {
