@@ -232,12 +232,30 @@ class ProjectStore(private val root: File) {
 
     /** Stores audio in the project and returns the file name to reference it by. */
     fun saveSample(id: String, baseName: String, data: SampleData): String {
-        val safe = baseName.replace(Regex("[^\\p{L}\\p{N}_ -]"), "_").trim().take(40).ifEmpty { "audio" }
+        val safe = safeSampleName(baseName)
         val dir = samplesDir(id)
         var name = "$safe.wav"
         var n = 2
         while (File(dir, name).exists()) name = "$safe $n.wav".also { n++ }
         Wav.write(File(dir, name), data)
+        return name
+    }
+
+    /**
+     * Copies a sound of the library into the project and returns the name to reference it by.
+     * A sound that is already there (same title, same content) is not stored twice.
+     */
+    @Throws(IOException::class)
+    fun adoptSample(id: String, source: File): String {
+        val safe = safeSampleName(source.name.substringBeforeLast('.'))
+        val dir = samplesDir(id)
+        var name = "$safe.wav"
+        var n = 2
+        while (File(dir, name).exists()) {
+            if (SoundLibrary.sameContent(File(dir, name), source)) return name
+            name = "$safe $n.wav".also { n++ }
+        }
+        source.copyTo(File(dir, name), overwrite = true)
         return name
     }
 
@@ -257,6 +275,10 @@ class ProjectStore(private val root: File) {
 
     companion object {
         private const val TAG = "MPS-Store"
+
+        /** A title turned into something every file system accepts as a file name. */
+        fun safeSampleName(title: String): String =
+            title.replace(Regex("[^\\p{L}\\p{N}_ -]"), "_").trim().take(40).ifEmpty { "audio" }
 
         /** Extension of exported project files. */
         const val FILE_EXTENSION = "mps"

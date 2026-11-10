@@ -102,7 +102,8 @@ private fun MessageBar(studio: Studio, modifier: Modifier, raised: Boolean) {
         else -> 76.dp
     }
     LaunchedEffect(message) {
-        delay(4000)
+        // long messages need more time to be read
+        delay((message.length * 75L).coerceIn(4000L, 12000L))
         if (studio.message == message) studio.message = null
     }
     Box(

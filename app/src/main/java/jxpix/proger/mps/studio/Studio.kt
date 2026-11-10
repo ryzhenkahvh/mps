@@ -1,5 +1,10 @@
 package jxpix.proger.mps.studio
 
+import jxpix.proger.mps.model.trackForNewAudio
+import jxpix.proger.mps.model.MAX_CHANNELS
+import kotlin.math.min
+import kotlin.math.abs
+import kotlin.math.log10
 import jxpix.proger.mps.model.usedSamples
 import jxpix.proger.mps.model.stemOf
 import jxpix.proger.mps.model.audibleChannels
@@ -587,6 +592,8 @@ class Studio(context: Context) {
             val lv = recorder.level
             recorder.level = 0f
             inputLevel.floatValue = max(lv, inputLevel.floatValue * 0.9f)
+            val silent = recorder.seconds > 2f && recorder.peak < MIC_SILENT_PEAK
+            if (silent != micSilent) micSilent = silent
             animating = true
         } else if (inputLevel.floatValue != 0f) inputLevel.floatValue = 0f
 
@@ -699,6 +706,20 @@ class Studio(context: Context) {
     private var audioRecordStartNanos = 0L
     private var audioRecordChannel = 0
 
+    /** Where the running microphone take begins (song position in ticks) and the track it is drawn on. */
+    var recordFromTick by mutableIntStateOf(0)
+        private set
+    var recordTrack by mutableIntStateOf(0)
+        private set
+
+    /** True when the microphone has been open for a while without hearing anything at all. */
+    var micSilent by mutableStateOf(false)
+        private set
+
+    /** What the microphone did the last time it was used; shown in the settings. */
+    var micReport by mutableStateOf("")
+        private set
+
     /** Records what is played on the keys and pads into the current pattern (loop recording). */
     fun startNoteRecording() {
         if (recordMode != RecordMode.NONE) return
@@ -726,8 +747,14 @@ class Studio(context: Context) {
         // make sure there is an audio channel to record on
         var channel = currentChannel?.takeIf { it.isAudio } ?: project.channels.firstOrNull { it.isAudio }
         if (channel == null) {
-            edit { p -> p.addChannel(Devices.AUDIO_TYPE_ID, strings(R.string.ch_voice), color = 3).first }
-            channel = project.channels.lastOrNull { it.isAudio } ?: return false
+            if (project.channels.size < MAX_CHANNELS) {
+                edit { p -> p.addChannel(Devices.AUDIO_TYPE_ID, strings(R.string.ch_voice), color = 3).first }
+            }
+            channel = project.channels.lastOrNull { it.isAudio }
+            if (channel == null) {
+                message = strings(R.string.limit_channels)
+                return false
+            }
         }
         // nothing in the playlist yet: put the current beat there so there is something to sing to
         val pattern = currentPattern
@@ -739,9 +766,17 @@ class Studio(context: Context) {
         }
 
         if (!recorder.start(engine.sampleRate)) {
+            micReport = recorder.report
             message = strings(R.string.msg_mic_failed)
             return false
         }
+        micSilent = false
+        recordFromTick = cursor
+        // the take gets a track of its own right under the arrangement, and the playlist shows it
+        var track = -1
+        edit { p -> p.trackForNewAudio(cursor).also { track = it.second }.first }
+        recordTrack = if (track >= 0) track else project.tracks - 1
+        ui.revealTrack = recordTrack
         audioRecordChannel = channel.id
         channelId = channel.id
         applySongMode(true)
@@ -779,9 +814,11 @@ class Studio(context: Context) {
 
     private fun finishAudioRecording(endTick: Double) {
         val data = recorder.stop()
+        micReport = recorder.report
+        micSilent = false
         val id = projectId
         if (data == null || id == null) {
-            message = strings(R.string.msg_record_empty)
+            message = strings(if (recorder.error != null) R.string.msg_mic_failed else R.string.msg_record_empty)
             return
         }
         val p = project
@@ -797,16 +834,36 @@ class Studio(context: Context) {
         val skipSeconds = ((clipStart - heardAt) / ticksPerSecond).coerceAtLeast(0.0)
         val usable = data.durationSeconds - skipSeconds
         if (usable < 0.15) {
-            message = strings(R.string.msg_record_empty)
+            // stopped before the count-in was over: say so, or it looks like a broken microphone
+            message = strings(if (audioRecordStartTick < cursor) R.string.msg_record_count_in else R.string.msg_record_empty)
             return
         }
         val length = max(1.0, usable * ticksPerSecond).roundToInt()
+        // how loud the take itself is; the count-in before it may hold the metronome from the speaker
+        val firstFrame = (skipSeconds * data.sampleRate).toInt().coerceIn(0, data.frames)
+        var top = 0
+        for (i in firstFrame until data.frames) {
+            val v = abs(data.left[i].toInt())
+            if (v > top) top = v
+        }
+        if (top < MIC_DEAD_PEAK) {
+            // not a quiet room but digital silence: the system is keeping the microphone from us
+            message = strings(R.string.msg_mic_silent)
+            return
+        }
+        val boost = if (prefs.autoLevel) min(TAKE_TARGET_PEAK / top, TAKE_MAX_BOOST).takeIf { it > 1.12f } ?: 1f else 1f
         val base = strings(R.string.rec_name)
         busy = -1f
         busyText = strings(R.string.busy_saving)
         scope.launch {
             val name = try {
-                withContext(Dispatchers.IO) { store.saveSample(id, base, data) }
+                withContext(Dispatchers.IO) {
+                    if (boost > 1f) {
+                        val a = data.left
+                        for (i in a.indices) a[i] = (a[i] * boost).roundToInt().coerceIn(-32768, 32767).toShort()
+                    }
+                    store.saveSample(id, base, data)
+                }
             } catch (e: Exception) {
                 null
             }
@@ -817,19 +874,30 @@ class Studio(context: Context) {
             }
             samples.put(name, data)
             samplesChanged()
+            var newClip = 0
+            var newTrack = 0
             edit { pr ->
                 var q = pr
-                var track = q.freeTrack(clipStart.toInt(), length, preferred = q.tracks - 1)
+                // the track picked when the take started, unless something was put there meanwhile
+                var track = q.freeTrack(clipStart.toInt(), length, preferred = recordTrack.coerceIn(0, q.tracks - 1))
                 if (track < 0) {
                     q = q.setTrackCount(q.tracks + 1)
                     track = q.tracks - 1
                 }
                 val (withClip, clipId) = q.addAudioClip(audioRecordChannel, name, track, clipStart.toInt(), length)
+                newClip = clipId
+                newTrack = track
                 withClip.copy(clips = withClip.clips.map { c ->
                     if (c.id == clipId) c.copy(offset = skipSeconds.toFloat()) else c
                 })
             }
-            message = strings(R.string.msg_recorded)
+            // show what was recorded: select the clip (its volume slider appears) and scroll to it
+            if (newClip != 0) {
+                ui.selectedClip = newClip
+                ui.revealTrack = newTrack
+            }
+            val db = (20.0 * log10(boost.toDouble())).roundToInt()
+            message = if (db >= 3) String.format(Locale.ROOT, strings(R.string.msg_recorded_boost), db) else strings(R.string.msg_recorded)
         }
     }
 
@@ -859,6 +927,7 @@ class Studio(context: Context) {
     fun importToPlaylist(uri: Uri) {
         importAudio(uri) { name, data ->
             var clipId = 0
+            var clipTrack = 0
             edit { p0 ->
                 var p = p0
                 var channel = (p.channel(channelId)?.takeIf { it.isAudio } ?: p.channels.firstOrNull { it.isAudio })?.id
@@ -869,16 +938,16 @@ class Studio(context: Context) {
                 }
                 val length = max(1.0, data.durationSeconds * p.bpm * PPQ / 60.0).roundToInt()
                 val start = if (songMode) cursor else 0
-                var track = p.freeTrack(start, length, preferred = p.tracks - 1)
-                if (track < 0) {
-                    p = p.setTrackCount(p.tracks + 1)
-                    track = p.tracks - 1
-                }
+                val (grown, picked) = p.trackForNewAudio(start)
+                p = grown
+                val track = if (picked >= 0) picked else p.tracks - 1
                 val (withClip, id) = p.addAudioClip(channel, name, track, start, length)
                 clipId = id
+                clipTrack = track
                 withClip
             }
             ui.selectedClip = clipId
+            ui.revealTrack = clipTrack
         }
     }
 
@@ -1149,6 +1218,16 @@ class Studio(context: Context) {
 
         /** Typical delay between touching the glass and the app hearing about it. */
         const val TOUCH_LATENCY_MS = 25f
+
+        /** Below this peak (-60 dB) a running microphone is reported as "hears nothing yet". */
+        const val MIC_SILENT_PEAK = 0.001f
+
+        /** A take that never exceeds this (16-bit steps) is digital silence, not a quiet room. */
+        const val MIC_DEAD_PEAK = 4
+
+        /** Quiet takes are raised so that their loudest moment reaches -3 dB, by 30 dB at most. */
+        const val TAKE_TARGET_PEAK = 0.7f * 32767f
+        const val TAKE_MAX_BOOST = 31.6f
 
         /** Room for echoes after the end of every separately exported track. */
         const val STEM_TAIL_SECONDS = 2.0

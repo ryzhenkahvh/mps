@@ -72,6 +72,76 @@ class Engine(val sampleRate: Int) {
     @Volatile
     var limiterReductionDb = 0f
 
+    // ------------------------------------------------------------------ audition (sound library)
+
+    /** True while a sound started with [audition] is playing. Written by the audio thread. */
+    @Volatile
+    var auditioning = false
+        private set
+
+    @Volatile
+    private var auditionRequest: SampleData? = null
+
+    @Volatile
+    private var auditionSerial = 0
+    private var auditionSeen = 0
+    private var auditionData: SampleData? = null
+    private var auditionPos = 0.0
+
+    /**
+     * Plays a sound that is not part of the project, straight to the output - for listening to
+     * the sounds of the library before using one. Null stops it. Any thread.
+     */
+    fun audition(data: SampleData?) {
+        auditionRequest = data
+        auditionSerial++
+        if (data != null) auditioning = true
+    }
+
+    private fun renderAudition(n: Int) {
+        var fadeOut = false
+        val serial = auditionSerial
+        if (serial != auditionSeen) {
+            auditionSeen = serial
+            // what is sounding now fades out over this block, the new sound starts with the next one
+            if (auditionData != null) fadeOut = true
+            else {
+                auditionData = auditionRequest
+                auditionPos = 0.0
+            }
+        }
+        val d = auditionData
+        if (d != null) {
+            val left = d.left
+            val right = d.right ?: left
+            val last = d.frames - 1
+            val step = d.sampleRate.toDouble() / sampleRate
+            var p = auditionPos
+            var ended = false
+            for (i in 0 until n) {
+                val i0 = p.toInt()
+                if (i0 >= last) {
+                    ended = true
+                    break
+                }
+                val f = (p - i0).toFloat()
+                val g = if (fadeOut) AUDITION_GAIN * (n - i) / n else AUDITION_GAIN
+                masterL[i] += (left[i0] + (left[i0 + 1] - left[i0]) * f) * g
+                masterR[i] += (right[i0] + (right[i0 + 1] - right[i0]) * f) * g
+                p += step
+            }
+            auditionPos = p
+            if (fadeOut) {
+                auditionData = auditionRequest
+                auditionPos = 0.0
+            } else if (ended) {
+                auditionData = null
+            }
+        }
+        val on = auditionData != null
+        if (auditioning != on && auditionSerial == auditionSeen) auditioning = on
+    }
+
     // ------------------------------------------------------------------ compile side (control thread)
 
     private class DeviceEntry(val type: DeviceType, val device: Device) {
@@ -424,6 +494,7 @@ class Engine(val sampleRate: Int) {
         masterGainCur = target
 
         renderClick(n)
+        renderAudition(n)
         limiter.process(masterL, masterR, n)
         val lg = limiter.minGain
         if (lg < 0.999f) {
@@ -1146,6 +1217,9 @@ class Engine(val sampleRate: Int) {
         private const val LANE_VOLUME = 1
         private const val LANE_PAN = 2
         private val NO_LANES = emptyArray<LanePlan>()
+
+        /** Level of auditioned sounds: 16-bit samples to a little below full scale. */
+        private const val AUDITION_GAIN = 0.8f / 32768f
 
         private const val CMD_PLAY = 1
         private const val CMD_RESUME = 2

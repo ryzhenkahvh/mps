@@ -58,6 +58,10 @@ class Prefs(context: Context) {
     var keepScreenOn by mutableStateOf(sp.getBoolean("keepScreenOn", true))
         private set
 
+    /** Quiet microphone takes are made louder automatically. */
+    var autoLevel by mutableStateOf(sp.getBoolean("autoLevel", true))
+        private set
+
     /** Extra shift applied to microphone recordings, in milliseconds (positive = earlier). */
     var recordOffsetMs by mutableIntStateOf(sp.getInt("recordOffsetMs", 0))
         private set
@@ -80,6 +84,7 @@ class Prefs(context: Context) {
     @SuppressLint("ApplySharedPref")
     fun updateLanguage(value: String) { language = value; sp.edit().putString("language", value).commit() }
     fun updateMetronome(value: Boolean) { metronome = value; sp.edit().putBoolean("metronome", value).apply() }
+    fun updateAutoLevel(value: Boolean) { autoLevel = value; sp.edit().putBoolean("autoLevel", value).apply() }
     fun updateCountIn(value: Boolean) { countIn = value; sp.edit().putBoolean("countIn", value).apply() }
     fun updateQuantize(value: Boolean) { quantize = value; sp.edit().putBoolean("quantize", value).apply() }
     fun updateKeepScreenOn(value: Boolean) { keepScreenOn = value; sp.edit().putBoolean("keepScreenOn", value).apply() }

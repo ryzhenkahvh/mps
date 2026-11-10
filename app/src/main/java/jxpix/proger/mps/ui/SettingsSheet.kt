@@ -122,6 +122,14 @@ fun SettingsSheet(studio: Studio, onDismiss: () -> Unit, onLanguageChanged: () -
             )
             IconBtn(Ic.Add, "+10", { prefs.updateRecordOffset((prefs.recordOffsetMs + 10).coerceIn(-300, 300)) })
         }
+        SwitchRow(stringResource(R.string.set_auto_level), stringResource(R.string.set_auto_level_desc), prefs.autoLevel) { prefs.updateAutoLevel(it) }
+        if (studio.micReport.isNotEmpty()) {
+            // what the microphone did last time: the first thing to look at when a recording fails
+            Text(
+                stringResource(R.string.mic_report, studio.micReport), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim,
+                fontSize = 12.sp, lineHeight = 16.sp,
+            )
+        }
         SwitchRow(stringResource(R.string.set_keep_screen), null, prefs.keepScreenOn) { prefs.updateKeepScreenOn(it) }
 
         // ---- midi

@@ -60,6 +60,9 @@ class UiState {
     var playlistGridH = 1f
     var selectedClip by mutableIntStateOf(0)
 
+    /** Ask the playlist to scroll this track into view (-1 = nothing to do); the playlist resets it. */
+    var revealTrack by mutableIntStateOf(-1)
+
     // keys
     /** null = decide from the type of the selected channel. */
     var padsMode by mutableStateOf<Boolean?>(null)
@@ -83,6 +86,7 @@ class UiState {
         playlist.scrollY = -1f
         playlist.pxPerTick = 0f
         selectedClip = 0
+        revealTrack = -1
         padsMode = null
     }
 }

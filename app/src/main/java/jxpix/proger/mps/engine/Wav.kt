@@ -80,6 +80,48 @@ object Wav {
         }
     }
 
+    /** What the header of a WAV file says about it. */
+    class Info(val sampleRate: Int, val channels: Int, val frames: Int) {
+        val seconds: Float get() = if (sampleRate > 0) frames.toFloat() / sampleRate else 0f
+    }
+
+    /** Reads only the header - enough to show how long a sound is without loading it. */
+    fun info(file: File): Info? {
+        try {
+            file.inputStream().use { input ->
+                val d = DataInputStream(BufferedInputStream(input, 4096))
+                if (fourCc(d) != "RIFF") return null
+                le32(d)
+                if (fourCc(d) != "WAVE") return null
+                var channels = 0
+                var rate = 0
+                var bits = 0
+                while (true) {
+                    val id = fourCc(d)
+                    val size = le32(d).toLong() and 0xFFFFFFFFL
+                    when (id) {
+                        "fmt " -> {
+                            le16(d)
+                            channels = le16(d)
+                            rate = le32(d)
+                            le32(d)
+                            le16(d)
+                            bits = le16(d)
+                            skip(d, size - 16 + (size and 1))
+                        }
+                        "data" -> {
+                            if (channels < 1 || rate < 1 || bits < 8) return null
+                            return Info(rate, channels, (size / (bits / 8 * channels)).toInt().coerceAtMost(MAX_FRAMES))
+                        }
+                        else -> skip(d, size + (size and 1))
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            return null
+        }
+    }
+
     private fun decode(b: ByteArray, o: Int, bytes: Int, format: Int): Short = when {
         format == 3 && bytes == 4 -> {
             val bitsValue = (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8) or

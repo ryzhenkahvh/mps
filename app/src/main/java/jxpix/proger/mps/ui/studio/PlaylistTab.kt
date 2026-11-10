@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.studio
 
+import jxpix.proger.mps.studio.RecordMode
 import androidx.compose.ui.platform.LocalConfiguration
 import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -358,6 +359,23 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
         if (view.pxPerTick < minPx() || view.pxPerTick > maxPx) view.pxPerTick = view.pxPerTick.coerceIn(minPx(), maxPx)
         if (view.scrollY < 0f) view.scrollY = 0f
 
+        // somebody asked to see a track (a new recording, an imported file): scroll just enough
+        val reveal = ui.revealTrack
+        if (reveal >= 0) {
+            LaunchedEffect(reveal, gridH) {
+                val top = reveal * trackH
+                val bottom = top + trackH
+                val y = view.scrollY
+                val wanted = when {
+                    top < y -> top
+                    bottom > y + gridH -> bottom - gridH + 6f * dp
+                    else -> y
+                }
+                view.scrollY = wanted.coerceIn(0f, maxScrollY())
+                ui.revealTrack = -1
+            }
+        }
+
         val scope = rememberCoroutineScope()
         val decay = rememberSplineBasedDecay<Float>()
         val panZoom = remember(scope, decay) {
@@ -699,8 +717,20 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
         // The play head lives in its own layer: while the song plays only this thin line is redrawn.
         if (songMode) {
             val head = remember { Path() }
+            val recordingAudio = studio.recordMode == RecordMode.AUDIO
             Canvas(Modifier.fillMaxSize()) {
                 val x = headerW + studio.playhead.doubleValue.toFloat() * view.pxPerTick - view.scrollX.coerceIn(0f, maxScrollX())
+                if (recordingAudio) {
+                    // the take being recorded grows behind the play head
+                    val from = headerW + studio.recordFromTick * view.pxPerTick - view.scrollX.coerceIn(0f, maxScrollX())
+                    val top = rulerH + studio.recordTrack * trackH - view.scrollY + 2f * dp
+                    val left = max(from, headerW)
+                    if (x > left && top + trackH > rulerH) {
+                        clipRect(headerW, rulerH, size.width, size.height) {
+                            drawRoundRect(c.record.copy(alpha = 0.45f), Offset(left, top), Size(x - left, trackH - 4f * dp), CornerRadius(6f * dp))
+                        }
+                    }
+                }
                 if (x >= headerW - 1f && x <= size.width) {
                     drawLine(c.accent, Offset(x, rulerH * 0.5f), Offset(x, size.height), 2f * dp)
                     head.reset()

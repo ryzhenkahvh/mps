@@ -157,6 +157,23 @@ fun Project.setParam(uid: Int, paramId: String, value: Float): Project = updateD
 fun Project.applyPreset(uid: Int, preset: Preset): Project =
     updateDevice(uid) { it.copy(params = preset.params, preset = preset.id) }
 
+/** Marks [DeviceState.preset] as one of the user's own presets; the rest of the string is its name. */
+const val USER_PRESET_PREFIX = "user:"
+
+/**
+ * Sets all knobs of a device from a saved set of values. Values the device does not know are
+ * dropped, missing ones get their defaults, so presets saved by another version still load.
+ */
+fun Project.applyParams(uid: Int, params: Map<String, Float>, presetId: String?): Project = updateDevice(uid) { d ->
+    val type = Devices[d.type] ?: return@updateDevice d
+    val clean = HashMap(type.defaults())
+    for ((id, value) in params) {
+        val spec = type.spec(id) ?: continue
+        if (!value.isNaN()) clean[id] = value.coerceIn(spec.min, spec.max)
+    }
+    d.copy(params = clean, preset = presetId)
+}
+
 /** Effects of a channel, or of the master when [ownerId] is [MASTER_ID]. */
 fun Project.effectsOf(ownerId: Int): List<DeviceState> =
     if (ownerId == MASTER_ID) masterEffects else channel(ownerId)?.effects ?: emptyList()
@@ -430,6 +447,17 @@ fun Project.setTrackCount(count: Int): Project {
 }
 
 /** First playlist lane that has no clip overlapping [start, start+length). */
+/**
+ * The track a new audio clip goes to: the topmost one with nothing at or after [start], so
+ * that the clip lands right under the arrangement, in view. A track is added when all are
+ * taken; -1 only when there is no room for another track either.
+ */
+fun Project.trackForNewAudio(start: Int): Pair<Project, Int> {
+    for (t in 0 until tracks) if (clips.none { it.track == t && it.end > start }) return this to t
+    val grown = setTrackCount(tracks + 1)
+    return if (grown.tracks > tracks) grown to grown.tracks - 1 else this to -1
+}
+
 fun Project.freeTrack(start: Int, length: Int, preferred: Int = 0): Int {
     fun free(t: Int) = clips.none { it.track == t && it.start < start + length && it.end > start }
     if (free(preferred)) return preferred

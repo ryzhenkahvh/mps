@@ -1,5 +1,16 @@
 package jxpix.proger.mps.ui.studio
 
+import kotlin.math.ceil
+import android.provider.Settings
+import android.net.Uri
+import android.content.Intent
+import jxpix.proger.mps.ui.components.Chip
+import androidx.compose.foundation.layout.widthIn
+import jxpix.proger.mps.ui.components.ConfirmDialog
+import kotlin.math.log10
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import jxpix.proger.mps.data.ProjectStore
@@ -79,7 +90,7 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         if (ui.editor != null) ui.editor = null else studio.closeProject()
     }
 
-    val micDenied = stringResource(R.string.mic_denied)
+    var micDenied by remember { mutableStateOf(false) }
     val startMic = {
         if (studio.startAudioRecording()) {
             ui.editor = null
@@ -87,7 +98,19 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         }
     }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startMic() else studio.message = micDenied
+        // refused (perhaps for good, then the system does not even ask): say where to allow it
+        if (granted) startMic() else micDenied = true
+    }
+    val askForMic = {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startMic()
+        } else {
+            try {
+                micPermission.launch(Manifest.permission.RECORD_AUDIO)
+            } catch (_: Exception) {
+                micDenied = true
+            }
+        }
     }
     val onRecord = {
         if (studio.recordMode != RecordMode.NONE) studio.stopRecording() else sheet = Sheet.RECORD
@@ -111,21 +134,20 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         val wide = maxWidth >= 600.dp && maxWidth > maxHeight
         val roomy = maxWidth >= 400.dp
         val content: @Composable (Modifier) -> Unit = { modifier ->
-            Box(modifier) {
-                val editor = ui.editor
-                if (editor != null) {
-                    ChannelEditor(studio, editor)
-                } else {
-                    when (ui.tab) {
-                        Tab.RACK -> RackTab(studio)
-                        Tab.PIANO -> PianoRollTab(studio)
-                        Tab.PLAYLIST -> PlaylistTab(studio, onRecordMic = {
-                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                                startMic()
-                            } else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                        })
-                        Tab.MIXER -> MixerTab(studio)
-                        Tab.KEYS -> KeysTab(studio)
+            Column(modifier) {
+                if (studio.recordMode == RecordMode.AUDIO) RecordingBar(studio)
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    val editor = ui.editor
+                    if (editor != null) {
+                        ChannelEditor(studio, editor)
+                    } else {
+                        when (ui.tab) {
+                            Tab.RACK -> RackTab(studio)
+                            Tab.PIANO -> PianoRollTab(studio)
+                            Tab.PLAYLIST -> PlaylistTab(studio, onRecordMic = askForMic)
+                            Tab.MIXER -> MixerTab(studio)
+                            Tab.KEYS -> KeysTab(studio)
+                        }
                     }
                 }
             }
@@ -147,6 +169,23 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         }
     }
 
+    if (micDenied) {
+        ConfirmDialog(
+            stringResource(R.string.mic_denied_title), stringResource(R.string.mic_denied), stringResource(R.string.open_settings),
+            onConfirm = {
+                micDenied = false
+                try {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                } catch (_: Exception) {
+                }
+            },
+            onDismiss = { micDenied = false }, danger = false,
+        )
+    }
+
     when (sheet) {
         Sheet.TEMPO -> TempoSheet(studio) { sheet = Sheet.NONE }
         Sheet.RECORD -> RecordSheet(
@@ -159,9 +198,7 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             },
             onMic = {
                 sheet = Sheet.NONE
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    startMic()
-                } else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                askForMic()
             },
         )
         Sheet.MENU -> MenuSheet(
@@ -202,6 +239,58 @@ fun StudioScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             onDismiss = { sheet = Sheet.NONE },
         )
         Sheet.NONE -> {}
+    }
+}
+
+/**
+ * Shown while the microphone records: without it nothing on the screen tells whether the
+ * phone hears anything. Time of the take, a live input level and a stop button.
+ */
+@Composable
+private fun RecordingBar(studio: Studio) {
+    val c = Mps.colors
+    val seconds by remember(studio) {
+        derivedStateOf {
+            val ticks = studio.playhead.doubleValue - studio.recordFromTick
+            (ticks * studio.project.secondsPerTick).toInt().coerceAtLeast(0)
+        }
+    }
+    // beats left of the count-in; 0 once the take has begun
+    val beatsLeft by remember(studio) {
+        derivedStateOf { ceil((studio.recordFromTick - studio.playhead.doubleValue) / PPQ).toInt().coerceAtLeast(0) }
+    }
+    val waiting = beatsLeft > 0
+    val levelLabel = stringResource(R.string.rec_bar_level)
+    Row(
+        Modifier.fillMaxWidth().height(44.dp).background(c.record.copy(alpha = 0.12f)).padding(start = 14.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(c.record))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            if (waiting) stringResource(R.string.rec_bar_wait, beatsLeft) else stringResource(R.string.rec_bar_recording, Fmt.clock(seconds.toDouble())),
+            color = c.record, fontSize = 13.sp, fontWeight = FontWeight.Bold, style = NumberStyle, maxLines = 1, softWrap = false,
+        )
+        Spacer(Modifier.width(12.dp))
+        // input level, -60..0 dB; drawn directly so that it can move on every frame
+        Canvas(Modifier.weight(1f).height(10.dp).semantics { contentDescription = levelLabel }) {
+            val radius = CornerRadius(size.height / 2)
+            drawRoundRect(c.surfaceHigh, size = size, cornerRadius = radius)
+            val level = studio.inputLevel.floatValue
+            if (level > 0.001f) {
+                val part = ((20f * log10(level) + 60f) / 60f).coerceIn(0f, 1f)
+                drawRoundRect(if (level > 0.95f) c.record else c.accent, size = Size(size.width * part, size.height), cornerRadius = radius)
+            }
+        }
+        if (studio.micSilent) {
+            Spacer(Modifier.width(10.dp))
+            Text(
+                stringResource(R.string.rec_bar_silent), Modifier.widthIn(max = 220.dp), color = c.record, fontSize = 12.sp, lineHeight = 14.sp,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Chip(stringResource(R.string.rec_bar_stop), { studio.stopRecording() }, selected = true, icon = Ic.Stop)
     }
 }
 
