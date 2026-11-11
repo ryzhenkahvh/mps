@@ -201,6 +201,9 @@ set role authenticated;
 select test.be('bob');
 select test.eq(public.mps_add_download((select id from public.mps_items where title = 'Alice kick')), 3, 'signed-in download');
 select test.eq(public.mps_add_download((select id from public.mps_items where title = 'Alice kick')), 3, 'signed-in again');
+select test.be('alice');
+select test.eq(public.mps_add_download((select id from public.mps_items where title = 'Alice kick')), 3, 'the author does not raise her own number');
+select test.be('bob');
 
 -- ---------------------------------------------------------------- profile editing
 update public.mps_profiles set bio = 'I make beats', avatar = 3 where id = test.id('bob');
@@ -299,6 +302,11 @@ do $$ begin
   end;
 end $$;
 select test.eq((select used from public.mps_my_storage()), 3000000::bigint, 'used space');
+select test.be('bob');
+select test.eq(public.mps_storage_used(test.id('alice')), 0::bigint, 'how much somebody else stores is not shown');
+select test.be('admin');
+select test.eq(public.mps_storage_used(test.id('alice')), 3000000::bigint, 'a moderator sees it');
+select test.be('alice');
 reset role;
 update public.mps_config set user_quota_bytes = 2000000;
 set role authenticated;

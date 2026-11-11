@@ -58,7 +58,7 @@ drop policy if exists "profiles are public" on public.mps_profiles;
 create policy "profiles are public" on public.mps_profiles for select using (true);
 drop policy if exists "own profile can be edited" on public.mps_profiles;
 create policy "own profile can be edited" on public.mps_profiles for update to authenticated
-  using (id = auth.uid()) with check (id = auth.uid());
+  using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
 revoke all on public.mps_profiles from anon, authenticated;
 grant select on public.mps_profiles to anon, authenticated;
@@ -66,12 +66,12 @@ grant select on public.mps_profiles to anon, authenticated;
 grant update (username, bio, avatar) on public.mps_profiles to authenticated;
 
 create or replace function public.mps_is_admin() returns boolean
-language sql stable security definer set search_path = '' as $$
+language sql stable security invoker set search_path = '' as $$
   select coalesce((select p.is_admin from public.mps_profiles p where p.id = auth.uid()), false)
 $$;
 
 create or replace function public.mps_username_free(name text) returns boolean
-language sql stable security definer set search_path = '' as $$
+language sql stable security invoker set search_path = '' as $$
   select not exists (select 1 from public.mps_profiles p where lower(p.username) = lower(trim(name)))
 $$;
 
@@ -159,19 +159,19 @@ create index if not exists mps_items_tags_idx on public.mps_items using gin (tag
 alter table public.mps_items enable row level security;
 drop policy if exists "visible items" on public.mps_items;
 create policy "visible items" on public.mps_items for select
-  using (not hidden or owner = auth.uid() or public.mps_is_admin());
+  using (not hidden or owner = (select auth.uid()) or (select public.mps_is_admin()));
 drop policy if exists "publish as yourself" on public.mps_items;
 create policy "publish as yourself" on public.mps_items for insert to authenticated with check (
-  owner = auth.uid()
-  and (file_path is null or file_path like auth.uid()::text || '/%')
-  and (preview_path is null or preview_path like auth.uid()::text || '/%')
+  owner = (select auth.uid())
+  and (file_path is null or file_path like (select auth.uid())::text || '/%')
+  and (preview_path is null or preview_path like (select auth.uid())::text || '/%')
 );
 drop policy if exists "edit own items" on public.mps_items;
 create policy "edit own items" on public.mps_items for update to authenticated
-  using (owner = auth.uid()) with check (owner = auth.uid());
+  using (owner = (select auth.uid())) with check (owner = (select auth.uid()));
 drop policy if exists "delete own items" on public.mps_items;
 create policy "delete own items" on public.mps_items for delete to authenticated
-  using (owner = auth.uid() or public.mps_is_admin());
+  using (owner = (select auth.uid()) or (select public.mps_is_admin()));
 
 -- Counters, marks and the "hidden" flag cannot be written by the app: only these columns can.
 revoke all on public.mps_items from anon, authenticated;
@@ -227,20 +227,22 @@ create table if not exists public.mps_ratings (
   constraint mps_ratings_stars_ok check (stars between 1 and 5)
 );
 
+create index if not exists mps_ratings_user_idx on public.mps_ratings (user_id);
+
 alter table public.mps_ratings enable row level security;
 drop policy if exists "own ratings" on public.mps_ratings;
-create policy "own ratings" on public.mps_ratings for select to authenticated using (user_id = auth.uid());
+create policy "own ratings" on public.mps_ratings for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists "rate as yourself" on public.mps_ratings;
 -- nobody rates their own work
 create policy "rate as yourself" on public.mps_ratings for insert to authenticated with check (
-  user_id = auth.uid()
-  and not exists (select 1 from public.mps_items i where i.id = item_id and i.owner = auth.uid())
+  user_id = (select auth.uid())
+  and not exists (select 1 from public.mps_items i where i.id = item_id and i.owner = (select auth.uid()))
 );
 drop policy if exists "change own rating" on public.mps_ratings;
 create policy "change own rating" on public.mps_ratings for update to authenticated
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 drop policy if exists "remove own rating" on public.mps_ratings;
-create policy "remove own rating" on public.mps_ratings for delete to authenticated using (user_id = auth.uid());
+create policy "remove own rating" on public.mps_ratings for delete to authenticated using (user_id = (select auth.uid()));
 
 revoke all on public.mps_ratings from anon, authenticated;
 grant select, delete on public.mps_ratings to authenticated;
@@ -308,6 +310,10 @@ begin
   if auth.uid() is null and char_length(coalesce(device, '')) < 8 then
     return (select i.downloads from public.mps_items i where i.id = item);
   end if;
+  -- authors do not raise their own numbers
+  if exists (select 1 from public.mps_items i where i.id = item and i.owner = auth.uid()) then
+    return (select i.downloads from public.mps_items i where i.id = item);
+  end if;
   insert into public.mps_downloads (item_id, who) values (item, me) on conflict do nothing;
   if found then
     update public.mps_items i set downloads = i.downloads + 1 where i.id = item returning i.downloads into total;
@@ -328,12 +334,14 @@ create table if not exists public.mps_reports (
   constraint mps_reports_reason_ok check (char_length(reason) <= 300)
 );
 
+create index if not exists mps_reports_user_idx on public.mps_reports (user_id);
+
 alter table public.mps_reports enable row level security;
 drop policy if exists "see own reports" on public.mps_reports;
 create policy "see own reports" on public.mps_reports for select to authenticated
-  using (user_id = auth.uid() or public.mps_is_admin());
+  using (user_id = (select auth.uid()) or (select public.mps_is_admin()));
 drop policy if exists "report as yourself" on public.mps_reports;
-create policy "report as yourself" on public.mps_reports for insert to authenticated with check (user_id = auth.uid());
+create policy "report as yourself" on public.mps_reports for insert to authenticated with check (user_id = (select auth.uid()));
 
 revoke all on public.mps_reports from anon, authenticated;
 grant select on public.mps_reports to authenticated;
@@ -419,6 +427,8 @@ language sql stable security definer set search_path = '' as $$
   select coalesce(sum((o.metadata ->> 'size')::bigint), 0)::bigint
   from storage.objects o
   where o.bucket_id = 'mps-files' and o.name like who::text || '/%'
+    -- one's own use only (moderators: anybody's)
+    and (who = auth.uid() or public.mps_is_admin())
 $$;
 
 create or replace function public.mps_storage_total() returns bigint
@@ -430,24 +440,24 @@ $$;
 
 -- How much room the signed-in person has used and may use.
 create or replace function public.mps_my_storage() returns table (used bigint, quota bigint)
-language sql stable security definer set search_path = '' as $$
+language sql stable security invoker set search_path = '' as $$
   select public.mps_storage_used(auth.uid()), c.user_quota_bytes from public.mps_config c
 $$;
 
 drop policy if exists "mps: upload into own folder" on storage.objects;
 create policy "mps: upload into own folder" on storage.objects for insert to authenticated with check (
   bucket_id = 'mps-files'
-  and (storage.foldername(name))[1] = auth.uid()::text
-  and public.mps_storage_used(auth.uid()) < (select c.user_quota_bytes from public.mps_config c)
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+  and public.mps_storage_used((select auth.uid())) < (select c.user_quota_bytes from public.mps_config c)
   and public.mps_storage_total() < (select c.total_quota_bytes from public.mps_config c)
 );
 drop policy if exists "mps: see own files" on storage.objects;
 create policy "mps: see own files" on storage.objects for select to authenticated using (
-  bucket_id = 'mps-files' and ((storage.foldername(name))[1] = auth.uid()::text or public.mps_is_admin())
+  bucket_id = 'mps-files' and ((storage.foldername(name))[1] = (select auth.uid())::text or (select public.mps_is_admin()))
 );
 drop policy if exists "mps: delete own files" on storage.objects;
 create policy "mps: delete own files" on storage.objects for delete to authenticated using (
-  bucket_id = 'mps-files' and ((storage.foldername(name))[1] = auth.uid()::text or public.mps_is_admin())
+  bucket_id = 'mps-files' and ((storage.foldername(name))[1] = (select auth.uid())::text or (select public.mps_is_admin()))
 );
 
 -- ------------------------------------------------------------------ who may call what

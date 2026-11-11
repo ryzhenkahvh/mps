@@ -162,6 +162,8 @@ class CloudApiTest {
         assertEquals(1, api.addDownload(null, kick.id, "installation-0001"))
         assertEquals(2, api.addDownload(bob, kick.id, "installation-0001"))
         assertEquals(2, api.addDownload(bob, kick.id, "installation-0002"))
+        // authors do not raise their own numbers
+        assertEquals(2, api.addDownload(alice, kick.id, "installation-0003"))
         assertEquals(kick.id, api.feed(FeedQuery(sort = CloudSort.POPULAR, search = mark), null).first().id)
 
         // marks

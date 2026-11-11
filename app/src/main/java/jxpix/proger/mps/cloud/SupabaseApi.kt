@@ -379,8 +379,10 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
         val h = headers(session.accessToken, false)
         h["Content-Type"] = mime
         h["x-upsert"] = "false"
-        // names are never reused, so the copies kept by the delivery network never go stale
-        h["cache-control"] = "max-age=31536000"
+        // Names are never reused, so copies kept by the delivery network cannot go stale. When a file
+        // is deleted the server makes the network forget it (within about a minute); a day is the
+        // longest a copy could outlive its file if that ever failed.
+        h["cache-control"] = "max-age=86400"
         val r = reach { base -> Http.upload("$base/storage/v1/object/$BUCKET/$path", h, file, progress) }
         if (!r.ok) throw storageError(r)
     }

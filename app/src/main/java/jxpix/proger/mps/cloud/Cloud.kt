@@ -787,6 +787,8 @@ class Cloud(private val app: Context, private val studio: Studio) {
     }
 
     private fun countDownload(item: CloudItem) {
+        // taking one's own work is not a download (the server would not count it either)
+        if (isMine(item)) return
         scope.launch {
             try {
                 val total = io { maybeAuthed { s -> api.addDownload(s, item.id, device) } }
