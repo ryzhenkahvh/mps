@@ -144,12 +144,9 @@ final class Site
         $file = $files[0];
         $name = basename($file);
         $version = preg_match('/(\d+(?:\.\d+)+)/', $name, $m) ? $m[1] : '';
-        // the checksum of a file of some 25 MB is worked out once and remembered
-        $known = Keep::read('apk');
-        $stamp = $name . ':' . filesize($file) . ':' . filemtime($file);
-        if (!is_array($known) || ($known['stamp'] ?? '') !== $stamp || !is_string($known['sha256'] ?? null)) {
-            $known = ['stamp' => $stamp, 'sha256' => hash_file('sha256', $file) ?: ''];
-            Keep::write('apk', $known);
+        // earlier versions of the site remembered a checksum of the build here; it is not shown any more
+        if (is_file(Keep::path('apk'))) {
+            @unlink(Keep::path('apk'));
         }
         return [
             'name' => $name,
@@ -158,7 +155,6 @@ final class Site
             'bytes' => filesize($file),
             'megabytes' => number_format(filesize($file) / 1048576, 0, '.', ''),
             'date' => date('Y-m-d', filemtime($file)),
-            'sha256' => $known['sha256'],
         ];
     }
 
@@ -252,9 +248,12 @@ function layout(string $title, string $description, callable $content, array $op
     $page = Site::$page;
     $canonical = rtrim((string) Site::$config['site_url'], '/') . Site::url($page);
     $noindex = !empty($options['noindex']);
+    // the page moves itself from plain http to this address (see assets/site.js)
+    $address = parse_url((string) Site::$config['site_url']);
+    $home = ($address['scheme'] ?? '') === 'https' && preg_match('/^[a-z0-9.-]+$/', (string) ($address['host'] ?? '')) ? 'https://' . $address['host'] : '';
     ?>
 <!doctype html>
-<html lang="<?= e($lang) ?>">
+<html lang="<?= e($lang) ?>"<?= $home !== '' ? ' data-home="' . e($home) . '"' : '' ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -307,7 +306,9 @@ function layout(string $title, string $description, callable $content, array $op
       <a href="<?= e(Site::url('feedback')) ?>"><?= e(t('nav_feedback')) ?></a>
       <a href="<?= e(Site::url('privacy')) ?>"><?= e(t('nav_privacy')) ?></a>
       <a href="<?= e(Site::url('terms')) ?>"><?= e(t('nav_terms')) ?></a>
-      <a href="<?= e((string) Site::$config['github']) ?>" rel="noopener">GitHub</a>
+      <?php if ((string) (Site::$config['telegram'] ?? '') !== ''): ?>
+      <a href="https://t.me/<?= e((string) Site::$config['telegram']) ?>" rel="noopener">Telegram</a>
+      <?php endif; ?>
       <a href="mailto:<?= e((string) Site::$config['support_email']) ?>"><?= e((string) Site::$config['support_email']) ?></a>
     </nav>
   </div>

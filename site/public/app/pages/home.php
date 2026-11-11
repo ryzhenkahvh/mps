@@ -22,7 +22,9 @@ function feature_icon(string $name): string
 }
 
 $apk = Site::apk();
-layout(t('home_title'), t('home_description'), static function () use ($apk): void {
+// a line of facts separated by " · " is broken only between the facts, never inside one
+$facts = static fn (string $text): string => implode(' · ', array_map(static fn (string $part): string => '<span class="nowrap">' . e($part) . '</span>', explode(' · ', $text)));
+layout(t('home_title'), t('home_description'), static function () use ($apk, $facts): void {
     ?>
 <section class="hero">
   <div class="wrap hero-grid">
@@ -37,7 +39,7 @@ layout(t('home_title'), t('home_description'), static function () use ($apk): vo
         <?php endif; ?>
         <a class="button ghost" href="#features"><?= e(t('hero_more')) ?></a>
       </div>
-      <p class="note"><?= e($apk ? t('hero_note', $apk['version'] ?: '1.0', $apk['megabytes']) : t('hero_note_soon')) ?></p>
+      <p class="note"><?= $apk ? $facts(t('hero_note', $apk['version'] ?: '1.0', $apk['megabytes'])) : e(t('hero_note_soon')) ?></p>
     </div>
     <div class="phone" role="img" aria-label="<?= e(t('hero_alt')) ?>">
       <img src="<?= e(Site::shot('playlist')) ?>" alt="" width="1600" height="738" fetchpriority="high">
@@ -91,6 +93,7 @@ layout(t('home_title'), t('home_description'), static function () use ($apk): vo
         <?php endforeach; ?>
       </dl>
       <p class="note"><?= e(t('community_note')) ?></p>
+      <p class="note soon"><?= e(t('community_market')) ?></p>
     </div>
     <div class="phone small">
       <img src="<?= e(Site::shot('community')) ?>" alt="<?= e(t('community_alt')) ?>" width="1600" height="738" loading="lazy">
@@ -130,7 +133,6 @@ layout(t('home_title'), t('home_description'), static function () use ($apk): vo
     'applicationCategory' => 'MusicApplication',
     'description' => t('home_description'),
     'url' => rtrim((string) Site::$config['site_url'], '/') . Site::url('home'),
-    'offers' => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'USD'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
     <?php
 });

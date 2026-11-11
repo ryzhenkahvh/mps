@@ -29,5 +29,6 @@ return [
 
     'site_url' => 'https://mp-studio.online',
     'support_email' => 'support@mp-studio.online',
-    'github' => 'https://github.com/ryzhenkahvh/mps',
+    // the Telegram account of the project, without "@"; '' hides the links to it
+    'telegram' => 'mobprodstudio',
 ];

@@ -3,6 +3,8 @@
 MPS — приложение для Android, в котором можно собрать трек целиком: от бита до готового файла.
 Устроено по той же логике, что и FL Studio: **каналы → паттерны → плейлист → микшер**.
 
+**Сейчас доступна бета-версия.** Пока идёт бета, приложение бесплатно; после неё оно станет платным.
+
 | Каналы | Ноты | Плейлист |
 |:---:|:---:|:---:|
 | ![Каналы](docs/screenshots/rack_light.png) | ![Ноты](docs/screenshots/piano_light.png) | ![Плейлист](docs/screenshots/playlist_light.png) |
@@ -175,6 +177,9 @@ app/src/main/java/jxpix/proger/mps/
 Чтобы обновить сайт, распакуйте новый архив поверх старого: настройки и ответы останутся на месте.
 Если пароль страницы `/admin/` забыт, удалите `app/data/db.php` и откройте её снова.
 
+Сайт сам переводит посетителей на `https://` и на имя без `www.`, чтобы ответы и пароли не шли в открытом виде.
+Адрес берётся из настройки `site_url`; на других именах (копия для проверки, предпросмотр) перевода нет.
+
 Ссылку на опрос удобно раздавать с меткой: `/survey/?src=telegram` — в сводке видно, откуда пришли люди.
 Пока база данных недоступна, ответы не теряются: они ждут в файле на хостинге и попадают в базу, когда она вернётся.
 
@@ -235,6 +240,8 @@ MP3-кодировщик — [jump3r](https://git.iem.at/sciss/jump3r), пере
 ---
 
 ## In English
+
+**MPS is in beta.** The app is free while the beta lasts; after the beta it will be paid.
 
 MPS is a pocket music studio for Android built around the FL Studio workflow: channel rack (step sequencer),
 piano roll, playlist, mixer, keyboard and pads. It ships with a drum synthesizer, a polyphonic synthesizer with

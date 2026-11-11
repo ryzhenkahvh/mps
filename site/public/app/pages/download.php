@@ -6,7 +6,9 @@ if (!defined('MPS')) {
 }
 
 $apk = Site::apk();
-layout(t('download_title'), t('download_description'), static function () use ($apk): void {
+// a line of facts separated by " · " is broken only between the facts, never inside one
+$facts = static fn (string $text): string => implode(' · ', array_map(static fn (string $part): string => '<span class="nowrap">' . e($part) . '</span>', explode(' · ', $text)));
+layout(t('download_title'), t('download_description'), static function () use ($apk, $facts): void {
     ?>
 <section class="section first">
   <div class="wrap narrow">
@@ -14,8 +16,8 @@ layout(t('download_title'), t('download_description'), static function () use ($
     <?php if ($apk): ?>
       <div class="download-box">
         <a class="button primary big" href="/download/get.php" rel="nofollow"><?= e(t('download_button')) ?></a>
-        <p class="note"><?= e(t('download_meta', $apk['version'] ?: '1.0', $apk['megabytes'], $apk['date'])) ?></p>
-        <p class="note"><?= e(t('install_requirements')) ?></p>
+        <p class="note"><?= $facts(t('download_meta', $apk['version'] ?: '1.0', $apk['megabytes'], $apk['date'])) ?></p>
+        <p class="note"><?= e(t('install_requirements')) ?> <?= e(t('download_beta')) ?></p>
       </div>
     <?php else: ?>
       <div class="download-box">
@@ -31,11 +33,6 @@ layout(t('download_title'), t('download_description'), static function () use ($
         <li><?= e($step) ?></li>
       <?php endforeach; ?>
     </ol>
-    <?php if ($apk && $apk['sha256'] !== ''): ?>
-      <h2><?= e(t('checksum')) ?></h2>
-      <p><code class="hash"><?= e($apk['sha256']) ?></code></p>
-      <p class="note"><?= e(t('checksum_note')) ?></p>
-    <?php endif; ?>
   </div>
 </section>
     <?php

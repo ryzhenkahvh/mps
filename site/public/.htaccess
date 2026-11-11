@@ -16,7 +16,10 @@ ErrorDocument 404 /404.php
 </IfModule>
 
 <IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
+    # the pages send their own headers; these are for plain files
+    <FilesMatch "\.(apk|png|svg|css|js|txt|xml)$">
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
     <FilesMatch "\.(png|svg|css|js)$">
         Header set Cache-Control "public, max-age=604800"
     </FilesMatch>

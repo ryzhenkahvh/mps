@@ -71,6 +71,16 @@ return [
         ],
     ],
     [
+        'id' => 'lost', 'type' => 'one',
+        'q' => ['ru' => 'Как часто вы теряли музыкальную идею, потому что были не за своей DAW — программой, в которой делаете музыку?', 'en' => 'How often have you lost a musical idea because you were away from your DAW, the program you make music in?'],
+        'options' => [
+            'often' => ['ru' => 'Часто', 'en' => 'Often'],
+            'sometimes' => ['ru' => 'Иногда', 'en' => 'Sometimes'],
+            'rarely' => ['ru' => 'Редко', 'en' => 'Rarely'],
+            'never' => ['ru' => 'Никогда', 'en' => 'Never'],
+        ],
+    ],
+    [
         'id' => 'last', 'type' => 'text',
         'q' => ['ru' => 'Вспомните последний раз, когда вы делали музыку на телефоне. Что хотели сделать и на чём остановились?', 'en' => 'Think of the last time you made music on your phone. What did you want to do, and where did you stop?'],
         'hint' => ['ru' => 'Например: хотел набросать бит в автобусе, но не нашёл нормальный бас и бросил.', 'en' => 'For example: I wanted to sketch a beat on the bus, could not find a decent bass and gave up.'],
@@ -109,7 +119,7 @@ return [
             'nowhere' => ['ru' => 'Никуда, остаётся у меня', 'en' => 'Nowhere, it stays with me'],
             'friends' => ['ru' => 'Друзьям в мессенджеры', 'en' => 'To friends in messengers'],
             'short' => ['ru' => 'TikTok, Reels, Shorts', 'en' => 'TikTok, Reels, Shorts'],
-            'soundcloud' => ['ru' => 'SoundCloud, BandLab', 'en' => 'SoundCloud, BandLab'],
+            'soundcloud' => ['ru' => 'SoundCloud, BandLab, Bandcamp', 'en' => 'SoundCloud, BandLab, Bandcamp'],
             'streaming' => ['ru' => 'Spotify, Яндекс Музыка, VK Музыка', 'en' => 'Spotify, Apple Music and other streaming'],
             'youtube' => ['ru' => 'YouTube', 'en' => 'YouTube'],
         ],

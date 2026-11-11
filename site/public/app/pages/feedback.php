@@ -61,6 +61,9 @@ layout(t('feedback_title'), t('feedback_description'), static function () use ($
       <a class="button primary" href="<?= e(Site::url('home')) ?>"><?= e(t('back_home')) ?></a>
     <?php else: ?>
       <p class="lead"><?= e(t('feedback_lead')) ?></p>
+      <?php if ((string) (Site::$config['telegram'] ?? '') !== ''): ?>
+        <p class="note"><?= e(t('feedback_telegram')) ?> <a href="https://t.me/<?= e((string) Site::$config['telegram']) ?>" rel="noopener">@<?= e((string) Site::$config['telegram']) ?></a></p>
+      <?php endif; ?>
       <?php if ($source === 'app' && $version !== ''): ?>
         <p class="note"><?= e(t('feedback_from_app', $version, trim($device . ($android !== '' ? ', Android ' . $android : ''), ', '))) ?></p>
       <?php endif; ?>

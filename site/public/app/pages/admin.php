@@ -114,7 +114,7 @@ if ($why === 'not-set') {
           <div class="field"><label for="np">Новый пароль этой страницы (не короче 10 символов)</label><input id="np" type="password" name="password" required minlength="10" autocomplete="new-password"></div>
           <button class="button primary" type="submit">Сохранить и войти</button>
         </form>
-        <p class="note">Данные базы остаются на хостинге, в файле <code>app/data/db.php</code>. В архиве сайта и в репозитории их нет.</p>
+        <p class="note">Данные базы остаются на хостинге, в файле <code>app/data/db.php</code>. В архиве сайта их нет.</p>
         <?php
     });
     return;

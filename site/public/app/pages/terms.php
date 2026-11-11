@@ -35,7 +35,7 @@ legal_page(Site::$lang === 'en' ? [
         ]],
         ['Limits', [
             'A file may be up to 10 MB, one author may keep up to 50 MB on the server, and the number of publications per day is limited.',
-            'The community is free and provided as it is. We do our best to keep it running, but we do not promise that it is always available and we are not liable for the loss of what was published. Keep copies of your own.',
+            'The community is provided as it is. We do our best to keep it running, but we do not promise that it is always available and we are not liable for the loss of what was published. Keep copies of your own.',
         ]],
         ['Changes', ['When these rules change, the new text appears on this page with a new date.']],
         ['Contact', [$mail]],
@@ -68,7 +68,7 @@ legal_page(Site::$lang === 'en' ? [
         ]],
         ['Ограничения', [
             'Файл может быть не больше 10 МБ, один автор может хранить на сервере до 50 МБ, число публикаций в день ограничено.',
-            'Сообщество бесплатное и предоставляется как есть. Мы стараемся, чтобы оно работало, но не обещаем, что оно доступно всегда, и не отвечаем за утрату опубликованного. Храните копии у себя.',
+            'Сообщество предоставляется как есть. Мы стараемся, чтобы оно работало, но не обещаем, что оно доступно всегда, и не отвечаем за утрату опубликованного. Храните копии у себя.',
         ]],
         ['Изменения', ['Если правила изменятся, новый текст появится на этой странице с новой датой.']],
         ['Связь', [$mail]],

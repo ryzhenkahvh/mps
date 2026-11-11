@@ -2,6 +2,14 @@
 (function () {
   'use strict';
   var doc = document;
+
+  // one address: a page opened over plain http moves to https, with the same path
+  var home = /^https:\/\/([a-z0-9.-]+)$/.exec(doc.documentElement.getAttribute('data-home') || '');
+  if (home && location.protocol === 'http:' && (location.hostname === home[1] || location.hostname === 'www.' + home[1])) {
+    location.replace('https://' + home[1] + location.pathname + location.search + location.hash);
+    return;
+  }
+
   doc.documentElement.classList.add('js');
 
   // the menu on narrow screens
