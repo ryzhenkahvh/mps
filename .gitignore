@@ -25,3 +25,9 @@ keystore.properties
 
 # Logs
 *.log
+
+# Website: the real settings, what visitors sent and the builds offered for download
+site/public/app/config.php
+site/public/app/data/*
+!site/public/app/data/.htaccess
+site/public/download/*.apk

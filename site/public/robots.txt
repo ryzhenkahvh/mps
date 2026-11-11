@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /download/get.php
+Sitemap: https://mp-studio.online/sitemap.xml

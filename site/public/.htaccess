@@ -1,0 +1,23 @@
+# MPS website. Every page is a real index.php in its own folder, so the site works without
+# any of the lines below; they only tidy things up. Nothing here needs mod_rewrite.
+DirectoryIndex index.php index.html
+AddDefaultCharset UTF-8
+ErrorDocument 404 /404.php
+
+<IfModule mod_alias.c>
+    # hidden files and folders do not exist for a visitor (.well-known stays: certificates are renewed through it)
+    RedirectMatch 404 "(^|/)\.(?!well-known(/|$))"
+    # folders of pictures and styles are not pages: no file lists
+    RedirectMatch 404 "^/assets/(.*/)?$"
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/vnd.android.package-archive .apk
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    <FilesMatch "\.(png|svg|css|js)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>

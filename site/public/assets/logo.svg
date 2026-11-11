@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 704 240" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="25">
+  <title>MPS</title>
+  <path d="M30 224V30L139 124L247 30V224"/>
+  <path d="M297 30H408A53 53 0 0 1 408 136H297V224"/>
+  <path d="M684 30H559A52 52 0 0 0 559 134H644A45.5 45.5 0 0 1 644 225H510"/>
+  <path stroke-width="18" d="M74 227V191M106 227V167M139 227V191M172 227V167M204 227V191"/>
+</svg>
