@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jxpix.proger.mps.R
 import jxpix.proger.mps.model.Channel
+import jxpix.proger.mps.model.Scales
 import jxpix.proger.mps.model.isBlackKey
 import jxpix.proger.mps.model.noteName
 import jxpix.proger.mps.studio.RecordMode
@@ -66,21 +68,6 @@ import jxpix.proger.mps.ui.theme.Mps
 import jxpix.proger.mps.ui.theme.NumberStyle
 import kotlin.math.max
 import kotlin.math.min
-
-/** Semitones of each scale, counted from its root. Index 0 = no scale. */
-private val SCALES = arrayOf(
-    intArrayOf(),
-    intArrayOf(0, 2, 4, 5, 7, 9, 11),
-    intArrayOf(0, 2, 3, 5, 7, 8, 10),
-    intArrayOf(0, 2, 4, 7, 9),
-    intArrayOf(0, 3, 5, 7, 10),
-    intArrayOf(0, 3, 5, 6, 7, 10),
-)
-private val SCALE_NAMES = intArrayOf(
-    R.string.scale_off, R.string.scale_major, R.string.scale_minor, R.string.scale_penta_major, R.string.scale_penta_minor,
-    R.string.scale_blues,
-)
-private val ROOT_NAMES = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
 /** Keyboard and drum pads for playing live (and recording what is played). */
 @Composable
@@ -118,9 +105,10 @@ fun KeysTab(studio: Studio) {
                 )
                 IconBtn(Ic.Add, stringResource(R.string.octave_up), { ui.octave = min(7, ui.octave + 1) }, enabled = ui.octave < 7, background = c.surfaceHigh, size = 38.dp)
                 Spacer(Modifier.weight(1f))
+                // the key belongs to the song: the same one is marked in the piano roll
                 Chip(
-                    if (ui.scale == 0) stringResource(R.string.scale) else ROOT_NAMES[ui.scaleRoot] + " " + stringResource(SCALE_NAMES[ui.scale]).lowercase(),
-                    { scaleSheet = true }, selected = ui.scale != 0, icon = Ic.Magic, maxWidth = 190.dp,
+                    keyName(p, LocalResources.current) ?: stringResource(R.string.key_title),
+                    { scaleSheet = true }, selected = p.scale != 0, icon = Ic.Magic, maxWidth = 190.dp,
                 )
             }
         }
@@ -145,14 +133,14 @@ fun KeysTab(studio: Studio) {
                     // phones held upright get two keyboards, one above the other
                     val twoRows = maxHeight >= 300.dp && maxWidth < 600.dp
                     val whiteKeys = (maxWidth / 50.dp).toInt().coerceIn(7, 22)
-                    val scale = if (ui.scale == 0) null else SCALES[ui.scale]
+                    val scale = if (p.scale <= 0 || p.scale >= Scales.count) null else Scales.steps[p.scale]
                     if (twoRows) {
                         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Keyboard(studio, channel, (ui.octave + 2) * 12, whiteKeys, scale, ui.scaleRoot, Modifier.weight(1f).fillMaxWidth())
-                            Keyboard(studio, channel, (ui.octave + 1) * 12, whiteKeys, scale, ui.scaleRoot, Modifier.weight(1f).fillMaxWidth())
+                            Keyboard(studio, channel, (ui.octave + 2) * 12, whiteKeys, scale, p.keyRoot, Modifier.weight(1f).fillMaxWidth())
+                            Keyboard(studio, channel, (ui.octave + 1) * 12, whiteKeys, scale, p.keyRoot, Modifier.weight(1f).fillMaxWidth())
                         }
                     } else {
-                        Keyboard(studio, channel, (ui.octave + 1) * 12, whiteKeys, scale, ui.scaleRoot, Modifier.fillMaxSize())
+                        Keyboard(studio, channel, (ui.octave + 1) * 12, whiteKeys, scale, p.keyRoot, Modifier.fillMaxSize())
                     }
                 }
             }
@@ -170,41 +158,7 @@ fun KeysTab(studio: Studio) {
             }
         }
     }
-    if (scaleSheet) {
-        AppSheet({ scaleSheet = false }, title = stringResource(R.string.scale)) {
-            SCALE_NAMES.forEachIndexed { i, name ->
-                SheetItem(stringResource(name), { ui.scale = i }, selected = ui.scale == i)
-            }
-            if (ui.scale != 0) {
-                SheetLabel(stringResource(R.string.scale_root))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ROOT_NAMES.forEachIndexed { i, name ->
-                        val on = ui.scaleRoot == i
-                        Box(
-                            Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (on) c.accent else c.surfaceHigh)
-                                .pointerInput(i) {
-                                    awaitEachGesture {
-                                        awaitFirstDown().consume()
-                                        ui.scaleRoot = i
-                                    }
-                                }
-                                .semantics {
-                                    role = Role.RadioButton
-                                    contentDescription = name
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(name, color = if (on) c.onAccent else c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-    }
+    if (scaleSheet) KeySheet(studio) { scaleSheet = false }
 }
 
 /**

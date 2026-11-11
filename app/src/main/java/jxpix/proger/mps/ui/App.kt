@@ -3,6 +3,8 @@ package jxpix.proger.mps.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +31,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -64,6 +67,22 @@ fun App(studio: Studio, onLanguageChanged: () -> Unit) {
             val active = withFrameNanos { studio.onFrame() }
             if (!active) delay(60)
         }
+    }
+
+    // Android 9: saving to the Music folder needs a permission; what was asked for runs once it is given
+    var afterStorage by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val storageDenied = stringResource(R.string.msg_storage_denied)
+    val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val action = afterStorage
+        afterStorage = null
+        if (granted) action?.invoke() else studio.message = storageDenied
+    }
+    DisposableEffect(studio) {
+        studio.askStorage = { action ->
+            afterStorage = action
+            storagePermission.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        onDispose { studio.askStorage = null }
     }
 
     val inStudio = studio.projectId != null
@@ -104,7 +123,22 @@ private fun MessageBar(studio: Studio, modifier: Modifier, raised: Boolean, comm
         // above the "Publish" button
         community -> 76.dp
         !raised -> 20.dp
-        ui.editor == null && ui.tab == Tab.PLAYLIST && ui.selectedClip != 0 -> 136.dp
+        // above the automation lane of the playlist and the bar of the selected clip
+        ui.editor == null && ui.tab == Tab.PLAYLIST && (ui.playlistAutomation || ui.selectedClip != 0) -> {
+            val screen = LocalConfiguration.current
+            val low = screen.screenHeightDp < 520
+            // a phone on its side has its tabs at the left edge, not underneath
+            val tabs = if (screen.screenWidthDp >= 600 && screen.screenWidthDp > screen.screenHeightDp) 20.dp else 84.dp
+            val lane = if (!ui.playlistAutomation) 0.dp else if (low) 107.dp else 151.dp
+            val clip = if (ui.selectedClip != 0) studio.project.clip(ui.selectedClip) else null
+            // an audio clip has a second row (volume or pan), except next to the lane on a low screen
+            val bar = when {
+                clip == null -> 0.dp
+                clip.isAudio && !(low && ui.playlistAutomation) -> 93.dp
+                else -> 49.dp
+            }
+            tabs + lane + bar
+        }
         ui.editor == null && ui.tab == Tab.PIANO && ui.rollSelection.isNotEmpty() -> 184.dp
         else -> 76.dp
     }

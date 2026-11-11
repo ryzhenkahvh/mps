@@ -3,6 +3,15 @@ package jxpix.proger.mps.engine
 import jxpix.proger.mps.engine.effects.Tape
 import jxpix.proger.mps.engine.effects.StereoWidth
 import jxpix.proger.mps.engine.effects.Tremolo
+import jxpix.proger.mps.engine.effects.Space3D
+import jxpix.proger.mps.engine.effects.PitchCorrect
+import jxpix.proger.mps.engine.effects.PitchShift
+import jxpix.proger.mps.engine.effects.Gate
+import jxpix.proger.mps.engine.effects.DeEsser
+import jxpix.proger.mps.engine.effects.HalfTime
+import jxpix.proger.mps.engine.effects.BeatRepeat
+import jxpix.proger.mps.engine.effects.Ott
+import jxpix.proger.mps.engine.effects.AutoWah
 import jxpix.proger.mps.engine.effects.Flanger
 import jxpix.proger.mps.engine.instruments.StringSynth
 import jxpix.proger.mps.engine.instruments.FmSynth
@@ -59,6 +68,15 @@ object Devices {
         Pumper.TYPE,
         StereoWidth.TYPE,
         Tape.TYPE,
+        Space3D.TYPE,
+        PitchCorrect.TYPE,
+        PitchShift.TYPE,
+        Gate.TYPE,
+        DeEsser.TYPE,
+        HalfTime.TYPE,
+        BeatRepeat.TYPE,
+        Ott.TYPE,
+        AutoWah.TYPE,
         Limiter.TYPE,
     )
 

@@ -7,9 +7,11 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTimestamp
 import android.media.AudioTrack
+import android.os.Build
 import android.os.PerformanceHintManager
 import android.os.Process
 import android.util.Log
+import androidx.annotation.RequiresApi
 import kotlin.math.max
 import kotlin.math.min
 
@@ -223,7 +225,7 @@ class AudioOutput(context: Context) {
         val burst = framesPerBurst
         val floats = FloatArray(burst * 2)
         val burstNanos = burst * 1_000_000_000L / sampleRate
-        val hints = createHintSession(burstNanos)
+        val hints = if (Build.VERSION.SDK_INT >= 31) WorkHints.open(appContext, burstNanos) else null
         var failures = 0
         try {
             // If the output dies (for example the audio route changed), open it again.
@@ -241,10 +243,7 @@ class AudioOutput(context: Context) {
                 }
             }
         } finally {
-            try {
-                hints?.close()
-            } catch (_: Exception) {
-            }
+            if (Build.VERSION.SDK_INT >= 31) hints?.close()
             if (generation == gen) {
                 load = 0f
                 running = false
@@ -253,7 +252,7 @@ class AudioOutput(context: Context) {
     }
 
     /** Opens a track and feeds it until [stop] is called or the track fails. Returns false on failure to open. */
-    private fun playOnce(floats: FloatArray, burstNanos: Long, hints: PerformanceHintManager.Session?, gen: Int): Boolean {
+    private fun playOnce(floats: FloatArray, burstNanos: Long, hints: WorkHints?, gen: Int): Boolean {
         // Float keeps full quality; fall back to 16-bit if that is what the fast path wants.
         var track = createTrack(AudioFormat.ENCODING_PCM_FLOAT)
         var float = true
@@ -316,12 +315,7 @@ class AudioOutput(context: Context) {
 
                 val work = t1 - t0
                 loadAvg += (work.toFloat() / burstNanos - loadAvg) * 0.05f
-                if (hints != null) {
-                    try {
-                        hints.reportActualWorkDuration(max(1L, work))
-                    } catch (_: Exception) {
-                    }
-                }
+                if (Build.VERSION.SDK_INT >= 31) hints?.report(work)
 
                 if (--statsCountdown <= 0) {
                     statsCountdown = statsEvery
@@ -369,13 +363,6 @@ class AudioOutput(context: Context) {
         return true
     }
 
-    private fun createHintSession(targetNanos: Long): PerformanceHintManager.Session? = try {
-        val manager = appContext.getSystemService(PerformanceHintManager::class.java)
-        manager?.createHintSession(intArrayOf(Process.myTid()), min(targetNanos, 20_000_000L).coerceAtLeast(500_000L))
-    } catch (e: Exception) {
-        null
-    }
-
     private companion object {
         const val TAG = "MPS-Audio"
 
@@ -387,5 +374,38 @@ class AudioOutput(context: Context) {
 
         /** Number of statistics rounds (a quarter of a second each) a new track gets to settle. */
         const val SETTLE_CHECKS = 3
+    }
+}
+
+/**
+ * Performance hints exist since Android 12. They live in a class of their own, so that on older
+ * phones the audio thread's class never mentions anything the system does not know.
+ */
+@RequiresApi(31)
+internal class WorkHints private constructor(private val session: PerformanceHintManager.Session) {
+
+    /** How long the last burst really took, in nanoseconds. */
+    fun report(nanos: Long) {
+        try {
+            session.reportActualWorkDuration(max(1L, nanos))
+        } catch (_: Exception) {
+        }
+    }
+
+    fun close() {
+        try {
+            session.close()
+        } catch (_: Exception) {
+        }
+    }
+
+    companion object {
+        /** A session for the calling thread, or null where the phone offers none. */
+        fun open(context: Context, targetNanos: Long): WorkHints? = try {
+            val manager = context.getSystemService(PerformanceHintManager::class.java)
+            manager?.createHintSession(intArrayOf(Process.myTid()), min(targetNanos, 20_000_000L).coerceAtLeast(500_000L))?.let { WorkHints(it) }
+        } catch (e: Exception) {
+            null
+        }
     }
 }

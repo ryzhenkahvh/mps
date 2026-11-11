@@ -55,6 +55,8 @@ class DrumSynth : Instrument() {
         for (v in voices) if (v.active) v.fadeOut(0.003f)
         val v = voices[nextVoice]
         nextVoice = (nextVoice + 1) % VOICES
+        v.panL = panLeft(notePan)
+        v.panR = panRight(notePan)
         v.trigger(pitch, velocity)
     }
 
@@ -84,6 +86,8 @@ class DrumSynth : Instrument() {
         var type = KICK
         var pitch = 60
         var fading = false
+        var panL = 1f
+        var panR = 1f
 
         private var t = 0
         private var gain = 0f
@@ -277,8 +281,8 @@ class DrumSynth : Instrument() {
                 if (driveOn) s = FastMath.tanh(s * driveGain) * driveComp
                 s *= gain * fade
                 if (fading) fade *= fadeCoef
-                outL[i] += s
-                outR[i] += s
+                outL[i] += s * panL
+                outR[i] += s * panR
                 t++
             }
             if (done || fade < 0.0001f) active = false

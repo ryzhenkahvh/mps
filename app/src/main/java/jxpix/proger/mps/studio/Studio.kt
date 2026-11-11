@@ -1232,10 +1232,26 @@ class Studio(context: Context) {
         name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trim('.').take(60).ifEmpty { fallback }
 
     /**
+     * Android 9 only: asks the user for the permission to write into the Music folder and then runs
+     * the action it was given. Set by the screen while it is shown.
+     */
+    var askStorage: ((() -> Unit) -> Unit)? = null
+
+    /** Runs [action], which saves something to the Music folder - on Android 9 after the user has allowed it. */
+    fun withMusicFolder(action: () -> Unit) {
+        val granted = !AudioExporter.needsStoragePermission ||
+            app.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val ask = askStorage
+        if (granted || ask == null) action() else ask(action)
+    }
+
+    /**
      * Renders the song (or, when the playlist is empty, the current pattern four times)
      * and saves it to Music/MPS: as one file, or as one WAV per channel.
      */
-    fun export(options: ExportOptions) {
+    fun export(options: ExportOptions) = withMusicFolder { exportNow(options) }
+
+    private fun exportNow(options: ExportOptions) {
         if (busy != null) return
         if (playing) stop()
         val p = project

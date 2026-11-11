@@ -992,6 +992,11 @@ class Cloud(private val app: Context, private val studio: Studio) {
     }
 
     private fun useFile(item: CloudItem, onProject: (String) -> Unit) {
+        // a track goes to the Music folder, which Android 9 lets the app write to only with a permission
+        if (item.cloudKind == CloudKind.TRACK) studio.withMusicFolder { fetchFile(item, onProject) } else fetchFile(item, onProject)
+    }
+
+    private fun fetchFile(item: CloudItem, onProject: (String) -> Unit) {
         val path = item.filePath ?: return
         if (!studio.beginBusy(text(R.string.cloud_busy_downloading), 0f)) return
         cancelled = false

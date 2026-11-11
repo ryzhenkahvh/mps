@@ -3,6 +3,15 @@ package jxpix.proger.mps.model
 import jxpix.proger.mps.engine.effects.Tape
 import jxpix.proger.mps.engine.effects.StereoWidth
 import jxpix.proger.mps.engine.effects.Tremolo
+import jxpix.proger.mps.engine.effects.Space3D
+import jxpix.proger.mps.engine.effects.PitchCorrect
+import jxpix.proger.mps.engine.effects.PitchShift
+import jxpix.proger.mps.engine.effects.Gate
+import jxpix.proger.mps.engine.effects.DeEsser
+import jxpix.proger.mps.engine.effects.HalfTime
+import jxpix.proger.mps.engine.effects.BeatRepeat
+import jxpix.proger.mps.engine.effects.Ott
+import jxpix.proger.mps.engine.effects.AutoWah
 import jxpix.proger.mps.engine.effects.Flanger
 import jxpix.proger.mps.engine.instruments.StringSynth
 import jxpix.proger.mps.engine.instruments.FmSynth
@@ -356,6 +365,78 @@ object Presets {
                 of(t, "tap_cassette", R.string.fxp_cassette, "wow" to 0.5f, "flutter" to 0.45f, "drive" to 0.5f, "tone" to 0.35f),
                 of(t, "tap_seasick", R.string.fxp_seasick, "wow" to 0.9f, "flutter" to 0.2f, "drive" to 0.2f, "tone" to 0.6f),
                 of(t, "tap_hot", R.string.fxp_hot, "wow" to 0.05f, "flutter" to 0.05f, "drive" to 0.9f, "tone" to 0.6f),
+            )
+        },
+        Space3D.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "s3d_around", R.string.fxp_around_head, "motion" to 3f, "arc" to 360f, "distance" to 0.2f, "room" to 0.25f),
+                of(t, "s3d_8d", R.string.fxp_8d, "motion" to 2f, "arc" to 360f, "distance" to 0.35f, "room" to 0.5f),
+                of(t, "s3d_swing", R.string.fxp_swing, "motion" to 5f, "arc" to 140f, "distance" to 0.15f, "room" to 0.2f),
+                of(t, "s3d_behind", R.string.fxp_behind, "motion" to 0f, "angle" to 180f, "distance" to 0.25f, "room" to 0.3f),
+                of(t, "s3d_ear", R.string.fxp_in_the_ear, "motion" to 0f, "angle" to -90f, "distance" to 0f, "room" to 0.05f),
+                of(t, "s3d_far", R.string.fxp_far_away, "motion" to 0f, "angle" to 30f, "distance" to 0.9f, "room" to 0.7f),
+            )
+        },
+        PitchCorrect.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "tune_natural", R.string.fxp_tune_natural, "speed" to 90f, "amount" to 0.8f),
+                of(t, "tune_tight", R.string.fxp_tune_tight, "speed" to 25f, "amount" to 1f),
+                of(t, "tune_robot", R.string.fxp_tune_robot, "speed" to 0f, "amount" to 1f),
+            )
+        },
+        PitchShift.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "pit_down", R.string.fxp_octave_down, "semitones" to -12f, "mix" to 1f),
+                of(t, "pit_up", R.string.fxp_octave_up, "semitones" to 12f, "mix" to 1f),
+                of(t, "pit_fifth", R.string.fxp_fifth_above, "semitones" to 7f, "mix" to 0.4f),
+                of(t, "pit_deep", R.string.fxp_deep_voice, "semitones" to -4f, "mix" to 1f),
+                of(t, "pit_chip", R.string.fxp_chipmunk, "semitones" to 5f, "mix" to 1f),
+                of(t, "pit_thick", R.string.fxp_thicker, "semitones" to 0f, "cents" to 14f, "mix" to 0.5f),
+            )
+        },
+        Gate.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "gate_voice", R.string.fxp_gate_voice, "threshold" to -42f, "attack" to 1f, "hold" to 120f, "release" to 180f, "range" to 40f),
+                of(t, "gate_tight", R.string.fxp_gate_tight, "threshold" to -30f, "attack" to 0.2f, "hold" to 20f, "release" to 40f, "range" to 80f),
+                of(t, "gate_soft", R.string.fxp_gate_soft, "threshold" to -48f, "attack" to 5f, "hold" to 200f, "release" to 400f, "range" to 18f),
+            )
+        },
+        DeEsser.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "dees_soft", R.string.fxp_gentle, "freq" to 6500f, "threshold" to -28f, "amount" to 6f),
+                of(t, "dees_strong", R.string.fxp_strong, "freq" to 5500f, "threshold" to -36f, "amount" to 14f),
+                of(t, "dees_deep", R.string.fxp_deep_voice, "freq" to 4500f, "threshold" to -32f, "amount" to 10f),
+            )
+        },
+        HalfTime.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "half_bar", R.string.fxp_half_classic, "length" to 2f, "speed" to 1f, "smooth" to 0.3f, "mix" to 1f),
+                of(t, "half_fast", R.string.fxp_half_fast, "length" to 1f, "speed" to 1f, "smooth" to 0.2f, "mix" to 1f),
+                of(t, "half_triplet", R.string.fxp_half_triplet, "length" to 2f, "speed" to 0f, "smooth" to 0.3f, "mix" to 1f),
+                of(t, "half_under", R.string.fxp_half_under, "length" to 2f, "speed" to 1f, "smooth" to 0.5f, "mix" to 0.5f),
+            )
+        },
+        BeatRepeat.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "rep_fill", R.string.fxp_rep_fill, "every" to 1f, "length" to 0f, "slice" to 3f, "decay" to 0f),
+                of(t, "rep_roll", R.string.fxp_rep_roll, "every" to 2f, "length" to 1f, "slice" to 5f, "decay" to 0.3f),
+                of(t, "rep_triplet", R.string.fxp_rep_triplet, "every" to 1f, "length" to 0f, "slice" to 4f, "decay" to 0f),
+                of(t, "rep_gun", R.string.fxp_rep_gun, "every" to 1f, "length" to 2f, "slice" to 3f, "decay" to 0f),
+            )
+        },
+        Ott.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "ott_half", R.string.fxp_ott_half, "depth" to 0.5f),
+                of(t, "ott_full", R.string.fxp_ott_full, "depth" to 1f, "out" to -3f),
+                of(t, "ott_air", R.string.fxp_ott_air, "depth" to 0.6f, "high" to 4f, "low" to -2f),
+                of(t, "ott_warm", R.string.fxp_ott_warm, "depth" to 0.4f, "low" to 3f, "high" to -3f, "time" to 0.7f),
+            )
+        },
+        AutoWah.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "wah_funk", R.string.fxp_wah_funk, "sens" to 0.6f, "freq" to 350f, "range" to 0.7f, "reso" to 0.65f, "speed" to 40f),
+                of(t, "wah_bass", R.string.fxp_wah_bass, "sens" to 0.7f, "freq" to 120f, "range" to 0.6f, "reso" to 0.55f, "speed" to 70f),
+                of(t, "wah_slow", R.string.fxp_wah_slow, "sens" to 0.5f, "freq" to 250f, "range" to 0.8f, "reso" to 0.4f, "speed" to 250f),
             )
         },
         Limiter.TYPE.let { t ->

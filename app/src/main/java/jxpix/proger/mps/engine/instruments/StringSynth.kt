@@ -84,6 +84,8 @@ class StringSynth : Instrument() {
         v.gate = true
         v.on = true
         v.freq = freq
+        v.panL = panLeft(notePan)
+        v.panR = panRight(notePan)
         v.periodL = sampleRate / (freq / spread)
         v.periodR = sampleRate / (freq * spread)
         v.setDecay(sustainTime, bright)
@@ -150,6 +152,8 @@ class StringSynth : Instrument() {
         var pitch = 0
         var order = 0L
         var freq = 440f
+        var panL = 1f
+        var panR = 1f
 
         /** Length of one period of each string, in samples. */
         var periodL = 100f
@@ -213,6 +217,8 @@ class StringSynth : Instrument() {
             val fR = lenR - dR
             val g = gain
             val a = damp
+            val outL0 = out * panL
+            val outR0 = out * panR
             var peak = 0f
             var pos = w
             var pl = prevL
@@ -227,8 +233,8 @@ class StringSynth : Instrument() {
                 pl = xl
                 pr = xr
                 pos = (pos + 1) and mask
-                outL[i] += xl * out
-                outR[i] += xr * out
+                outL[i] += xl * outL0
+                outR[i] += xr * outR0
                 val m = if (xl < 0f) -xl else xl
                 if (m > peak) peak = m
             }

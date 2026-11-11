@@ -387,27 +387,40 @@ fun Panel(
     }
 }
 
-/** Lays children out in rows of equal-width cells, as many per row as fit [minCell]. */
+/**
+ * Lays children out in rows of equal-width cells, as many per row as fit [minCell].
+ * A child may take the room of several cells ([span]); a row is closed when the next child does not fit.
+ */
 @Composable
 fun CellGrid(
     count: Int,
     modifier: Modifier = Modifier,
     minCell: Dp = 76.dp,
     spacing: Dp = 10.dp,
+    span: (Int) -> Int = { 1 },
     cell: @Composable (Int) -> Unit,
 ) {
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columns = (maxWidth / minCell).toInt().coerceIn(1, maxOf(1, count))
-        val rows = (count + columns - 1) / columns
+        var cells = 0
+        for (i in 0 until count) cells += span(i).coerceAtLeast(1)
+        val columns = (maxWidth / minCell).toInt().coerceIn(1, maxOf(1, cells))
         Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
-            for (r in 0 until rows) {
+            var i = 0
+            while (i < count) {
+                val first = i
+                var used = 0
+                while (i < count) {
+                    val wants = span(i).coerceIn(1, columns)
+                    if (used > 0 && used + wants > columns) break
+                    used += wants
+                    i++
+                }
+                val last = i
                 Row(Modifier.fillMaxWidth()) {
-                    for (col in 0 until columns) {
-                        val i = r * columns + col
-                        Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
-                            if (i < count) cell(i)
-                        }
+                    for (k in first until last) {
+                        Box(Modifier.weight(span(k).coerceIn(1, columns).toFloat()), contentAlignment = Alignment.TopCenter) { cell(k) }
                     }
+                    if (used < columns) Spacer(Modifier.weight((columns - used).toFloat()))
                 }
             }
         }

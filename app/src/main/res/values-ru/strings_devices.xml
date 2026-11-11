@@ -269,7 +269,7 @@
     <string name="fxp_less_mud">Убрать гул</string>
     <string name="fxp_smile">Улыбка</string>
     <string name="fxp_telephone">Телефон</string>
-    <string name="fxp_gentle">Мягкий</string>
+    <string name="fxp_gentle">Мягко</string>
     <string name="fxp_punchy_drums">Плотные ударные</string>
     <string name="fxp_vocal">Вокал</string>
     <string name="fxp_glue">Клей</string>
@@ -372,4 +372,139 @@
     <string name="fxp_seasick">Укачало</string>
     <string name="fxp_hot">Перегруз</string>
     <string name="p_fm_feedback">Резкость</string>
+
+    <!-- Version 1.1: 3D sound, pitch correction, rhythm and vocal effects -->
+    <string name="fx_3d">3D-звук</string>
+    <string name="fx_3d_desc">Ставит звук в любую точку вокруг головы и водит его по кругу. Для наушников.</string>
+    <string name="fx_tune">Коррекция тона</string>
+    <string name="fx_tune_desc">Подтягивает голос к нотам тональности: от незаметной правки до «робота», как в автотюне.</string>
+    <string name="fx_pitch">Сдвиг тона</string>
+    <string name="fx_pitch_desc">Выше или ниже, а скорость остаётся прежней.</string>
+    <string name="fx_gate">Гейт</string>
+    <string name="fx_gate_desc">Глушит паузы: шум микрофона, дыхание, наводки.</string>
+    <string name="fx_deess">Де-эссер</string>
+    <string name="fx_deess_desc">Смягчает свистящие «с» и «ш» в голосе.</string>
+    <string name="fx_halftime">Half-time</string>
+    <string name="fx_halftime_desc">Замедляет звук вдвое в ритм трека: тягуче, тяжело, на октаву ниже.</string>
+    <string name="fx_repeat">Повтор</string>
+    <string name="fx_repeat_desc">Зацикливает короткий кусок в конце такта: стуттер и сбивки.</string>
+    <string name="fx_ott">OTT-компрессор</string>
+    <string name="fx_ott_desc">Сжимает низ, середину и верх по отдельности, вверх и вниз: плотно, ярко, «в лицо».</string>
+    <string name="fx_wah">Автовау</string>
+    <string name="fx_wah_desc">Фильтр, который «квакает» на каждую ноту: фанк-гитара, бас, клавиши.</string>
+    <string name="p_angle">Угол</string>
+    <string name="p_height">Высота</string>
+    <string name="p_distance">Расстояние</string>
+    <string name="p_room">Комната</string>
+    <string name="p_motion">Движение</string>
+    <string name="p_arc">Размах</string>
+    <string name="p_hold">Удержание</string>
+    <string name="p_amount">Сила</string>
+    <string name="p_scale">Лад</string>
+    <string name="p_key">Тоника</string>
+    <string name="p_retune">Плавность</string>
+    <string name="p_shift">Сдвиг</string>
+    <string name="p_voice_range">Голос</string>
+    <string name="p_loop_length">Длина</string>
+    <string name="p_slowdown">Замедление</string>
+    <string name="p_smooth">Сглаживание</string>
+    <string name="p_every">Период</string>
+    <string name="p_fill_length">Сбивка</string>
+    <string name="p_slice">Кусок</string>
+    <string name="p_sensitivity">Чуткость</string>
+    <string name="p_wah_range">Размах</string>
+    <string name="fxp_around_head">Вокруг головы</string>
+    <string name="fxp_8d">8D, медленный круг</string>
+    <string name="fxp_swing">Маятник спереди</string>
+    <string name="fxp_behind">За спиной</string>
+    <string name="fxp_in_the_ear">Прямо в левое ухо</string>
+    <string name="fxp_far_away">Издалека</string>
+    <string name="fxp_tune_natural">Естественно</string>
+    <string name="fxp_tune_tight">Плотно</string>
+    <string name="fxp_tune_robot">Робот</string>
+    <string name="fxp_octave_down">Октава вниз</string>
+    <string name="fxp_octave_up">Октава вверх</string>
+    <string name="fxp_fifth_above">Квинта сверху</string>
+    <string name="fxp_deep_voice">Низкий голос</string>
+    <string name="fxp_chipmunk">Бурундук</string>
+    <string name="fxp_thicker">Плотнее</string>
+    <string name="fxp_gate_voice">Голос</string>
+    <string name="fxp_gate_tight">Жёстко, для ударных</string>
+    <string name="fxp_gate_soft">Мягко</string>
+    <string name="fxp_strong">Сильно</string>
+    <string name="fxp_half_classic">Классика, один такт</string>
+    <string name="fxp_half_fast">Полтакта</string>
+    <string name="fxp_half_triplet">Триольный</string>
+    <string name="fxp_half_under">Половина под оригиналом</string>
+    <string name="fxp_rep_fill">Сбивка на последней доле</string>
+    <string name="fxp_rep_roll">Дробь каждые два такта</string>
+    <string name="fxp_rep_triplet">Триольная сбивка</string>
+    <string name="fxp_rep_gun">Пулемёт</string>
+    <string name="fxp_ott_half">Вполсилы</string>
+    <string name="fxp_ott_full">На полную</string>
+    <string name="fxp_ott_air">Воздушный верх</string>
+    <string name="fxp_ott_warm">Тепло и плавно</string>
+    <string name="fxp_wah_funk">Фанк</string>
+    <string name="fxp_wah_bass">Бас</string>
+    <string name="fxp_wah_slow">Медленный</string>
+    <string-array name="arr_3d_motion">
+        <item>Нет</item>
+        <item>Свободно</item>
+        <item>8 тактов</item>
+        <item>4 такта</item>
+        <item>2 такта</item>
+        <item>1 такт</item>
+        <item>1/2 такта</item>
+        <item>1/4 такта</item>
+    </string-array>
+    <string-array name="arr_tune_scale">
+        <item>Как в проекте</item>
+        <item>Все ноты</item>
+        <item>Мажор</item>
+        <item>Минор</item>
+        <item>Мажорная пентатоника</item>
+        <item>Минорная пентатоника</item>
+        <item>Блюз</item>
+        <item>Гармонический минор</item>
+        <item>Мелодический минор</item>
+        <item>Дорийский</item>
+        <item>Фригийский</item>
+        <item>Лидийский</item>
+        <item>Миксолидийский</item>
+    </string-array>
+    <string-array name="arr_tune_voice">
+        <item>Низкий</item>
+        <item>Средний</item>
+        <item>Высокий</item>
+    </string-array>
+    <string-array name="arr_half_length">
+        <item>1/4 такта</item>
+        <item>1/2 такта</item>
+        <item>1 такт</item>
+        <item>2 такта</item>
+    </string-array>
+    <string-array name="arr_half_speed">
+        <item>1,5×</item>
+        <item>2×</item>
+        <item>4×</item>
+    </string-array>
+    <string-array name="arr_repeat_every">
+        <item>1/2 такта</item>
+        <item>1 такт</item>
+        <item>2 такта</item>
+        <item>4 такта</item>
+    </string-array>
+    <string-array name="arr_repeat_length">
+        <item>1 доля</item>
+        <item>2 доли</item>
+        <item>1 такт</item>
+    </string-array>
+    <string-array name="arr_repeat_slice">
+        <item>1/4</item>
+        <item>1/8</item>
+        <item>1/8T</item>
+        <item>1/16</item>
+        <item>1/16T</item>
+        <item>1/32</item>
+    </string-array>
 </resources>

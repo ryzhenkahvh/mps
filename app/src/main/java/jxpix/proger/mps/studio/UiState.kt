@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jxpix.proger.mps.engine.TICKS_PER_STEP
 import jxpix.proger.mps.model.Note
+import jxpix.proger.mps.model.PARAM_PAN
 import jxpix.proger.mps.model.PARAM_VOLUME
 import jxpix.proger.mps.model.STRIP_DEVICE
 
@@ -60,6 +61,15 @@ class UiState {
     var playlistGridH = 1f
     var selectedClip by mutableIntStateOf(0)
 
+    /**
+     * Automation lane under the playlist - the curves of audio tracks, which run along the song:
+     * shown or not, the audio channel it belongs to and the knob it edits.
+     */
+    var playlistAutomation by mutableStateOf(false)
+    var songLaneChannel by mutableIntStateOf(0)
+    var songLaneDevice by mutableIntStateOf(STRIP_DEVICE)
+    var songLaneParam by mutableStateOf(PARAM_PAN)
+
     /** Ask the playlist to scroll this track into view (-1 = nothing to do); the playlist resets it. */
     var revealTrack by mutableIntStateOf(-1)
 
@@ -67,8 +77,6 @@ class UiState {
     /** null = decide from the type of the selected channel. */
     var padsMode by mutableStateOf<Boolean?>(null)
     var octave by mutableIntStateOf(3)
-    var scale by mutableIntStateOf(0)
-    var scaleRoot by mutableIntStateOf(0)
 
     fun reset() {
         tab = Tab.RACK
@@ -86,6 +94,10 @@ class UiState {
         playlist.scrollY = -1f
         playlist.pxPerTick = 0f
         selectedClip = 0
+        playlistAutomation = false
+        songLaneChannel = 0
+        songLaneDevice = STRIP_DEVICE
+        songLaneParam = PARAM_PAN
         revealTrack = -1
         padsMode = null
     }

@@ -252,8 +252,9 @@ class Engine(val sampleRate: Int) {
                     if (!notes.isNullOrEmpty()) seqs[ci] = sequence(pat.id, id, notes, p.swing, gen)
                 }
             }
-            PatternPlan(pat.id, max(1, pat.bars * p.ticksPerBar), seqs, lanePlans(p, pat, channels, autoEntries, autoStrips))
+            PatternPlan(pat.id, max(1, pat.bars * p.ticksPerBar), seqs, lanePlans(p, pat.automation, channels, autoEntries, autoStrips))
         }
+        val songLanes = lanePlans(p, p.automation, channels, autoEntries, autoStrips)
 
         val patternClips = ArrayList<ClipPlan>()
         val audioClips = ArrayList<AudioClipPlan>()
@@ -266,7 +267,11 @@ class Engine(val sampleRate: Int) {
                 val data = samples[c.sample] ?: continue
                 val ci = p.channels.indexOfFirst { it.id == c.channelId }
                 if (ci < 0) continue
-                audioClips += AudioClipPlan(c.start, c.end, ci, data, c.offset.toDouble(), c.gain)
+                val pan = c.pan.coerceIn(-1f, 1f)
+                audioClips += AudioClipPlan(
+                    c.start, c.end, ci, data, c.offset.toDouble(),
+                    c.gain * (if (pan > 0f) 1f - pan else 1f), c.gain * (if (pan < 0f) 1f + pan else 1f),
+                )
             } else {
                 val pi = p.patterns.indexOfFirst { it.id == c.patternId }
                 if (pi >= 0) patternClips += ClipPlan(c.start, c.end, pi)
@@ -290,6 +295,8 @@ class Engine(val sampleRate: Int) {
             anySolo = anySolo,
             autoEntries = autoEntries.toTypedArray(),
             autoStrips = autoStrips.toTypedArray(),
+            songLanes = songLanes,
+            keyMask = p.keyMask,
         )
 
         // Forget DSP objects and caches that are no longer referenced.
@@ -299,14 +306,14 @@ class Engine(val sampleRate: Int) {
         return result
     }
 
-    /** Compiles the automation curves of one pattern. Curves whose knob no longer exists are skipped. */
+    /** Compiles the automation curves of one pattern, or those of the song. Curves whose knob no longer exists are skipped. */
     private fun lanePlans(
-        p: Project, pat: jxpix.proger.mps.model.Pattern, channels: Array<ChannelPlan>,
+        p: Project, lanes: List<jxpix.proger.mps.model.AutoLane>, channels: Array<ChannelPlan>,
         autoEntries: MutableSet<DeviceEntry>, autoStrips: MutableSet<ChannelRuntime>,
     ): Array<LanePlan> {
-        if (pat.automation.isEmpty()) return NO_LANES
-        val out = ArrayList<LanePlan>(pat.automation.size)
-        for (lane in pat.automation) {
+        if (lanes.isEmpty()) return NO_LANES
+        val out = ArrayList<LanePlan>(lanes.size)
+        for (lane in lanes) {
             if (lane.points.isEmpty()) continue
             val ci = p.channels.indexOfFirst { it.id == lane.channelId }
             if (ci < 0) continue
@@ -404,6 +411,14 @@ class Engine(val sampleRate: Int) {
         it.configure(0f, -0.2f, 150f)
     }
     private var pos = 0.0
+
+    /**
+     * Ticks the play head has jumped back since playback started (a pattern or a loop coming round).
+     * Added to [pos] it gives a position that only runs forward: effects that move in time with the
+     * song (a circle of the 3D sound over four bars, a fill every fourth bar) follow that one, so a
+     * pattern of one bar does not cut their movement short.
+     */
+    private var looped = 0.0
     private var isPlaying = false
     private var frameCounter = 0L
     private var masterGainCur = -1f
@@ -458,8 +473,10 @@ class Engine(val sampleRate: Int) {
 
         ctx.bpm = plan.bpm
         ctx.playing = isPlaying
-        ctx.tickPos = pos
+        ctx.tickPos = pos + looped
         ctx.ticksPerFrame = tpf
+        ctx.ticksPerBar = plan.ticksPerBar
+        ctx.keyMask = plan.keyMask
 
         clickAt = -1
         segN = 0
@@ -573,6 +590,7 @@ class Engine(val sampleRate: Int) {
                 CMD_PLAY -> {
                     if (isPlaying) silence(plan)
                     pos = value.toDouble()
+                    looped = 0.0
                     isPlaying = true
                 }
                 CMD_RESUME -> isPlaying = true
@@ -583,10 +601,12 @@ class Engine(val sampleRate: Int) {
                 CMD_STOP -> {
                     isPlaying = false
                     pos = value.toDouble()
+                    looped = 0.0
                     silence(plan)
                 }
                 CMD_SEEK -> {
                     pos = value.toDouble()
+                    looped = 0.0
                     if (isPlaying) silence(plan)
                 }
                 CMD_PANIC -> recover(plan)
@@ -624,7 +644,12 @@ class Engine(val sampleRate: Int) {
             loopS = 0.0
             loopE = if (patternIndex >= 0) plan.patterns[patternIndex].length.toDouble() else plan.ticksPerBar.toDouble()
             looping = true
-            if (pos >= loopE) pos %= loopE
+            if (pos >= loopE) {
+                // the pattern got shorter than where the play head is
+                val wrapped = pos % loopE
+                looped += pos - wrapped
+                pos = wrapped
+            }
         } else {
             loopS = plan.loopStart.toDouble()
             loopE = plan.loopEnd.toDouble()
@@ -658,8 +683,10 @@ class Engine(val sampleRate: Int) {
                 rangeStart = p
             }
             if (looping && p >= loopE) {
+                val from = p
                 p = loopS + (p - loopE)
                 if (p >= loopE) p = loopS
+                looped += from - p
                 // notes sitting exactly on the loop start must not be skipped
                 rangeStart = loopS
             }
@@ -670,6 +697,7 @@ class Engine(val sampleRate: Int) {
         if (songMode && stopAtEnd && plan.songEnd > 0 && !insideLoop && pos >= plan.songEnd) {
             isPlaying = false
             pos = 0.0
+            looped = 0.0
             silence(plan)
         }
     }
@@ -698,10 +726,12 @@ class Engine(val sampleRate: Int) {
             if (patternIndex >= 0) {
                 val pat = plan.patterns[patternIndex]
                 schedulePattern(plan, pat, rangeStart, rangeEnd, 0.0, Int.MAX_VALUE, s, tpf)
-                if (pat.lanes.isNotEmpty()) automate(pat, rangeStart)
+                if (pat.lanes.isNotEmpty()) automate(pat.lanes, rangeStart)
             }
             return
         }
+        // the curves of the song first: where a pattern moves the same knob, the pattern has the last word
+        if (plan.songLanes.isNotEmpty()) automate(plan.songLanes, rangeStart)
         for (clip in plan.clips) {
             if (clip.end <= rangeStart || clip.start >= rangeEnd) continue
             val pat = plan.patterns[clip.pattern]
@@ -714,7 +744,7 @@ class Engine(val sampleRate: Int) {
                 if (len - local < 1e-6) local = 0.0
                 val span = min(b - g, len - local)
                 schedulePattern(plan, pat, local, local + span, g - local, clip.end, s, tpf)
-                if (pat.lanes.isNotEmpty()) automate(pat, local)
+                if (pat.lanes.isNotEmpty()) automate(pat.lanes, local)
                 g += max(span, 1e-6)
             }
         }
@@ -743,7 +773,7 @@ class Engine(val sampleRate: Int) {
                 var length = seq.length[i]
                 if (clipEnd != Int.MAX_VALUE) length = min(length, clipEnd - tick.toInt())
                 val rt = cp.runtime
-                rt.addEvent(frame, EV_ON, seq.pitch[i], seq.velocity[i])
+                rt.addEvent(frame, EV_ON, seq.pitch[i], seq.velocity[i], seq.pan[i])
                 rt.addOff(seq.pitch[i], frameCounter + frame + max(1L, (length / tpf).toLong()))
                 i++
             }
@@ -767,9 +797,9 @@ class Engine(val sampleRate: Int) {
         }
     }
 
-    /** Reads the curves of [pat] at the pattern position [local] (ticks). */
-    private fun automate(pat: PatternPlan, local: Double) {
-        for (lane in pat.lanes) {
+    /** Reads [lanes] at the position [local] (ticks): inside their pattern, or in the song. */
+    private fun automate(lanes: Array<LanePlan>, local: Double) {
+        for (lane in lanes) {
             val v = lane.valueAt(local)
             when (lane.kind) {
                 LANE_VOLUME -> {
@@ -892,7 +922,8 @@ class Engine(val sampleRate: Int) {
                 }
                 when (rt.evType[e]) {
                     EV_ON -> {
-                        inst.noteOn(rt.evPitch[e], rt.evVelocity[e])
+                        val pan = rt.evPan[e]
+                        if (pan == 0f) inst.noteOn(rt.evPitch[e], rt.evVelocity[e]) else inst.noteOn(rt.evPitch[e], rt.evVelocity[e], pan)
                         rt.triggers++
                     }
                     EV_OFF -> inst.noteOff(rt.evPitch[e])
@@ -980,7 +1011,8 @@ class Engine(val sampleRate: Int) {
             val left = data.left
             val right = data.right ?: left
             val rate = data.sampleRate.toDouble() / sampleRate
-            val k = SampleData.TO_FLOAT * ac.gain
+            val kl = SampleData.TO_FLOAT * ac.gainL
+            val kr = SampleData.TO_FLOAT * ac.gainR
             for (s in 0 until segN) {
                 val tick0 = segTick[s]
                 val endTick = tick0 + segCount[s] * tpf
@@ -998,15 +1030,15 @@ class Engine(val sampleRate: Int) {
                     if (ip >= left.size - 1) break
                     if (ip >= 0) {
                         val frac = (src - ip).toFloat()
-                        var g = k
+                        var g = 1f
                         val fromStart = sinceStart + f
                         val toEnd = untilEnd - f
                         if (fromStart < fade) g *= (fromStart / fade).toFloat().coerceIn(0f, 1f)
                         if (toEnd < fade) g *= toEnd.toFloat() / fade
                         val l0 = left[ip].toFloat()
-                        rt.bufL[out0 + f] += (l0 + (left[ip + 1] - l0) * frac) * g
+                        rt.bufL[out0 + f] += (l0 + (left[ip + 1] - l0) * frac) * g * kl
                         val r0 = right[ip].toFloat()
-                        rt.bufR[out0 + f] += (r0 + (right[ip + 1] - r0) * frac) * g
+                        rt.bufR[out0 + f] += (r0 + (right[ip + 1] - r0) * frac) * g * kr
                     }
                     src += rate
                 }
@@ -1089,7 +1121,9 @@ class Engine(val sampleRate: Int) {
     private class ClipPlan(val start: Int, val end: Int, val pattern: Int)
 
     private class AudioClipPlan(
-        val start: Int, val end: Int, val channel: Int, val sample: SampleData, val offset: Double, val gain: Float,
+        val start: Int, val end: Int, val channel: Int, val sample: SampleData, val offset: Double,
+        /** Volume of the clip with its balance already in it. */
+        val gainL: Float, val gainR: Float,
     )
 
     private class Plan(
@@ -1109,6 +1143,9 @@ class Engine(val sampleRate: Int) {
         /** Devices and mixer strips that some automation curve of this project moves. */
         val autoEntries: Array<DeviceEntry>,
         val autoStrips: Array<ChannelRuntime>,
+        /** Curves that run along the song (the knobs of audio tracks). */
+        val songLanes: Array<LanePlan>,
+        val keyMask: Int,
     ) {
         fun patternIndexOf(id: Int): Int {
             for (i in patterns.indices) if (patterns[i].id == id) return i
@@ -1118,7 +1155,7 @@ class Engine(val sampleRate: Int) {
         companion object {
             val EMPTY = Plan(
                 120.0, 4 * PPQ, emptyArray(), emptyArray(), emptyArray(), emptyArray(), emptyArray(),
-                1f, 0, false, 0, 0, false, emptyArray(), emptyArray(),
+                1f, 0, false, 0, 0, false, emptyArray(), emptyArray(), emptyArray(), 0,
             )
         }
     }
@@ -1149,6 +1186,7 @@ class Engine(val sampleRate: Int) {
         val evType = IntArray(MAX_EVENTS)
         val evPitch = IntArray(MAX_EVENTS)
         val evVelocity = FloatArray(MAX_EVENTS)
+        val evPan = FloatArray(MAX_EVENTS)
         var eventCount = 0
 
         // note-offs waiting for their time
@@ -1156,13 +1194,14 @@ class Engine(val sampleRate: Int) {
         val offFrame = LongArray(MAX_PENDING)
         var offCount = 0
 
-        fun addEvent(frame: Int, type: Int, pitch: Int, velocity: Float) {
+        fun addEvent(frame: Int, type: Int, pitch: Int, velocity: Float, pan: Float = 0f) {
             if (eventCount >= MAX_EVENTS) return
             val i = eventCount++
             evFrame[i] = frame
             evType[i] = type
             evPitch[i] = pitch
             evVelocity[i] = velocity
+            evPan[i] = pan
         }
 
         fun addOff(pitch: Int, frame: Long) {
@@ -1185,6 +1224,7 @@ class Engine(val sampleRate: Int) {
                 val t = evType[i]
                 val p = evPitch[i]
                 val v = evVelocity[i]
+                val b = evPan[i]
                 val key = f * 2 + (if (t == EV_ON) 1 else 0)
                 var j = i - 1
                 while (j >= 0 && evFrame[j] * 2 + (if (evType[j] == EV_ON) 1 else 0) > key) {
@@ -1192,12 +1232,14 @@ class Engine(val sampleRate: Int) {
                     evType[j + 1] = evType[j]
                     evPitch[j + 1] = evPitch[j]
                     evVelocity[j + 1] = evVelocity[j]
+                    evPan[j + 1] = evPan[j]
                     j--
                 }
                 evFrame[j + 1] = f
                 evType[j + 1] = t
                 evPitch[j + 1] = p
                 evVelocity[j + 1] = v
+                evPan[j + 1] = b
             }
         }
     }
@@ -1233,7 +1275,7 @@ class Engine(val sampleRate: Int) {
 }
 
 /** Notes of one channel in one pattern, sorted by start, with swing already applied. */
-class NoteSeq(val start: IntArray, val length: IntArray, val pitch: IntArray, val velocity: FloatArray) {
+class NoteSeq(val start: IntArray, val length: IntArray, val pitch: IntArray, val velocity: FloatArray, val pan: FloatArray) {
 
     /** Index of the first note with start >= [tick]. */
     fun lowerBound(tick: Double): Int {
@@ -1247,7 +1289,7 @@ class NoteSeq(val start: IntArray, val length: IntArray, val pitch: IntArray, va
     }
 
     companion object {
-        val EMPTY = NoteSeq(IntArray(0), IntArray(0), IntArray(0), FloatArray(0))
+        val EMPTY = NoteSeq(IntArray(0), IntArray(0), IntArray(0), FloatArray(0), FloatArray(0))
 
         fun build(notes: List<Note>, swing: Float): NoteSeq {
             val sorted = notes.filter { it.length > 0 && it.start >= 0 }.sortedBy { it.start }
@@ -1256,6 +1298,7 @@ class NoteSeq(val start: IntArray, val length: IntArray, val pitch: IntArray, va
             val length = IntArray(n)
             val pitch = IntArray(n)
             val velocity = FloatArray(n)
+            val pan = FloatArray(n)
             for (i in 0 until n) {
                 val note = sorted[i]
                 val s = swingTick(note.start, swing)
@@ -1263,8 +1306,9 @@ class NoteSeq(val start: IntArray, val length: IntArray, val pitch: IntArray, va
                 length[i] = max(1, swingTick(note.end, swing) - s)
                 pitch[i] = note.pitch.coerceIn(0, 127)
                 velocity[i] = note.velocity.coerceIn(0.01f, 1f)
+                pan[i] = if (note.pan.isNaN()) 0f else note.pan.coerceIn(-1f, 1f)
             }
-            return NoteSeq(start, length, pitch, velocity)
+            return NoteSeq(start, length, pitch, velocity, pan)
         }
     }
 }

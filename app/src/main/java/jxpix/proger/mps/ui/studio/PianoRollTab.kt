@@ -1,5 +1,15 @@
 package jxpix.proger.mps.ui.studio
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import jxpix.proger.mps.model.Scales
+import jxpix.proger.mps.model.snapNotesToKey
+import jxpix.proger.mps.ui.Fmt
+import kotlin.math.abs
 import android.graphics.Paint
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.Canvas
@@ -106,6 +116,8 @@ fun PianoRollTab(studio: Studio) {
     var patternSheet by remember { mutableStateOf(false) }
     var snapSheet by remember { mutableStateOf(false) }
     var moreSheet by remember { mutableStateOf(false) }
+    var keySheet by remember { mutableStateOf(false) }
+    val res = LocalResources.current
 
     val notes = if (channel == null) emptyList() else pattern.notesOf(channel.id)
     val selected = remember(notes, ui.rollSelection) {
@@ -160,6 +172,8 @@ fun PianoRollTab(studio: Studio) {
                     velocity = selected.sumOf { it.velocity.toDouble() }.toFloat() / selected.size,
                     onVelocity = { v -> mapSelected("velocity") { it.copy(velocity = v) } },
                     onVelocityEnd = { studio.commit() },
+                    pan = selected.sumOf { it.pan.toDouble() }.toFloat() / selected.size,
+                    onPan = { v -> mapSelected("note-pan") { it.copy(pan = v) } },
                     onTranspose = { d ->
                         val lo = selected.minOf { it.pitch }
                         val hi = selected.maxOf { it.pitch }
@@ -217,6 +231,7 @@ fun PianoRollTab(studio: Studio) {
             }
         }
     }
+    if (keySheet) KeySheet(studio) { keySheet = false }
     if (moreSheet && channel != null) {
         val view = ui.roll
         AppSheet({ moreSheet = false }, title = channel.name) {
@@ -260,6 +275,24 @@ fun PianoRollTab(studio: Studio) {
                 moreSheet = false
             }, icon = Ic.Clear, enabled = notes.isNotEmpty())
             SheetDivider()
+            // the key of the song: its notes are marked in the grid
+            SheetItem(stringResource(R.string.key_title), {
+                moreSheet = false
+                keySheet = true
+            }, icon = Ic.Piano, description = keyName(studio.project, res) ?: stringResource(R.string.key_none))
+            SheetItem(stringResource(R.string.key_snap), {
+                val before = studio.project
+                if (before.scale == 0) {
+                    studio.message = res.getString(R.string.msg_key_first)
+                } else {
+                    val only = if (selected.isEmpty()) null else selected
+                    studio.edit { it.snapNotesToKey(pattern.id, channel.id, only) }
+                    studio.message = res.getString(if (studio.project === before) R.string.msg_key_all_in else R.string.msg_key_snapped)
+                    ui.rollSelection = emptySet()
+                }
+                moreSheet = false
+            }, icon = Ic.Check, description = stringResource(R.string.key_snap_desc), enabled = notes.isNotEmpty())
+            SheetDivider()
             SwitchRow(stringResource(R.string.automation), stringResource(R.string.automation_desc), ui.rollAutomation) {
                 ui.rollAutomation = it
                 moreSheet = false
@@ -284,26 +317,43 @@ private fun SelectionBar(
     velocity: Float,
     onVelocity: (Float) -> Unit,
     onVelocityEnd: () -> Unit,
+    pan: Float,
+    onPan: (Float) -> Unit,
     onTranspose: (Int) -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit,
 ) {
     val c = Mps.colors
+    val res = LocalResources.current
+    // the slider edits one thing at a time: how hard the notes are hit, or where they sit between the speakers
+    var showPan by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(c.surface)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
-        Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            val label = stringResource(R.string.velocity)
-            Text(label, color = c.textDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Slider(
-                value = velocity.coerceIn(0.05f, 1f), onValueChange = onVelocity, valueRange = 0.05f..1f,
-                onValueChangeFinished = onVelocityEnd, colors = sliderColors(),
-                modifier = Modifier.weight(1f).padding(horizontal = 10.dp).semantics { contentDescription = label },
-            )
-            Text(
-                "${(velocity * 100).roundToInt()}%", Modifier.width(44.dp), color = c.text, fontSize = 13.sp, style = NumberStyle,
-                textAlign = TextAlign.End,
-            )
+        Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            TwoWay(stringResource(R.string.velocity), stringResource(R.string.pan), showPan, stringResource(R.string.note_prop_switch)) { showPan = it }
+            if (showPan) {
+                val label = stringResource(R.string.note_pan)
+                Slider(
+                    value = pan.coerceIn(-1f, 1f),
+                    // the middle is easy to hit
+                    onValueChange = { v -> onPan(if (abs(v) < 0.05f) 0f else v) },
+                    valueRange = -1f..1f, onValueChangeFinished = onVelocityEnd, colors = sliderColors(),
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp).semantics { contentDescription = label },
+                )
+                Text(Fmt.pan(pan, res), Modifier.width(44.dp), color = c.text, fontSize = 13.sp, style = NumberStyle, textAlign = TextAlign.End)
+            } else {
+                val label = stringResource(R.string.velocity)
+                Slider(
+                    value = velocity.coerceIn(0.05f, 1f), onValueChange = onVelocity, valueRange = 0.05f..1f,
+                    onValueChangeFinished = onVelocityEnd, colors = sliderColors(),
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp).semantics { contentDescription = label },
+                )
+                Text(
+                    "${(velocity * 100).roundToInt()}%", Modifier.width(44.dp), color = c.text, fontSize = 13.sp, style = NumberStyle,
+                    textAlign = TextAlign.End,
+                )
+            }
             Spacer(Modifier.width(10.dp))
         }
         Row(
@@ -321,6 +371,33 @@ private fun SelectionBar(
             IconBtn(Ic.Copy, stringResource(R.string.duplicate), onDuplicate, size = 42.dp)
             IconBtn(Ic.Delete, stringResource(R.string.delete), onDelete, size = 42.dp, tint = c.record)
             IconBtn(Ic.Close, stringResource(R.string.deselect), onClose, size = 42.dp, tint = c.textDim)
+        }
+    }
+}
+
+/**
+ * Two words side by side, one of them chosen: says which of two things the slider next to it edits.
+ * Shared by the bar of the selected notes and the bar of the selected clip.
+ */
+@Composable
+internal fun TwoWay(first: String, second: String, secondChosen: Boolean, description: String, onChoose: (Boolean) -> Unit) {
+    val c = Mps.colors
+    Row(
+        Modifier.clip(RoundedCornerShape(10.dp)).background(c.surfaceHigh).semantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        for (side in 0..1) {
+            val chosen = (side == 1) == secondChosen
+            Text(
+                if (side == 0) first else second,
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (chosen) c.accent else Color.Transparent)
+                    .clickable(role = Role.Tab) { onChoose(side == 1) }
+                    .semantics { selected = chosen }
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                color = if (chosen) c.onAccent else c.textDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            )
         }
     }
 }
@@ -349,6 +426,8 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
     val ticksPerBar = p.ticksPerBar
     val color = c.channel(channel.color)
     val following = studio.playing && !studio.songMode
+    val keyMask = p.keyMask
+    val keyRoot = p.keyRoot
 
     val ghosts = remember(pattern, channel.id, ui.rollGhosts, p.channels) {
         if (!ui.rollGhosts) emptyList() else {
@@ -619,7 +698,22 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                 for (r in firstRow..lastRow) {
                     val pitch = HIGH_PITCH - r
                     val y = rulerH + r * rowH - sy
-                    drawRect(if (isBlackKey(pitch)) c.rowBlack else c.rowWhite, Offset(keyW, y), Size(gridW, rowH))
+                    if (keyMask == 0) {
+                        drawRect(if (isBlackKey(pitch)) c.rowBlack else c.rowWhite, Offset(keyW, y), Size(gridW, rowH))
+                    } else {
+                        // With a key chosen the stripes show the key instead of the black keys (those are still
+                        // on the keyboard at the left): its notes are light, the others dark, the tonic is marked.
+                        val inKey = Scales.contains(keyMask, pitch)
+                        drawRect(if (inKey) c.rowWhite else c.rowBlack, Offset(keyW, y), Size(gridW, rowH))
+                        // the two shades of the theme are close: the rows of the key are told apart a little more
+                        // (lifted on the dark theme, the others dimmed on the light one)
+                        if (c.dark) {
+                            if (inKey) drawRect(c.text.copy(alpha = 0.075f), Offset(keyW, y), Size(gridW, rowH))
+                        } else if (!inKey) {
+                            drawRect(c.text.copy(alpha = 0.05f), Offset(keyW, y), Size(gridW, rowH))
+                        }
+                        if (inKey && (pitch - keyRoot) % 12 == 0) drawRect(c.accent.copy(alpha = 0.2f), Offset(keyW, y), Size(gridW, rowH))
+                    }
                     val semitone = pitch % 12
                     if (semitone == 0) drawLine(c.lineStrong, Offset(keyW, y + rowH), Offset(right, y + rowH), thin)
                     else if (semitone == 5) drawLine(c.line, Offset(keyW, y + rowH), Offset(right, y + rowH), thin)
@@ -662,6 +756,7 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                 // notes
                 val radius = CornerRadius(4f * dp)
                 val gripColor = (if (c.dark) Color.Black else Color.White).copy(alpha = 0.55f)
+                val panMark = if (c.dark) Color.White else Color.Black
                 for (n in notes) {
                     val x0 = keyW + n.start * px - sx
                     val x1 = x0 + n.length * px
@@ -672,6 +767,12 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                     val topLeft = Offset(x0 + thin / 2, y + thin)
                     val rect = Size(w, rowH - 2 * thin)
                     drawRoundRect(color.copy(alpha = 0.4f + 0.6f * n.velocity.coerceIn(0f, 1f)), topLeft, rect, radius)
+                    if (n.pan != 0f && w >= 8f * dp) {
+                        // a note that sits to one side carries a mark at that end
+                        val mark = min(4f * dp, w / 3f)
+                        val mx = if (n.pan < 0f) x0 + thin / 2 else x0 + thin / 2 + w - mark
+                        drawRoundRect(panMark.copy(alpha = 0.45f + 0.5f * abs(n.pan).coerceIn(0f, 1f)), Offset(mx, y + thin), Size(mark, rowH - 2 * thin), radius)
+                    }
                     if (w >= 26f * dp) {
                         val gx = x0 + w - 5f * dp
                         drawLine(gripColor, Offset(gx, y + rowH * 0.28f), Offset(gx, y + rowH * 0.72f), 2f * dp)
@@ -733,6 +834,10 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                     }
                     if (pitch == channel.rootNote && pitch != pressedKey) {
                         drawCircle(c.accent, 3f * dp, Offset(keyW - (if (semitone == 0) 28f else 9f) * dp, y + rowH / 2))
+                    }
+                    // the keys that belong to the song's key carry a line along their edge
+                    if (keyMask != 0 && Scales.contains(keyMask, pitch) && pitch != pressedKey) {
+                        drawRect(c.accent.copy(alpha = if ((pitch - keyRoot) % 12 == 0) 1f else 0.5f), Offset(keyW - 3f * dp, y + thin), Size(3f * dp, rowH - 2 * thin))
                     }
                 }
             }

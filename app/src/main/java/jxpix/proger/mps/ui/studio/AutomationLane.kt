@@ -1,5 +1,9 @@
 package jxpix.proger.mps.ui.studio
 
+import jxpix.proger.mps.model.AutoLane
+import jxpix.proger.mps.model.Project
+import jxpix.proger.mps.model.setSongAutomation
+import jxpix.proger.mps.studio.GridView
 import android.content.res.Resources
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
@@ -92,9 +96,16 @@ internal class LaneTarget(
     /** Where the user left the knob, as a position 0..1. */
     val base: Float,
 ) {
-    /** Text of the chip that shows what the lane edits. */
-    /** The knob comes first: it is what stays readable when the chip gets short. */
-    val title: String get() = if (device == STRIP_DEVICE) name else "$name · $section"
+    /**
+     * Text of the chip that shows what the lane edits. The knob comes first: it is what stays readable
+     * when the chip gets short. Where there is little room the knob stands alone, unless another knob
+     * of the channel ([all]) has the same name - then the device is needed to tell them apart.
+     */
+    fun title(all: List<LaneTarget>, roomy: Boolean): String =
+        if (roomy || all.count { it.name == name } > 1) fullTitle else name
+
+    /** The knob and the device it belongs to ("Angle · 3D sound"); the fader and the balance knob need no device. */
+    val fullTitle: String get() = if (device == STRIP_DEVICE) name else "$name · $section"
 
     /** A knob position as the value the user knows from the knob itself. */
     fun format(position: Float, res: Resources): String = when {
@@ -126,10 +137,31 @@ internal fun laneTargets(channel: Channel, res: Resources): List<LaneTarget> {
     return out
 }
 
-private class LaneModel(
-    val patternTicks: Int,
+/**
+ * Where a curve lives: inside a pattern (the lane under the piano roll) or along the song
+ * (the lane under the playlist, for audio tracks).
+ */
+internal class LaneHost(
+    /** Changes when the lane belongs to something else (another pattern): running gestures start over. */
+    val key: Int,
+    /** How far a curve may reach, in ticks. */
+    val ticks: Int,
     val snap: Int,
-    val patternId: Int,
+    /** Scroll position and zoom of the grid above the lane; the lane moves with it. */
+    val view: GridView,
+    /** Width of the column to the left of that grid. */
+    val inset: Dp,
+    /** True while the play head runs through what the lane shows. */
+    val following: Boolean,
+    /** Every curve that lives here. */
+    val lanes: List<AutoLane>,
+    /** The same list in the project as it is right now: several touch events can arrive between two frames. */
+    val read: (Project) -> List<AutoLane>,
+    val write: (Project, channelId: Int, device: Int, param: String, points: List<AutoPoint>) -> Project,
+)
+
+private class LaneModel(
+    val host: LaneHost,
     val channelId: Int,
     val device: Int,
     val param: String,
@@ -141,12 +173,105 @@ private class LaneModel(
  */
 @Composable
 internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, modifier: Modifier = Modifier) {
+    val ui = studio.ui
+    val id = pattern.id
+    val host = LaneHost(
+        key = id, ticks = studio.project.patternLength(pattern), snap = ui.rollSnap, view = ui.roll, inset = KEY_WIDTH,
+        following = studio.playing && !studio.songMode, lanes = pattern.automation,
+        read = { p -> p.patterns.firstOrNull { it.id == id }?.automation ?: emptyList() },
+        write = { p, ch, device, param, points -> p.setAutomation(id, ch, device, param, points) },
+    )
+    LanePanel(
+        studio, host, channel, ui.laneDevice, ui.laneParam, modifier,
+        onPick = { device, param ->
+            ui.laneDevice = device
+            ui.laneParam = param
+        },
+        onClose = { ui.rollAutomation = false },
+    )
+}
+
+/**
+ * The automation lane under the playlist: a curve that moves one knob of an audio track along
+ * the song. Audio tracks have no patterns, so this is where their balance, volume and effects
+ * are automated. [inset] is the width of the track numbers, [ticks] the length of the timeline.
+ */
+@Composable
+internal fun SongAutomationLane(studio: Studio, inset: Dp, ticks: Int, modifier: Modifier = Modifier) {
     val c = Mps.colors
     val ui = studio.ui
+    val p = studio.project
+    val tracks = p.channels.filter { it.isAudio }
+    val channel = tracks.firstOrNull { it.id == ui.songLaneChannel } ?: tracks.firstOrNull()
+    if (channel == null) {
+        // the last audio track is gone
+        ui.playlistAutomation = false
+        return
+    }
+    var trackSheet by remember { mutableStateOf(false) }
+    // as fine as the zoom allows a finger to draw
+    val px = ui.playlist.pxPerTick
+    val room = with(LocalDensity.current) { 9.dp.toPx() }
+    val snap = when {
+        TICKS_PER_STEP / 2 * px >= room -> TICKS_PER_STEP / 2
+        TICKS_PER_STEP * px >= room -> TICKS_PER_STEP
+        PPQ * px >= room -> PPQ
+        else -> p.ticksPerBar
+    }
+    val host = LaneHost(
+        key = 0, ticks = ticks, snap = snap, view = ui.playlist, inset = inset,
+        following = studio.playing && studio.songMode, lanes = p.automation,
+        read = { it.automation },
+        write = { q, ch, device, param, points -> q.setSongAutomation(ch, device, param, points) },
+    )
+    LanePanel(
+        studio, host, channel, ui.songLaneDevice, ui.songLaneParam, modifier,
+        onPick = { device, param ->
+            ui.songLaneDevice = device
+            ui.songLaneParam = param
+        },
+        onClose = { ui.playlistAutomation = false },
+        // which audio track: named always, a choice once there is more than one
+        leading = {
+            Chip(
+                channel.name, { trackSheet = true }, dot = c.channel(channel.color), trailing = if (tracks.size > 1) Ic.DropDown else null,
+                enabled = tracks.size > 1, maxWidth = 130.dp,
+            )
+            Spacer(Modifier.width(6.dp))
+        },
+    )
+    if (trackSheet) {
+        AppSheet({ trackSheet = false }, title = stringResource(R.string.auto_track_pick)) {
+            for (t in tracks) {
+                SheetItem(
+                    t.name,
+                    onClick = {
+                        ui.songLaneChannel = t.id
+                        ui.songLaneDevice = STRIP_DEVICE
+                        ui.songLaneParam = PARAM_PAN
+                        trackSheet = false
+                    },
+                    selected = t.id == channel.id, dot = c.channel(t.color),
+                    trailing = if (p.automation.any { it.channelId == t.id }) {
+                        { Box(Modifier.size(8.dp).clip(CircleShape).background(c.accent)) }
+                    } else null,
+                )
+            }
+        }
+    }
+}
+
+/** A lane with its header: what it moves, the value under the finger, delete and close. */
+@Composable
+private fun LanePanel(
+    studio: Studio, host: LaneHost, channel: Channel, device: Int, param: String, modifier: Modifier,
+    onPick: (Int, String) -> Unit, onClose: () -> Unit, leading: (@Composable () -> Unit)? = null,
+) {
+    val c = Mps.colors
     val res = LocalResources.current
     val targets = remember(channel, res) { laneTargets(channel, res) }
-    val target = targets.firstOrNull { it.device == ui.laneDevice && it.param == ui.laneParam } ?: targets[0]
-    val points = pattern.lane(channel.id, target.device, target.param)?.points ?: emptyList()
+    val target = targets.firstOrNull { it.device == device && it.param == param } ?: targets[0]
+    val points = host.lanes.firstOrNull { it.targets(channel.id, target.device, target.param) }?.points ?: emptyList()
     var sheet by remember { mutableStateOf(false) }
     // knob position under the finger while a curve is being drawn
     var touching by remember { mutableStateOf<Float?>(null) }
@@ -154,9 +279,12 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
     Column(modifier.fillMaxWidth().background(c.surface)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.lineStrong))
         Row(Modifier.fillMaxWidth().height(46.dp).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            leading?.invoke()
             // the chip never takes more than its share, so the value next to it stays readable
-            val chipMax = (LocalConfiguration.current.screenWidthDp * 0.42f).dp.coerceIn(120.dp, 260.dp)
-            Chip(target.title, { sheet = true }, icon = Ic.Curve, trailing = Ic.DropDown, maxWidth = chipMax)
+            val share = if (leading == null) 0.42f else 0.3f
+            val chipMax = (LocalConfiguration.current.screenWidthDp * share).dp.coerceIn(110.dp, 260.dp)
+            // next to the chip of a track there is room for the knob alone; a lane on its own names the device too
+            Chip(target.title(targets, leading == null || chipMax >= 200.dp), { sheet = true }, icon = Ic.Curve, trailing = Ic.DropDown, maxWidth = chipMax)
             Spacer(Modifier.width(10.dp))
             val now = touching
             Text(
@@ -170,18 +298,18 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
             )
             IconBtn(
                 Ic.Delete, stringResource(R.string.auto_clear),
-                { studio.edit { it.setAutomation(pattern.id, channel.id, target.device, target.param, emptyList()) } },
+                { studio.edit { host.write(it, channel.id, target.device, target.param, emptyList()) } },
                 enabled = points.isNotEmpty(), size = 42.dp,
             )
-            IconBtn(Ic.Close, stringResource(R.string.auto_hide), { ui.rollAutomation = false }, size = 42.dp, tint = c.textDim)
+            IconBtn(Ic.Close, stringResource(R.string.auto_hide), onClose, size = 42.dp, tint = c.textDim)
         }
         val short = LocalConfiguration.current.screenHeightDp < 520
-        LaneCanvas(studio, pattern, channel, target, points, if (short) LANE_HEIGHT_SHORT else LANE_HEIGHT) { touching = it }
+        LaneCanvas(studio, host, channel, target, points, if (short) LANE_HEIGHT_SHORT else LANE_HEIGHT) { touching = it }
     }
 
     if (sheet) {
-        val used = remember(pattern.automation, channel.id) {
-            pattern.automation.filter { it.channelId == channel.id }.map { it.device to it.param }.toSet()
+        val used = remember(host.lanes, channel.id) {
+            host.lanes.filter { it.channelId == channel.id }.map { it.device to it.param }.toSet()
         }
         AppSheet({ sheet = false }, title = stringResource(R.string.auto_pick)) {
             var section = ""
@@ -193,12 +321,11 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
                 SheetItem(
                     t.name,
                     onClick = {
-                        ui.laneDevice = t.device
-                        ui.laneParam = t.param
+                        onPick(t.device, t.param)
                         sheet = false
                     },
                     selected = t === target,
-                    // knobs that already have a curve in this pattern
+                    // knobs that already have a curve here
                     trailing = if ((t.device to t.param) in used) {
                         { Box(Modifier.size(8.dp).clip(CircleShape).background(c.accent)) }
                     } else null,
@@ -210,26 +337,25 @@ internal fun AutomationLane(studio: Studio, pattern: Pattern, channel: Channel, 
 
 @Composable
 private fun LaneCanvas(
-    studio: Studio, pattern: Pattern, channel: Channel, target: LaneTarget, points: List<AutoPoint>,
+    studio: Studio, host: LaneHost, channel: Channel, target: LaneTarget, points: List<AutoPoint>,
     height: Dp, onTouch: (Float?) -> Unit,
 ) {
     val c = Mps.colors
-    val ui = studio.ui
-    val view = ui.roll
+    val view = host.view
     val p = studio.project
     val res = LocalResources.current
     val density = LocalDensity.current
     val dp = density.density
-    val keyW = with(density) { KEY_WIDTH.toPx() }
+    val keyW = with(density) { host.inset.toPx() }
     val pad = 8f * dp
-    val patternTicks = p.patternLength(pattern)
+    val patternTicks = host.ticks
     val ticksPerBar = p.ticksPerBar
     val color = c.channel(channel.color)
-    val following = studio.playing && !studio.songMode
-    val model by rememberUpdatedState(LaneModel(patternTicks, ui.rollSnap, pattern.id, channel.id, target.device, target.param))
+    val following = host.following
+    val model by rememberUpdatedState(LaneModel(host, channel.id, target.device, target.param))
     val touch by rememberUpdatedState(onTouch)
     val labelPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
-    val description = stringResource(R.string.auto_lane, target.title)
+    val description = stringResource(R.string.auto_lane, target.fullTitle)
     val top = target.format(1f, res)
     val bottom = target.format(0f, res)
 
@@ -238,7 +364,7 @@ private fun LaneCanvas(
             .fillMaxWidth()
             .height(height)
             .semantics { contentDescription = description }
-            .pointerInput(pattern.id, channel.id, target.device, target.param) {
+            .pointerInput(host.key, channel.id, target.device, target.param) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (down.position.x < keyW) return@awaitEachGesture
@@ -250,15 +376,15 @@ private fun LaneCanvas(
                     /** Puts the finger position on the curve; a fast stroke fills every grid line it passed. */
                     fun draw(position: Offset) {
                         val m = model
-                        val snap = max(1, m.snap)
+                        val snap = max(1, m.host.snap)
                         val raw = (position.x - keyW + view.scrollX) / view.pxPerTick
-                        val tick = ((raw / snap).roundToInt() * snap).coerceIn(0, m.patternTicks)
+                        val tick = ((raw / snap).roundToInt() * snap).coerceIn(0, m.host.ticks)
                         val value = ((height - pad - position.y) / (height - 2 * pad)).coerceIn(0f, 1f)
                         val from = if (lastTick < 0) tick else min(lastTick, tick)
                         val to = if (lastTick < 0) tick else max(lastTick, tick)
                         // the curve as it is right now: several touch events can arrive between two frames
-                        val current = studio.project.patterns.firstOrNull { it.id == m.patternId }
-                            ?.lane(m.channelId, m.device, m.param)?.points ?: emptyList()
+                        val current = m.host.read(studio.project).firstOrNull { it.targets(m.channelId, m.device, m.param) }?.points
+                            ?: emptyList()
                         val next = ArrayList<AutoPoint>(current.size + 8)
                         // what the stroke passes over is replaced, the rest of the curve stays
                         for (pt in current) if (pt.tick < from || pt.tick > to) next += pt
@@ -272,7 +398,7 @@ private fun LaneCanvas(
                                 t += snap
                             }
                         }
-                        studio.edit("automation") { it.setAutomation(m.patternId, m.channelId, m.device, m.param, next) }
+                        studio.edit("automation") { m.host.write(it, m.channelId, m.device, m.param, next) }
                         lastTick = tick
                         lastValue = value
                         touch(value)
@@ -306,7 +432,7 @@ private fun LaneCanvas(
         drawRect(c.bg, Offset(keyW, 0f), Size(gridW, h))
         clipRect(keyW, 0f, right, h) {
             // the same vertical grid as the notes above
-            val snap = model.snap
+            val snap = model.host.snap
             val unit = when {
                 snap * px >= 9f * dp -> snap
                 TICKS_PER_STEP * px >= 9f * dp -> TICKS_PER_STEP

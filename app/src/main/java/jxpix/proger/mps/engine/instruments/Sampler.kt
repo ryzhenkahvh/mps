@@ -95,6 +95,8 @@ class Sampler : Instrument() {
         v.step = (s.sampleRate.toDouble() / sampleRate) * 2.0.pow((pitch - root + fine / 100.0) / 12.0)
         v.pos = if (reverse) (endF - 1).toDouble() else startF.toDouble()
         v.gain = ((1f - velSens) + velSens * velocity * velocity) * level * 1.25f
+        v.panL = panLeft(notePan)
+        v.panR = panRight(notePan)
         v.env.kill()
         v.env.setRelease(releaseTime, sampleRate) // undo a possible fast (choke) release
         v.env.gateOn()
@@ -141,6 +143,8 @@ class Sampler : Instrument() {
         var startF = 0
         var endF = 0
         var gain = 1f
+        var panL = 1f
+        var panR = 1f
         val env = Adsr()
 
         fun fastRelease() {
@@ -187,9 +191,9 @@ class Sampler : Instrument() {
                 }
                 val g = e * k
                 val l0 = left[ip].toFloat()
-                outL[i] += (l0 + (left[i1] - l0) * frac) * g
+                outL[i] += (l0 + (left[i1] - l0) * frac) * g * panL
                 val r0 = right[ip].toFloat()
-                outR[i] += (r0 + (right[i1] - r0) * frac) * g
+                outR[i] += (r0 + (right[i1] - r0) * frac) * g * panR
                 pos += if (rev) -step else step
             }
             this.pos = pos

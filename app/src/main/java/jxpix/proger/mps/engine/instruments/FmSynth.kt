@@ -76,6 +76,8 @@ class FmSynth : Instrument() {
         // a hard hit is louder and brighter, like on a real instrument
         val touch = (1f - velSens) + velSens * velocity
         v.gain = touch * touch
+        v.panL = panLeft(notePan)
+        v.panR = panRight(notePan)
         v.bright = 0.4f + 0.6f * touch
         // High notes get less modulation: the overtones it makes have to stay below what the sample
         // rate can carry, otherwise they fold back as harsh, out-of-tune noise.
@@ -132,7 +134,8 @@ class FmSynth : Instrument() {
             var mod = v.mod
             val incL = v.incL
             val incR = v.incR
-            val g = v.gain * out
+            val gL = v.gain * out * v.panL
+            val gR = v.gain * out * v.panR
             val bright = min(depth * v.bright, v.maxIndex)
             for (i in offset until offset + count) {
                 val a = env.next()
@@ -143,8 +146,8 @@ class FmSynth : Instrument() {
                 val mR = FastMath.sin01(pmR + fbR * fb + PHASE_BIAS)
                 fbL = (fbL + mL) * 0.5f
                 fbR = (fbR + mR) * 0.5f
-                outL[i] += FastMath.sin01(pcL + mL * index + PHASE_BIAS) * a * g
-                outR[i] += FastMath.sin01(pcR + mR * index + PHASE_BIAS) * a * g
+                outL[i] += FastMath.sin01(pcL + mL * index + PHASE_BIAS) * a * gL
+                outR[i] += FastMath.sin01(pcR + mR * index + PHASE_BIAS) * a * gR
                 pcL += incL
                 if (pcL >= 1f) pcL -= 1f
                 pcR += incR
@@ -177,6 +180,8 @@ class FmSynth : Instrument() {
         var fbR = 0f
         var mod = 0f
         var gain = 0f
+        var panL = 1f
+        var panR = 1f
         var bright = 1f
 
         /** The most modulation this note can take without aliasing, in cycles of phase. */

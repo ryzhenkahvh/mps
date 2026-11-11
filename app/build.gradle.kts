@@ -34,10 +34,10 @@ android {
 
     defaultConfig {
         applicationId = "jxpix.proger.mps"
-        minSdk = 31
+        minSdk = 28
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0-beta"
+        versionCode = 3
+        versionName = "1.1-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

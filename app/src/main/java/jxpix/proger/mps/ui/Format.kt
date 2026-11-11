@@ -41,12 +41,15 @@ object Fmt {
                 else -> res.getString(R.string.unit_ms, value.roundToInt().toString())
             }
             ParamUnit.DB -> db(value, res)
+            ParamUnit.DB_AMOUNT -> res.getString(R.string.unit_db, num(value, 1))
             ParamUnit.SEMITONES -> res.getString(R.string.unit_st, signed(value.roundToInt()))
             ParamUnit.CENTS -> res.getString(R.string.unit_ct, signed(value.roundToInt()))
             ParamUnit.OCTAVES -> signed(value.roundToInt())
             ParamUnit.RATIO -> num(value, 1) + ":1"
             ParamUnit.NOTE -> noteName(value.roundToInt())
             ParamUnit.INT -> value.roundToInt().toString()
+            // an angle to either side carries its sign, a plain amount of degrees does not
+            ParamUnit.DEGREES -> (if (spec.min < 0f) signed(value.roundToInt()) else value.roundToInt().toString()) + "°"
             ParamUnit.NONE -> if (spec.integer) value.roundToInt().toString() else num(value, 2)
         }
     }

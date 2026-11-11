@@ -378,4 +378,153 @@
     <string name="fxp_seasick">Seasick</string>
     <string name="fxp_hot">Hot</string>
     <string name="p_fm_feedback">Edge</string>
+
+    <!-- Version 1.1: 3D sound, pitch correction, rhythm and vocal effects -->
+    <string name="fx_3d">3D sound</string>
+    <string name="fx_3d_desc">Places the sound anywhere around your head and moves it in circles. For headphones.</string>
+    <string name="fx_tune">Pitch correction</string>
+    <string name="fx_tune_desc">Pulls a voice onto the notes of the key: from an invisible touch-up to the robotic tuned sound.</string>
+    <string name="fx_pitch">Pitch shifter</string>
+    <string name="fx_pitch_desc">Higher or lower without getting faster or slower.</string>
+    <string name="fx_gate">Noise gate</string>
+    <string name="fx_gate_desc">Silences the pauses: microphone hum, breathing, headphone spill.</string>
+    <string name="fx_deess">De-esser</string>
+    <string name="fx_deess_desc">Softens the hiss of “s” and “sh” in a voice.</string>
+    <string name="fx_halftime">Half-time</string>
+    <string name="fx_halftime_desc">Plays the sound at half speed in time with the track: slow, heavy, an octave lower.</string>
+    <string name="fx_repeat">Beat repeat</string>
+    <string name="fx_repeat_desc">Loops a short piece at the end of the bar: stutters and fills.</string>
+    <string name="fx_ott">OTT compressor</string>
+    <string name="fx_ott_desc">Squeezes bass, middle and top one by one, up and down: dense, bright, in your face.</string>
+    <string name="fx_wah">Auto-wah</string>
+    <string name="fx_wah_desc">A filter that quacks with every note: funk guitar, bass, keys.</string>
+    <string name="p_angle">Angle</string>
+    <string name="p_height">Height</string>
+    <string name="p_distance">Distance</string>
+    <string name="p_room">Room</string>
+    <string name="p_motion">Movement</string>
+    <string name="p_arc">Swing</string>
+    <string name="p_hold">Hold</string>
+    <string name="p_amount">Amount</string>
+    <string name="p_scale">Scale</string>
+    <string name="p_key">Key</string>
+    <string name="p_retune">Smoothness</string>
+    <string name="p_shift">Transpose</string>
+    <string name="p_voice_range">Voice</string>
+    <string name="p_loop_length">Length</string>
+    <string name="p_slowdown">Slow down</string>
+    <string name="p_smooth">Smoothing</string>
+    <string name="p_every">Every</string>
+    <string name="p_fill_length">Fill</string>
+    <string name="p_slice">Piece</string>
+    <string name="p_sensitivity">Sensitivity</string>
+    <string name="p_wah_range">Range</string>
+    <string name="fxp_around_head">Around the head</string>
+    <string name="fxp_8d">8D, slow circle</string>
+    <string name="fxp_swing">Swinging in front</string>
+    <string name="fxp_behind">Behind you</string>
+    <string name="fxp_in_the_ear">Right in the left ear</string>
+    <string name="fxp_far_away">Far away</string>
+    <string name="fxp_tune_natural">Natural</string>
+    <string name="fxp_tune_tight">Tight</string>
+    <string name="fxp_tune_robot">Robot</string>
+    <string name="fxp_octave_down">Octave down</string>
+    <string name="fxp_octave_up">Octave up</string>
+    <string name="fxp_fifth_above">A fifth on top</string>
+    <string name="fxp_deep_voice">Deep voice</string>
+    <string name="fxp_chipmunk">Chipmunk</string>
+    <string name="fxp_thicker">Thicker</string>
+    <string name="fxp_gate_voice">Voice</string>
+    <string name="fxp_gate_tight">Tight drums</string>
+    <string name="fxp_gate_soft">Gentle</string>
+    <string name="fxp_strong">Strong</string>
+    <string name="fxp_half_classic">Classic, one bar</string>
+    <string name="fxp_half_fast">Half a bar</string>
+    <string name="fxp_half_triplet">Triplet feel</string>
+    <string name="fxp_half_under">Half under the original</string>
+    <string name="fxp_rep_fill">Fill on the last beat</string>
+    <string name="fxp_rep_roll">Roll every two bars</string>
+    <string name="fxp_rep_triplet">Triplet fill</string>
+    <string name="fxp_rep_gun">Machine gun</string>
+    <string name="fxp_ott_half">Half way</string>
+    <string name="fxp_ott_full">Over the top</string>
+    <string name="fxp_ott_air">Airy top</string>
+    <string name="fxp_ott_warm">Warm and slow</string>
+    <string name="fxp_wah_funk">Funk</string>
+    <string name="fxp_wah_bass">Bass</string>
+    <string name="fxp_wah_slow">Slow sweep</string>
+    <string-array name="arr_3d_motion">
+        <item>Off</item>
+        <item>Free</item>
+        <item>8 bars</item>
+        <item>4 bars</item>
+        <item>2 bars</item>
+        <item>1 bar</item>
+        <item>1/2 bar</item>
+        <item>1/4 bar</item>
+    </string-array>
+    <string-array name="arr_tune_scale">
+        <item>Project key</item>
+        <item>All notes</item>
+        <item>Major</item>
+        <item>Minor</item>
+        <item>Major pentatonic</item>
+        <item>Minor pentatonic</item>
+        <item>Blues</item>
+        <item>Harmonic minor</item>
+        <item>Melodic minor</item>
+        <item>Dorian</item>
+        <item>Phrygian</item>
+        <item>Lydian</item>
+        <item>Mixolydian</item>
+    </string-array>
+    <string-array name="arr_note_names" translatable="false">
+        <item>C</item>
+        <item>C#</item>
+        <item>D</item>
+        <item>D#</item>
+        <item>E</item>
+        <item>F</item>
+        <item>F#</item>
+        <item>G</item>
+        <item>G#</item>
+        <item>A</item>
+        <item>A#</item>
+        <item>B</item>
+    </string-array>
+    <string-array name="arr_tune_voice">
+        <item>Low</item>
+        <item>Medium</item>
+        <item>High</item>
+    </string-array>
+    <string-array name="arr_half_length">
+        <item>1/4 bar</item>
+        <item>1/2 bar</item>
+        <item>1 bar</item>
+        <item>2 bars</item>
+    </string-array>
+    <string-array name="arr_half_speed">
+        <item>1.5×</item>
+        <item>2×</item>
+        <item>4×</item>
+    </string-array>
+    <string-array name="arr_repeat_every">
+        <item>1/2 bar</item>
+        <item>1 bar</item>
+        <item>2 bars</item>
+        <item>4 bars</item>
+    </string-array>
+    <string-array name="arr_repeat_length">
+        <item>1 beat</item>
+        <item>2 beats</item>
+        <item>1 bar</item>
+    </string-array>
+    <string-array name="arr_repeat_slice">
+        <item>1/4</item>
+        <item>1/8</item>
+        <item>1/8T</item>
+        <item>1/16</item>
+        <item>1/16T</item>
+        <item>1/32</item>
+    </string-array>
 </resources>

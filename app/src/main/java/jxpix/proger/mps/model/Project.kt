@@ -40,6 +40,8 @@ data class Note(
     /** MIDI note number, 60 = C4. */
     val pitch: Int,
     val velocity: Float = 0.8f,
+    /** Where this one note sits between the speakers: -1 (left) .. +1 (right), on top of the balance of its channel. */
+    val pan: Float = 0f,
 ) {
     val end: Int get() = start + length
 }
@@ -71,7 +73,7 @@ data class Channel(
 /** One point of an automation curve. */
 @Serializable
 data class AutoPoint(
-    /** Position inside the pattern, in ticks. */
+    /** Position inside the pattern (or, for a curve of the song, in the song), in ticks. */
     val tick: Int,
     /** Knob position 0..1 (see [jxpix.proger.mps.engine.ParamSpec.toNorm]). */
     val value: Float,
@@ -82,6 +84,8 @@ data class AutoPoint(
  * a channel, or any parameter of its instrument and effects. Between the points the value
  * moves in a straight line; before the first and after the last point it stays put.
  * When the pattern is not playing the knob is back where the user left it.
+ *
+ * Audio tracks have no patterns: their curves run along the song ([Project.automation]).
  */
 @Serializable
 data class AutoLane(
@@ -138,6 +142,8 @@ data class Clip(
     val offset: Float = 0f,
     val gain: Float = 1f,
     val muted: Boolean = false,
+    /** Audio clips: -1 (left) .. +1 (right), on top of the balance of the channel. */
+    val pan: Float = 0f,
 ) {
     val isAudio: Boolean get() = sample != null
     val end: Int get() = start + length
@@ -164,6 +170,11 @@ data class Project(
     val loopEnd: Int = 4,
     /** Next free id for channels, patterns, clips and devices. */
     val nextId: Int = 1,
+    /** Key of the song: its tonic (0 = C .. 11 = B) and its scale (see [Scales]; 0 = none chosen). */
+    val keyRoot: Int = 0,
+    val scale: Int = 0,
+    /** Curves that run along the song instead of a pattern: the knobs of audio tracks. Ticks are song positions. */
+    val automation: List<AutoLane> = emptyList(),
 ) {
     val ticksPerBar: Int get() = beatsPerBar * PPQ
     val stepsPerBar: Int get() = beatsPerBar * 4
@@ -172,6 +183,13 @@ data class Project(
     fun pattern(id: Int): Pattern? = patterns.firstOrNull { it.id == id }
     fun clip(id: Int): Clip? = clips.firstOrNull { it.id == id }
     fun patternLength(p: Pattern): Int = p.bars * ticksPerBar
+
+    /** The curve of the song that moves one knob of a channel, if there is one. */
+    fun songLane(channelId: Int, device: Int, param: String): AutoLane? =
+        automation.firstOrNull { it.targets(channelId, device, param) }
+
+    /** The notes of the song's key as twelve bits (see [Scales.mask]); 0 = no key chosen. */
+    val keyMask: Int get() = Scales.mask(keyRoot, scale)
 
     /** End of the last clip, in ticks. */
     val songEnd: Int get() = clips.maxOfOrNull { it.end } ?: 0

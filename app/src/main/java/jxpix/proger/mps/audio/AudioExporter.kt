@@ -8,6 +8,7 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
@@ -35,6 +36,7 @@ object AudioExporter {
     /** Copies [file] into Music/MPS (or a folder inside it) and returns its public Uri. */
     @Throws(IOException::class)
     fun saveToMusic(context: Context, file: File, displayName: String, mime: String, subFolder: String? = null): Uri {
+        if (Build.VERSION.SDK_INT < 29) return saveToMusicLegacy(context, file, displayName, mime, subFolder)
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, displayName)
@@ -55,6 +57,42 @@ object AudioExporter {
             throw if (e is IOException) e else IOException(e)
         }
         return uri
+    }
+
+    /** True where saving to the Music folder needs the user's permission first: Android 9 only. */
+    val needsStoragePermission: Boolean get() = Build.VERSION.SDK_INT < 29
+
+    /**
+     * Android 9 has no shared collections to write into: the file is copied into Music/MPS directly
+     * (the user has allowed that, see [needsStoragePermission]) and then made known to the media library.
+     * A file with the same name is never overwritten.
+     */
+    @Suppress("DEPRECATION")
+    @Throws(IOException::class)
+    private fun saveToMusicLegacy(context: Context, file: File, displayName: String, mime: String, subFolder: String?): Uri {
+        val music = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+        val dir = File(music, if (subFolder != null) "$FOLDER/$subFolder" else FOLDER)
+        if (!dir.isDirectory && !dir.mkdirs()) throw IOException("Could not create the folder")
+        val base = displayName.substringBeforeLast('.')
+        val ext = displayName.substringAfterLast('.', "")
+        var target = File(dir, displayName)
+        var n = 2
+        while (target.exists()) target = File(dir, "$base ($n)" + if (ext.isEmpty()) "" else ".$ext").also { n++ }
+        try {
+            file.inputStream().use { input -> target.outputStream().use { input.copyTo(it, 1 shl 16) } }
+            val values = ContentValues().apply {
+                put(MediaStore.Audio.Media.DATA, target.absolutePath)
+                put(MediaStore.Audio.Media.DISPLAY_NAME, target.name)
+                put(MediaStore.Audio.Media.TITLE, target.nameWithoutExtension)
+                put(MediaStore.Audio.Media.MIME_TYPE, mime)
+                put(MediaStore.Audio.Media.IS_MUSIC, 1)
+            }
+            return context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                ?: throw IOException("Could not add the file to the media library")
+        } catch (e: Exception) {
+            target.delete()
+            throw if (e is IOException) e else IOException(e)
+        }
     }
 
     /** One file, or several at once (the separate tracks of a song). */

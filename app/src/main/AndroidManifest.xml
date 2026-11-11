@@ -8,6 +8,11 @@
     <!-- Asked for only when the user starts a microphone recording. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Android 9 only, asked for when a track is saved to the Music folder. Newer versions need no permission for that. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="false" />

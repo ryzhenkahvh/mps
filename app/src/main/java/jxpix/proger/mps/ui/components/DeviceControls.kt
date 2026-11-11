@@ -179,7 +179,7 @@ fun DeviceParams(
     for ((group, list) in groups) {
         panels += {
             val grid: @Composable () -> Unit = {
-                CellGrid(list.size) { i ->
+                CellGrid(list.size, span = { if (list[it].wide) 2 else 1 }) { i ->
                     val spec = list[i]
                     ParamControl(spec, state.param(spec.id), color, onChange = { onParam(spec.id, it) }, onEnd = onEnd)
                 }

@@ -14,7 +14,11 @@ const val TICKS_PER_STEP = PPQ / 4
 /** Largest block the engine renders in one go. */
 const val MAX_BLOCK = 512
 
-enum class ParamUnit { NONE, PERCENT, HZ, SECONDS, MILLIS, DB, SEMITONES, CENTS, OCTAVES, RATIO, NOTE, INT }
+/**
+ * How the value of a knob is written. [DB] is a gain and carries its sign ("+6.0 dB"); [DB_AMOUNT] says
+ * how much is taken away, not which way ("12.0 dB": how far a gate closes, how much a de-esser removes).
+ */
+enum class ParamUnit { NONE, PERCENT, HZ, SECONDS, MILLIS, DB, SEMITONES, CENTS, OCTAVES, RATIO, NOTE, INT, DEGREES, DB_AMOUNT }
 
 enum class ParamCurve { LINEAR, EXP, SQUARE }
 
@@ -33,6 +37,8 @@ class ParamSpec(
     @param:ArrayRes val choicesRes: Int = 0,
     @param:StringRes val group: Int = 0,
     val integer: Boolean = false,
+    /** A choice whose options have long names ("Harmonic minor"): its selector takes the room of two knobs. */
+    val wide: Boolean = false,
 ) {
     val isChoice: Boolean get() = choicesRes != 0
 
@@ -65,9 +71,19 @@ class ProcessContext {
     var bpm = 120.0
     var playing = false
 
-    /** Song position (in ticks) of the first frame of the current block. */
+    /**
+     * Position (in ticks) of the first frame of the current block. It is the song position as long
+     * as nothing has come round; when a pattern or a loop starts again it keeps counting, so that
+     * a movement longer than the loop is not cut short. Negative during the count-in.
+     */
     var tickPos = 0.0
     var ticksPerFrame = 0.0
+
+    /** Length of a bar in ticks. */
+    var ticksPerBar = 4 * PPQ
+
+    /** The notes of the song's key as twelve bits (bit 0 = C); 0 = the song has no key. */
+    var keyMask = 0
 }
 
 abstract class Device {
@@ -85,7 +101,25 @@ abstract class Device {
 }
 
 abstract class Instrument : Device() {
+    /**
+     * Balance of the note that is being started, -1 (left) .. +1 (right): implementations of
+     * [noteOn] read it and give it to the voice they start. Zero outside of [noteOn].
+     */
+    protected var notePan = 0f
+
     abstract fun noteOn(pitch: Int, velocity: Float)
+
+    /** Starts a note that has a place of its own between the speakers. */
+    fun noteOn(pitch: Int, velocity: Float, pan: Float) {
+        notePan = if (pan < -1f) -1f else if (pan > 1f) 1f else pan
+        noteOn(pitch, velocity)
+        notePan = 0f
+    }
+
+    /** Gain of the left side for a balance of [pan]: nothing is boosted, the far side is turned down. */
+    protected fun panLeft(pan: Float): Float = if (pan > 0f) 1f - pan else 1f
+
+    protected fun panRight(pan: Float): Float = if (pan < 0f) 1f + pan else 1f
     abstract fun noteOff(pitch: Int)
     abstract fun allNotesOff()
 

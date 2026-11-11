@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.studio
 
+import kotlin.math.abs
 import jxpix.proger.mps.studio.RecordMode
 import androidx.compose.ui.platform.LocalConfiguration
 import android.graphics.Paint
@@ -186,6 +187,10 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
                 )
             }
         }
+        if (ui.playlistAutomation) {
+            // the curves of audio tracks run along the song, so they are drawn under the timeline
+            SongAutomationLane(studio, HEADER_WIDTH, max(p.songEnd + p.ticksPerBar * 8, p.ticksPerBar * 16))
+        }
         if (selected != null) {
             ClipBar(studio, selected)
         }
@@ -230,6 +235,16 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
                 )
             }
             SheetDivider()
+            SwitchRow(stringResource(R.string.auto_track), stringResource(R.string.auto_track_desc), ui.playlistAutomation) { on ->
+                if (on && p.channels.none { it.isAudio }) {
+                    studio.message = res.getString(R.string.auto_track_none)
+                } else {
+                    // start with the track of the selected clip, if it is an audio clip
+                    if (on && selected != null && selected.isAudio) ui.songLaneChannel = selected.channelId
+                    ui.playlistAutomation = on
+                }
+                moreSheet = false
+            }
             SwitchRow(stringResource(R.string.loop_song), null, p.loopEnabled) { on ->
                 studio.edit { q ->
                     if (on && q.loopEnd <= q.loopStart) q.copy(loopEnabled = true, loopStart = 0, loopEnd = max(1, min(4, q.songBars)))
@@ -268,19 +283,39 @@ private fun ClipBar(studio: Studio, clip: Clip) {
     val title = if (clip.isAudio) (clip.sample ?: "").substringBeforeLast('.') else p.pattern(clip.patternId)?.name ?: "—"
     Column(Modifier.fillMaxWidth().background(c.surface)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
-        if (clip.isAudio) {
-            Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 14.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                val label = stringResource(R.string.clip_gain)
-                Text(label, color = c.textDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Slider(
-                    value = clip.gain.coerceIn(0f, 2f), onValueChange = { v -> studio.edit("clip-gain") { it.updateClip(clip.id) { x -> x.copy(gain = v) } } },
-                    valueRange = 0f..2f, onValueChangeFinished = { studio.commit() }, colors = sliderColors(),
-                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp).semantics { contentDescription = label },
-                )
-                Text(
-                    if (clip.gain <= 0.001f) res.getString(R.string.db_silence) else Fmt.db(20f * log10(clip.gain), res), Modifier.width(64.dp),
-                    color = c.text, fontSize = 13.sp, style = NumberStyle, textAlign = TextAlign.End,
-                )
+        // On a low screen (a phone held sideways) the automation lane and this bar together would leave
+        // no room for the tracks themselves: the slider waits until the lane is closed.
+        val roomForSlider = !(ui.playlistAutomation && LocalConfiguration.current.screenHeightDp < 520)
+        if (clip.isAudio && roomForSlider) {
+            // the slider edits one thing at a time: how loud this clip is, or where it sits between the speakers
+            var showPan by remember { mutableStateOf(false) }
+            Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 8.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                TwoWay(stringResource(R.string.volume), stringResource(R.string.pan), showPan, stringResource(R.string.clip_prop_switch)) { showPan = it }
+                if (showPan) {
+                    val label = stringResource(R.string.clip_pan)
+                    Slider(
+                        value = clip.pan.coerceIn(-1f, 1f),
+                        onValueChange = { v ->
+                            // the middle is easy to hit
+                            val pan = if (abs(v) < 0.05f) 0f else v
+                            studio.edit("clip-pan") { it.updateClip(clip.id) { x -> x.copy(pan = pan) } }
+                        },
+                        valueRange = -1f..1f, onValueChangeFinished = { studio.commit() }, colors = sliderColors(),
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp).semantics { contentDescription = label },
+                    )
+                    Text(Fmt.pan(clip.pan, res), Modifier.width(64.dp), color = c.text, fontSize = 13.sp, style = NumberStyle, textAlign = TextAlign.End)
+                } else {
+                    val label = stringResource(R.string.clip_gain)
+                    Slider(
+                        value = clip.gain.coerceIn(0f, 2f), onValueChange = { v -> studio.edit("clip-gain") { it.updateClip(clip.id) { x -> x.copy(gain = v) } } },
+                        valueRange = 0f..2f, onValueChangeFinished = { studio.commit() }, colors = sliderColors(),
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp).semantics { contentDescription = label },
+                    )
+                    Text(
+                        if (clip.gain <= 0.001f) res.getString(R.string.db_silence) else Fmt.db(20f * log10(clip.gain), res), Modifier.width(64.dp),
+                        color = c.text, fontSize = 13.sp, style = NumberStyle, textAlign = TextAlign.End,
+                    )
+                }
             }
         }
         Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -294,6 +329,11 @@ private fun ClipBar(studio: Studio, clip: Clip) {
                     ui.tab = Tab.RACK
                 }, size = 42.dp)
             } else {
+                // the curves of the track this clip plays on: balance, volume, any knob of its effects
+                IconBtn(Ic.Curve, stringResource(R.string.auto_track), {
+                    ui.songLaneChannel = clip.channelId
+                    ui.playlistAutomation = true
+                }, size = 42.dp, tint = if (ui.playlistAutomation && ui.songLaneChannel == clip.channelId) c.accent else c.text)
                 // a recording worth keeping goes to "My sounds", where every project can use it
                 val sample = clip.sample
                 if (sample != null) IconBtn(Ic.Save, stringResource(R.string.sound_keep), { studio.saveToLibrary(sample) }, size = 42.dp)

@@ -247,6 +247,8 @@ class PolySynth : Instrument() {
         v.pitch = pitch
         v.order = ++noteCounter
         v.velGain = (1f - velSens) + velSens * velocity * velocity
+        v.panL = panLeft(notePan)
+        v.panR = panRight(notePan)
         v.target = pitch.toFloat()
         if (glideCoef >= 1f || !hasLastNote) {
             v.note = v.target
@@ -337,6 +339,8 @@ class PolySynth : Instrument() {
         var pitch = -1
         var order = 0L
         var velGain = 1f
+        var panL = 1f
+        var panR = 1f
         var note = 60f
         var target = 60f
 
@@ -524,8 +528,8 @@ class PolySynth : Instrument() {
                 }
 
                 val a = amp.next() * gain
-                yl *= a
-                yr *= a
+                yl *= a * panL
+                yr *= a * panR
                 outL[i] += yl
                 outR[i] += yr
             }

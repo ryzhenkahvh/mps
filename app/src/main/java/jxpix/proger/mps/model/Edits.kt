@@ -58,6 +58,7 @@ fun Project.removeChannel(id: Int): Project {
             } else p
         },
         clips = clips.filter { !(it.isAudio && it.channelId == id) },
+        automation = automation.filter { it.channelId != id },
     )
 }
 
@@ -88,7 +89,10 @@ fun Project.duplicateChannel(id: Int, newName: String): Pair<Project, Int> {
             automation = p.automation + lanes,
         )
     }
-    return copy(channels = list, patterns = pats, nextId = next) to newId
+    val songLanes = automation.filter { it.channelId == id }.mapNotNull { lane ->
+        uids[lane.device]?.let { lane.copy(channelId = newId, device = it) }
+    }
+    return copy(channels = list, patterns = pats, nextId = next, automation = automation + songLanes) to newId
 }
 
 fun Project.moveChannel(id: Int, delta: Int): Project {
@@ -264,13 +268,29 @@ fun Project.setAutomation(patternId: Int, channelId: Int, device: Int, param: St
         }
     }
 
+/** Most points a curve of the song may have: it runs over the whole track, not over a few bars. */
+const val MAX_SONG_AUTO_POINTS = 4096
+
+/**
+ * Sets the curve that moves one knob of a channel along the song; an empty list removes it.
+ * This is the automation of audio tracks, which have no patterns to carry a curve.
+ */
+fun Project.setSongAutomation(channelId: Int, device: Int, param: String, points: List<AutoPoint>): Project {
+    val others = automation.filter { !it.targets(channelId, device, param) }
+    return if (points.isEmpty()) {
+        if (others.size == automation.size) this else copy(automation = others)
+    } else {
+        copy(automation = others + AutoLane(channelId, device, param, cleanPoints(points, MAX_SONG_AUTO_POINTS)))
+    }
+}
+
 /** Sorted, one point per tick (the later one wins), values inside 0..1. */
-fun cleanPoints(points: List<AutoPoint>): List<AutoPoint> {
+fun cleanPoints(points: List<AutoPoint>, most: Int = MAX_AUTO_POINTS): List<AutoPoint> {
     val byTick = java.util.TreeMap<Int, Float>()
     for (pt in points) if (pt.tick >= 0 && !pt.value.isNaN()) byTick[pt.tick] = pt.value.coerceIn(0f, 1f)
     val out = ArrayList<AutoPoint>(byTick.size)
     for ((tick, value) in byTick) {
-        if (out.size >= MAX_AUTO_POINTS) break
+        if (out.size >= most) break
         out += AutoPoint(tick, value)
     }
     return out
@@ -333,10 +353,14 @@ fun repeatPoints(points: List<AutoPoint>, length: Int): List<AutoPoint> {
 
 /** Forgets the curves that belonged to a device which is gone. */
 internal fun Project.withoutLanesOf(deviceUid: Int): Project {
-    if (deviceUid == STRIP_DEVICE || patterns.none { p -> p.automation.any { it.device == deviceUid } }) return this
-    return copy(patterns = patterns.map { p ->
-        if (p.automation.any { it.device == deviceUid }) p.copy(automation = p.automation.filter { it.device != deviceUid }) else p
-    })
+    if (deviceUid == STRIP_DEVICE) return this
+    if (patterns.none { p -> p.automation.any { it.device == deviceUid } } && automation.none { it.device == deviceUid }) return this
+    return copy(
+        patterns = patterns.map { p ->
+            if (p.automation.any { it.device == deviceUid }) p.copy(automation = p.automation.filter { it.device != deviceUid }) else p
+        },
+        automation = automation.filter { it.device != deviceUid },
+    )
 }
 
 /** The automatable parameter a lane points at, or null if it does not exist (any more). */
@@ -509,5 +533,27 @@ fun Project.sanitized(): Project {
         },
         loopEnd = maxOf(loopEnd, loopStart + 1),
         nextId = maxOf(nextId, maxId + 1),
+        keyRoot = ((keyRoot % 12) + 12) % 12,
+        scale = if (scale in 0 until Scales.count) scale else 0,
+        automation = automation.filter { laneIsValid(it) && it.points.isNotEmpty() }
+            .distinctBy { Triple(it.channelId, it.device, it.param) }
+            .map { it.copy(points = cleanPoints(it.points, MAX_SONG_AUTO_POINTS)) },
     )
+}
+
+/** Moves the notes of a channel in a pattern that are outside of the song's key onto the nearest note of the key. */
+fun Project.snapNotesToKey(patternId: Int, channelId: Int, only: Set<Note>? = null): Project {
+    val mask = keyMask
+    if (mask == 0) return this
+    val notes = pattern(patternId)?.notesOf(channelId) ?: return this
+    var changed = false
+    val moved = notes.map { n ->
+        if (only != null && n !in only) return@map n
+        val pitch = Scales.nearest(n.pitch, mask)
+        if (pitch != n.pitch) {
+            changed = true
+            n.copy(pitch = pitch)
+        } else n
+    }
+    return if (changed) setNotes(patternId, channelId, moved) else this
 }
