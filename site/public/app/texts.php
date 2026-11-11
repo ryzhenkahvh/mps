@@ -27,16 +27,16 @@ return [
         'hero_download' => 'Скачать для Android',
         'hero_soon' => 'Скоро в доступе',
         'hero_more' => 'Что умеет',
-        'hero_note' => 'Бета-версия %s · Android 12 и новее · %s МБ',
-        'hero_note_soon' => 'Android 12 и новее. Оставьте отзыв — расскажем, когда можно будет скачать.',
+        'hero_note' => 'Бета-версия %s · Android 9 и новее · %s МБ',
+        'hero_note_soon' => 'Android 9 и новее. Оставьте отзыв — расскажем, когда можно будет скачать.',
         'hero_alt' => 'Экран MPS: плейлист с паттернами и аудиодорожками',
 
         'features_h2' => 'Что внутри',
         'features' => [
             ['steps', 'Биты по шагам', 'Пошаговый секвенсор: нажали на клетку — появился удар, провели пальцем — нарисовали несколько. Метроном, tap tempo и свинг.'],
-            ['piano', 'Пианоролл', 'Мелодии и аккорды рисуются пальцем. Сетка от 1/4 до 1/32, у каждой ноты своя длина и громкость.'],
+            ['piano', 'Пианоролл', 'Мелодии и аккорды рисуются пальцем. Сетка от 1/4 до 1/32, у каждой ноты своя длина, громкость и панорама. Тональность трека подсвечена прямо в сетке.'],
             ['playlist', 'Плейлист', 'Трек собирается из паттернов и аудиозаписей: до 16 дорожек, клипы можно двигать, растягивать и резать.'],
-            ['mixer', 'Микшер и 15 эффектов', 'Эквалайзер, компрессор, реверб, дилэй, хорус, лента и другие. Ручки канала можно автоматизировать.'],
+            ['mixer', 'Микшер и 24 эффекта', 'Эквалайзер, компрессор, реверб, дилэй, коррекция тона для голоса, 3D-звук для наушников, half-time, OTT и другие. Ручки можно автоматизировать.'],
             ['synth', 'Инструменты', 'Ударные, синтезатор, FM-синтезатор, струна и сэмплер. Десятки готовых пресетов и место для своих.'],
             ['mic', 'Запись', 'Голос и живые инструменты — через микрофон, ноты — с экранных клавиш, пэдов или MIDI-клавиатуры.'],
             ['export', 'Экспорт', 'WAV, MP3 и M4A. Отдельные дорожки для сведения в другой программе. Проект целиком — одним файлом.'],
@@ -69,7 +69,7 @@ return [
         'community_market' => 'Позже здесь появится маркет: всё, чем можно делиться бесплатно, можно будет и продавать — как решит автор.',
 
         'download_title' => 'Скачать MPS для Android',
-        'download_description' => 'Скачайте MPS — музыкальную студию для Android 12 и новее. Файл APK и инструкция по установке.',
+        'download_description' => 'Скачайте MPS — музыкальную студию для Android 9 и новее. Файл APK и инструкция по установке.',
         'download_h1' => 'Скачать MPS',
         'download_button' => 'Скачать APK',
         'download_meta' => 'Бета-версия %s · %s МБ · %s',
@@ -80,9 +80,9 @@ return [
         'install' => [
             'Скачайте файл APK на телефон.',
             'Откройте его. Если телефон спросит, разрешите установку из этого источника: это нужно для любых приложений не из магазина. Если Google Play Защита предложит проверить приложение, согласитесь.',
-            'Запустите MPS. Приложение не просит лишних разрешений: микрофон нужен только для записи.',
+            'Запустите MPS. Приложение не просит лишних разрешений: микрофон нужен только для записи, а на Android 9 — ещё доступ к памяти, чтобы сохранить готовый трек в папку «Музыка».',
         ],
-        'install_requirements' => 'Нужен Android 12 или новее.',
+        'install_requirements' => 'Нужен Android 9 или новее.',
 
         'cta_h2' => 'Расскажите, как вы делаете музыку',
         'cta_lead' => 'Мы хотим делать MPS для настоящих задач, а не наугад. Опрос займёт три минуты и поможет решить, что делать в первую очередь.',
@@ -92,7 +92,7 @@ return [
         'faq_h2' => 'Вопросы',
         'faq' => [
             ['Это бесплатно?', 'Сейчас — да: доступна бета-версия, и она бесплатна. Это временно: после беты приложение станет платным. Рекламы в приложении нет.'],
-            ['На каких телефонах работает?', 'На Android 12 и новее. Версия для iPhone появится позже.'],
+            ['На каких телефонах работает?', 'На Android 9 и новее. Версия для iPhone появится позже.'],
             ['Нужен ли аккаунт?', 'Нет. Аккаунт нужен только для того, чтобы публиковать и оценивать в сообществе.'],
             ['Где хранятся мои проекты?', 'На вашем телефоне. В сообщество попадает только то, что вы опубликовали сами.'],
             ['Можно ли перенести проект на другой телефон?', 'Да. Сохраните проект в файл .mps и откройте его на другом устройстве: все звуки лежат внутри файла.'],
@@ -168,16 +168,16 @@ return [
         'hero_download' => 'Download for Android',
         'hero_soon' => 'Available soon',
         'hero_more' => 'What it can do',
-        'hero_note' => 'Beta %s · Android 12 or newer · %s MB',
-        'hero_note_soon' => 'Android 12 or newer. Leave feedback and we will tell you when the download is ready.',
+        'hero_note' => 'Beta %s · Android 9 or newer · %s MB',
+        'hero_note_soon' => 'Android 9 or newer. Leave feedback and we will tell you when the download is ready.',
         'hero_alt' => 'MPS screen: the playlist with patterns and audio tracks',
 
         'features_h2' => 'What is inside',
         'features' => [
             ['steps', 'Beats in steps', 'A step sequencer: tap a cell for a hit, drag a finger to draw several. Metronome, tap tempo and swing.'],
-            ['piano', 'Piano roll', 'Draw melodies and chords with a finger. A grid from 1/4 to 1/32, and every note has its own length and loudness.'],
+            ['piano', 'Piano roll', 'Draw melodies and chords with a finger. A grid from 1/4 to 1/32; every note has its own length, loudness and panning. The key of the song is marked right in the grid.'],
             ['playlist', 'Playlist', 'A track is built from patterns and audio recordings: up to 16 tracks, and clips can be moved, stretched and cut.'],
-            ['mixer', 'Mixer and 15 effects', 'Equaliser, compressor, reverb, delay, chorus, tape and more. The knobs of a channel can be automated.'],
+            ['mixer', 'Mixer and 24 effects', 'Equaliser, compressor, reverb, delay, pitch correction for vocals, 3D sound for headphones, half-time, OTT and more. The knobs can be automated.'],
             ['synth', 'Instruments', 'Drums, a synthesizer, an FM synthesizer, a plucked string and a sampler. Dozens of presets, and room for your own.'],
             ['mic', 'Recording', 'Voice and live instruments through the microphone; notes from the on-screen keys, pads or a MIDI keyboard.'],
             ['export', 'Export', 'WAV, MP3 and M4A. Separate tracks for mixing elsewhere. The whole project in one file.'],
@@ -210,7 +210,7 @@ return [
         'community_market' => 'A market is coming here later: anything that can be shared for free can then be sold as well, if its author chooses to.',
 
         'download_title' => 'Download MPS for Android',
-        'download_description' => 'Download MPS, a music studio for Android 12 or newer. The APK file and how to install it.',
+        'download_description' => 'Download MPS, a music studio for Android 9 or newer. The APK file and how to install it.',
         'download_h1' => 'Download MPS',
         'download_button' => 'Download the APK',
         'download_meta' => 'Beta %s · %s MB · %s',
@@ -221,9 +221,9 @@ return [
         'install' => [
             'Download the APK file to your phone.',
             'Open it. If the phone asks, allow installing from this source: that is needed for any app that does not come from a store. If Google Play Protect offers to scan the app, agree.',
-            'Start MPS. The app asks for nothing it does not need: the microphone is only for recording.',
+            'Start MPS. The app asks for nothing it does not need: the microphone is only for recording, and on Android 9 it also asks for access to storage, to save a finished track to the Music folder.',
         ],
-        'install_requirements' => 'Android 12 or newer is required.',
+        'install_requirements' => 'Android 9 or newer is required.',
 
         'cta_h2' => 'Tell us how you make music',
         'cta_lead' => 'We want to build MPS for real needs, not by guessing. The survey takes three minutes and helps us decide what to do first.',
@@ -233,7 +233,7 @@ return [
         'faq_h2' => 'Questions',
         'faq' => [
             ['Is it free?', 'For now, yes: the app is in beta, and the beta is free. That is temporary: after the beta the app will be paid. There are no ads in the app.'],
-            ['Which phones does it run on?', 'Android 12 or newer. An iPhone version will come later.'],
+            ['Which phones does it run on?', 'Android 9 or newer. An iPhone version will come later.'],
             ['Do I need an account?', 'No. An account is only for publishing and rating in the community.'],
             ['Where are my projects kept?', 'On your phone. Only what you publish yourself goes to the community.'],
             ['Can I move a project to another phone?', 'Yes. Save the project to an .mps file and open it on the other device: all its sounds are inside the file.'],

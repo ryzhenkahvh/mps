@@ -129,7 +129,7 @@ layout(t('home_title'), t('home_description'), static function () use ($apk, $fa
     '@context' => 'https://schema.org',
     '@type' => 'SoftwareApplication',
     'name' => 'MPS',
-    'operatingSystem' => 'Android 12+',
+    'operatingSystem' => 'Android 9+',
     'applicationCategory' => 'MusicApplication',
     'description' => t('home_description'),
     'url' => rtrim((string) Site::$config['site_url'], '/') . Site::url('home'),

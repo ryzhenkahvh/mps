@@ -133,17 +133,25 @@ final class Site
         return '/assets/' . $file . (is_file($path) ? '?v=' . filemtime($path) : '');
     }
 
-    /** The newest APK in /download, or null while there is none. */
+    /** The build in /download that visitors get (the one with the highest version), or null while there is none. */
     public static function apk(): ?array
     {
         $files = glob(MPS_ROOT . '/download/*.apk') ?: [];
         if (!$files) {
             return null;
         }
-        usort($files, static fn ($a, $b) => filemtime($b) <=> filemtime($a));
-        $file = $files[0];
+        $number = static fn (string $file): string => preg_match('/(\d+(?:\.\d+)+)/', basename($file), $m) ? $m[1] : '';
+        // the highest version wins; of two files with the same version, the newer one
+        usort($files, static fn ($a, $b) => version_compare($number($b) ?: '0', $number($a) ?: '0') ?: (filemtime($b) <=> filemtime($a)));
+        $file = array_shift($files);
+        // An update of the site is unpacked over the old files, so the build of the previous version is still
+        // lying next to the new one. It goes: it only takes room, and an old link to it would keep handing out
+        // an outdated app (404.php sends such links to the current build).
+        foreach ($files as $old) {
+            @unlink($old);
+        }
         $name = basename($file);
-        $version = preg_match('/(\d+(?:\.\d+)+)/', $name, $m) ? $m[1] : '';
+        $version = $number($file);
         // earlier versions of the site remembered a checksum of the build here; it is not shown any more
         if (is_file(Keep::path('apk'))) {
             @unlink(Keep::path('apk'));
