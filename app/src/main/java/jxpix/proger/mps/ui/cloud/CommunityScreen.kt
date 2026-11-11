@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -316,7 +317,7 @@ internal fun ItemRow(cloud: Cloud, item: CloudItem) {
             val parts = ArrayList<String>()
             parts += item.author
             parts += stringResource(kindName(item.cloudKind))
-            if (item.durationMs > 0) parts += Fmt.soundLength(item.durationMs / 1000f)
+            if (item.durationMs > 0) parts += Fmt.soundLength(item.durationMs / 1000f, LocalResources.current)
             Text(parts.joinToString(" · "), color = c.textDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))

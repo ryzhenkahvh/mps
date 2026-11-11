@@ -36,7 +36,15 @@ import javax.crypto.spec.SecretKeySpec
  */
 class FakeSupabase(private val rest: String = REST, private val secret: String = SECRET) : AutoCloseable {
 
-    private class User(val id: String, val email: String, var password: String)
+    private class User(val id: String, val email: String, var password: String) {
+        var confirmed = true
+        var signUpCode: String? = null
+        var passwordCode: String? = null
+        var lastLetter = 0L
+    }
+
+    /** A letter the auth service "sent": [kind] is "signup" or "recovery". */
+    class Letter(val to: String, val kind: String, val code: String)
 
     private val server: HttpServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
     private val users = ConcurrentHashMap<String, User>()
@@ -44,10 +52,20 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
     private val oauth = ConcurrentHashMap<String, Pair<String, String>>()
     val files = ConcurrentHashMap<String, ByteArray>()
 
+    /** Every letter with a code, oldest first. */
+    val letters = java.util.concurrent.CopyOnWriteArrayList<Letter>()
+
+    /** The code of the newest letter to an address. */
+    fun codeFor(email: String): String = letters.last { it.to == email.lowercase() }.code
+
     /** Lifetime of the access tokens handed out, in seconds. */
     @Volatile var tokenSeconds = 3600L
     @Volatile var google = false
+    /** The way the real project is set up: a new account has to confirm its address with a code from a letter. */
     @Volatile var confirmEmail = false
+
+    /** The real service sends one letter per address per minute; 0 switches that off. */
+    @Volatile var letterIntervalMs = 0L
     @Volatile var maxFileBytes = 10L * 1024 * 1024
     @Volatile var userQuota = 50L * 1024 * 1024
 
@@ -96,6 +114,7 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
     fun reset() {
         admin("test_reset", JsonObject(emptyMap()))
         users.clear()
+        letters.clear()
         refreshTokens.clear()
         files.clear()
         config()
@@ -200,6 +219,27 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
     private fun authError(x: HttpExchange, status: Int, code: String, message: String) =
         reply(x, status, buildJsonObject { put("code", status); put("error_code", code); put("msg", message) }.toString())
 
+    private fun userJson(id: String, email: String, identities: Boolean): String = buildJsonObject {
+        put("id", id); put("aud", "authenticated"); put("role", if (identities) "authenticated" else ""); put("email", email)
+        put("confirmation_sent_at", "2026-01-01T00:00:00Z")
+        put("identities", kotlinx.serialization.json.buildJsonArray { if (identities) add(buildJsonObject { put("id", id); put("provider", "email") }) })
+    }.toString()
+
+    /** Sends a letter with a fresh code, unless one went to this address a moment ago. Returns false in that case. */
+    private fun letter(x: HttpExchange, user: User, kind: String): Boolean {
+        val now = System.currentTimeMillis()
+        val left = letterIntervalMs - (now - user.lastLetter)
+        if (left > 0) {
+            authError(x, 429, "over_email_send_rate_limit", "For security purposes, you can only request this after ${(left + 999) / 1000} seconds.")
+            return false
+        }
+        val code = (100000 + java.security.SecureRandom().nextInt(900000)).toString()
+        if (kind == "signup") user.signUpCode = code else user.passwordCode = code
+        user.lastLetter = now
+        letters += Letter(user.email, kind, code)
+        return true
+    }
+
     private fun auth(x: HttpExchange) {
         val path = x.requestURI.path.removePrefix("/auth/v1")
         val body = x.requestBody.readBytes().toString(Charsets.UTF_8)
@@ -210,22 +250,68 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
             path == "/signup" -> {
                 val email = field("email").lowercase()
                 val password = field("password")
+                val known = users[email]
                 when {
                     !Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(email) ->
                         authError(x, 400, "email_address_invalid", "Email address \"$email\" is invalid")
                     password.length < 6 -> authError(x, 422, "weak_password", "Password should be at least 6 characters.")
-                    users.containsKey(email) -> authError(x, 422, "user_already_exists", "User already registered")
+                    known != null && !confirmEmail -> authError(x, 422, "user_already_exists", "User already registered")
+                    // an address that has an account: no letter, and an answer that gives nothing away
+                    known != null && known.confirmed -> reply(x, 200, userJson(UUID.randomUUID().toString(), email, identities = false))
+                    // asked again before confirming: a new letter, but the name and password of the first time stay
+                    known != null -> if (letter(x, known, "signup")) reply(x, 200, userJson(known.id, email, identities = true))
                     else -> {
                         val user = User(UUID.randomUUID().toString(), email, password)
+                        user.confirmed = !confirmEmail
                         admin("test_create_user", buildJsonObject {
-                            put("uid", user.id); put("mail", email); put("meta", o["data"] ?: JsonObject(emptyMap()))
+                            put("uid", user.id); put("mail", email); put("meta", o["data"] ?: JsonObject(emptyMap())); put("confirmed", user.confirmed)
                         })
                         users[email] = user
                         if (confirmEmail) {
-                            reply(x, 200, buildJsonObject { put("id", user.id); put("email", email); put("confirmation_sent_at", "now") }.toString())
+                            letter(x, user, "signup")
+                            reply(x, 200, userJson(user.id, email, identities = true))
                         } else {
                             reply(x, 200, sessionJson(user))
                         }
+                    }
+                }
+            }
+            path == "/verify" -> {
+                val user = users[field("email").lowercase()]
+                val code = field("token")
+                when (field("type")) {
+                    "signup" -> if (user != null && !user.confirmed && user.signUpCode == code) {
+                        user.signUpCode = null
+                        user.confirmed = true
+                        admin("test_confirm_user", buildJsonObject { put("uid", user.id) })
+                        reply(x, 200, sessionJson(user))
+                    } else authError(x, 403, "otp_expired", "Token has expired or is invalid")
+                    "recovery" -> if (user != null && user.passwordCode == code) {
+                        user.passwordCode = null
+                        reply(x, 200, sessionJson(user))
+                    } else authError(x, 403, "otp_expired", "Token has expired or is invalid")
+                    else -> authError(x, 400, "validation_failed", "Verify requires a verification type")
+                }
+            }
+            path == "/resend" -> {
+                val user = users[field("email").lowercase()]
+                // nothing is sent for an unknown or an already confirmed address, and nothing is said about it
+                if (user == null || user.confirmed) reply(x, 200, "{}") else if (letter(x, user, "signup")) reply(x, 200, "{}")
+            }
+            path == "/recover" -> {
+                val user = users[field("email").lowercase()]
+                if (user == null || !user.confirmed) reply(x, 200, "{}") else if (letter(x, user, "recovery")) reply(x, 200, "{}")
+            }
+            path == "/user" && x.requestMethod == "PUT" -> {
+                val user = users.values.firstOrNull { it.id == subject(x) }
+                val password = field("password")
+                when {
+                    user == null -> authError(x, 403, "bad_jwt", "invalid JWT")
+                    password.length < 6 -> authError(x, 422, "weak_password", "Password should be at least 6 characters.")
+                    password == user.password -> authError(x, 422, "same_password", "New password should be different from the old password.")
+                    else -> {
+                        user.password = password
+                        reply(x, 200, userJson(user.id, user.email, identities = true))
                     }
                 }
             }
@@ -233,6 +319,7 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
                 "password" -> {
                     val user = users[field("email").lowercase()]
                     if (user == null || user.password != field("password")) authError(x, 400, "invalid_credentials", "Invalid login credentials")
+                    else if (!user.confirmed) authError(x, 400, "email_not_confirmed", "Email not confirmed")
                     else reply(x, 200, sessionJson(user))
                 }
                 "refresh_token" -> {

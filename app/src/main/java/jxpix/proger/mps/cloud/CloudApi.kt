@@ -14,8 +14,28 @@ interface CloudApi {
 
     // ---- accounts
     fun authSettings(): AuthSettings
+    /**
+     * Creates the account. Where the server confirms addresses (the usual case) it sends a letter
+     * with a code and this throws [CloudException.Kind.CONFIRM_EMAIL]: the account is ready once
+     * [confirmSignUp] got that code.
+     */
     fun signUp(email: String, password: String, username: String): CloudSession
+
+    /** The code from the letter that followed [signUp]; the person is signed in. */
+    fun confirmSignUp(email: String, code: String): CloudSession
+
+    /** Asks for the letter with the sign-up code once more. */
+    fun resendSignUpCode(email: String)
+
+    /** Throws [CloudException.Kind.CONFIRM_EMAIL] for an account whose address is not confirmed yet. */
     fun signIn(email: String, password: String): CloudSession
+
+    /** Sends a letter with a code for choosing a new password. Does not tell whether the address is known. */
+    fun requestPasswordReset(email: String)
+
+    /** The code from that letter and the new password; the person is signed in. */
+    fun resetPassword(email: String, code: String, newPassword: String): CloudSession
+    fun setPassword(session: CloudSession, password: String)
     fun refresh(refreshToken: String): CloudSession
     fun signOut(session: CloudSession)
 

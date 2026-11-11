@@ -15,6 +15,17 @@ val cloud = Properties().apply {
 
 fun cloudValue(name: String): String = "\"" + (cloud.getProperty(name) ?: "").trim().replace("\\", "").replace("\"", "") + "\""
 
+// The key the published builds are signed with. It is not part of the repository: keystore.properties
+// (storeFile, storePassword, keyAlias, keyPassword) lies next to this project on the machine that
+// publishes. Without that file the release variant is signed with the debug key, which is enough to
+// try it on your own phone but not to publish: an update must carry the same signature as the app
+// it replaces.
+val keystore = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val ownKey = listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all { !keystore.getProperty(it).isNullOrBlank() }
+
 android {
     namespace = "jxpix.proger.mps"
     compileSdk {
@@ -33,6 +44,18 @@ android {
         buildConfigField("String", "CLOUD_URL", cloudValue("url"))
         buildConfigField("String", "CLOUD_KEY", cloudValue("key"))
         buildConfigField("String", "CLOUD_FALLBACK_URL", cloudValue("fallbackUrl"))
+        buildConfigField("String", "SITE_URL", cloudValue("site"))
+    }
+
+    signingConfigs {
+        if (ownKey) {
+            create("release") {
+                storeFile = rootProject.file(keystore.getProperty("storeFile").trim())
+                storePassword = keystore.getProperty("storePassword")
+                keyAlias = keystore.getProperty("keyAlias").trim()
+                keyPassword = keystore.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -40,9 +63,9 @@ android {
             optimization {
                 enable = false
             }
-            // Signed with the debug key so that the release variant can be installed straight from
-            // Android Studio: it is the one to judge latency and CPU load with. Use your own key to publish.
-            signingConfig = signingConfigs.getByName("debug")
+            // The release variant is the one to judge latency and CPU load with, so it has to be
+            // installable straight from Android Studio even without a key of your own.
+            signingConfig = signingConfigs.getByName(if (ownKey) "release" else "debug")
         }
     }
     compileOptions {

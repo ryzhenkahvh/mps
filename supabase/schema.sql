@@ -7,7 +7,7 @@
 -- that the project already has (a table called "profiles", for example, is left alone).
 --
 -- What it sets up
---   mps_profiles   one row per account: name, a few words about the author, colour of the avatar
+--   mps_profiles   one row per confirmed account: name, a few words about the author, colour of the avatar
 --   mps_items      everything that is published (kind: sound, preset, project, track)
 --   mps_ratings    one mark of 1..5 per person and item
 --   mps_downloads  who has taken what, so that a download is counted once
@@ -86,14 +86,19 @@ begin
   where p.id = auth.uid();
 end $$;
 
--- Every new account gets a profile. The name asked for at sign-up is used when it is free and
--- allowed; otherwise (and for sign-in with Google, which has no such field) one is made up
--- and can be changed later. This function must never fail: a failure here blocks the sign-up.
+-- An account gets its profile when its e-mail address is confirmed: with the code from the
+-- letter, or at once for sign-in with Google. Until then it reserves nothing, so a name asked for
+-- by somebody who never confirms stays free. The name asked for at sign-up is used when it is
+-- free and allowed; otherwise (and for Google, which has no such field) one is made up and can
+-- be changed later. This function must never fail: a failure here blocks the sign-up.
 create or replace function public.mps_handle_new_user() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare
   wanted text := nullif(trim(coalesce(new.raw_user_meta_data ->> 'username', '')), '');
 begin
+  if new.email_confirmed_at is null or exists (select 1 from public.mps_profiles p where p.id = new.id) then
+    return new;
+  end if;
   if wanted is null then
     wanted := nullif(left(regexp_replace(trim(coalesce(new.raw_user_meta_data ->> 'name', '')), '[[:space:]]+', '_', 'g'), 24), '');
   end if;
@@ -105,15 +110,20 @@ begin
       null;
     end;
   end if;
-  insert into public.mps_profiles (id, username)
-  values (new.id, 'user_' || substr(replace(new.id::text, '-', ''), 1, 10))
-  on conflict (id) do nothing;
+  begin
+    insert into public.mps_profiles (id, username)
+    values (new.id, 'user_' || substr(replace(new.id::text, '-', ''), 1, 10))
+    on conflict (id) do nothing;
+  exception when others then
+    null;
+  end;
   return new;
 end $$;
 
 drop trigger if exists mps_on_auth_user_created on auth.users;
-create trigger mps_on_auth_user_created after insert on auth.users
-  for each row execute function public.mps_handle_new_user();
+drop trigger if exists mps_on_auth_user_confirmed on auth.users;
+create trigger mps_on_auth_user_confirmed after insert or update of email_confirmed_at on auth.users
+  for each row when (new.email_confirmed_at is not null) execute function public.mps_handle_new_user();
 
 -- ------------------------------------------------------------------ items
 

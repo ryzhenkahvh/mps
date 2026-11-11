@@ -10,6 +10,7 @@ create table auth.users (
   id uuid primary key default gen_random_uuid(),
   email text unique,
   raw_user_meta_data jsonb not null default '{}',
+  email_confirmed_at timestamptz,
   created_at timestamptz not null default now()
 );
 create function auth.uid() returns uuid language sql stable as $$
@@ -47,12 +48,18 @@ alter default privileges in schema public grant all on functions to anon, authen
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 
 -- only for the tests: make an account the way the auth service would
-create function public.test_create_user(uid uuid, mail text, meta jsonb) returns void
+create function public.test_create_user(uid uuid, mail text, meta jsonb, confirmed boolean default true) returns void
 language sql security definer as $$
-  insert into auth.users (id, email, raw_user_meta_data) values (uid, mail, coalesce(meta, '{}'))
+  insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at)
+  values (uid, mail, coalesce(meta, '{}'), case when confirmed then now() end)
 $$;
-revoke all on function public.test_create_user(uuid, text, jsonb) from public, anon, authenticated;
-grant execute on function public.test_create_user(uuid, text, jsonb) to service_role;
+-- what the auth service does when the code from the letter is accepted
+create function public.test_confirm_user(uid uuid) returns void
+language sql security definer as $$
+  update auth.users set email_confirmed_at = now() where id = uid
+$$;
+revoke all on function public.test_create_user(uuid, text, jsonb, boolean), public.test_confirm_user(uuid) from public, anon, authenticated;
+grant execute on function public.test_create_user(uuid, text, jsonb, boolean), public.test_confirm_user(uuid) to service_role;
 
 -- only for the tests: what the storage service does to its table when a file arrives or goes
 create function public.test_storage_put(path text, bytes bigint) returns void

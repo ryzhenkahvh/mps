@@ -79,7 +79,7 @@ object Fmt {
     }
 
     /** Length of a sound: short ones in seconds with a decimal ("0.4 s"), long ones as minutes ("1:15"). */
-    fun soundLength(seconds: Float): String = if (seconds < 10f) num(seconds, 1) + " s" else time(seconds)
+    fun soundLength(seconds: Float, res: Resources): String = if (seconds < 10f) res.getString(R.string.unit_s, num(seconds, 1)) else time(seconds)
 
     /** Megabytes with one decimal below ten: 1.4, 21. */
     fun megabytes(bytes: Double): String {

@@ -158,6 +158,13 @@ fun SettingsSheet(studio: Studio, onDismiss: () -> Unit, onLanguageChanged: () -
         )
         Text(stringResource(R.string.about_plugins), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp)
         Text(stringResource(R.string.about_mp3), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp)
+        if (Links.available) {
+            SheetItem(
+                stringResource(R.string.feedback), { Links.open(context, Links.feedback(context)) }, icon = Ic.Edit,
+                description = stringResource(R.string.feedback_desc),
+            )
+            SheetItem(stringResource(R.string.website), { Links.open(context, Links.home(context)) }, icon = Ic.Language, description = Links.site.substringAfter("://"))
+        }
         Spacer(Modifier.size(8.dp))
     }
 }

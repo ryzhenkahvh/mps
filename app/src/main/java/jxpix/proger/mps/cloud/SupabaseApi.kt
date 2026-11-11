@@ -119,13 +119,17 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
             code == "email_address_invalid" || text.contains("invalid format", true) ||
                 (code == "validation_failed" && text.contains("email", true)) -> Kind.BAD_EMAIL
             code == "email_not_confirmed" -> Kind.CONFIRM_EMAIL
+            code == "otp_expired" || text.contains("Token has expired or is invalid", true) -> Kind.BAD_CODE
+            // "you can only request this after 57 seconds": a letter to this address is on its way already
+            code == "over_email_send_rate_limit" && text.contains("seconds") -> Kind.MAIL_WAIT
             // the last one: the project confirms addresses by e-mail but has no mail service of its own
             code == "signup_disabled" || code == "email_provider_disabled" || code == "email_address_not_authorized" -> Kind.SIGNUP_CLOSED
             r.code == 429 || code.startsWith("over_") -> Kind.RATE_LIMIT
             code in SESSION_CODES || r.code == 401 || r.code == 403 -> Kind.SESSION
             else -> Kind.SERVER
         }
-        return CloudException(kind, "$code $text".trim(), r.code)
+        val wait = if (kind == Kind.MAIL_WAIT) Regex("(\\d+) seconds").find(text)?.groupValues?.get(1)?.toIntOrNull() ?: 60 else 0
+        return CloudException(kind, "$code $text".trim(), r.code, wait)
     }
 
     private fun restError(r: HttpResponse): CloudException {
@@ -214,9 +218,44 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
         val r = call("POST", "/auth/v1/signup", null, body)
         if (!r.ok) throw authError(r)
         val o = parse(r.body) ?: throw CloudException(Kind.SERVER, "unreadable answer")
-        // no session in the answer: the project is set to confirm e-mail addresses first
-        if (o["access_token"] == null) throw CloudException(Kind.CONFIRM_EMAIL)
+        if (o["access_token"] == null) {
+            // No session: the address has to be confirmed with the code from the letter. For an address
+            // that has an account already no letter is sent; the answer then lists no way to sign in.
+            if ((o["identities"] as? JsonArray)?.isEmpty() == true) throw CloudException(Kind.EMAIL_TAKEN)
+            throw CloudException(Kind.CONFIRM_EMAIL)
+        }
         return session(o)
+    }
+
+    private fun verify(type: String, email: String, code: String): CloudSession {
+        val body = buildJsonObject { put("type", type); put("email", email.trim()); put("token", code.trim()) }
+        val r = call("POST", "/auth/v1/verify", null, body)
+        if (!r.ok) throw authError(r)
+        return session(parse(r.body) ?: throw CloudException(Kind.SERVER, "unreadable answer"))
+    }
+
+    override fun confirmSignUp(email: String, code: String): CloudSession = verify("signup", email, code)
+
+    override fun resendSignUpCode(email: String) {
+        val r = call("POST", "/auth/v1/resend", null, buildJsonObject { put("type", "signup"); put("email", email.trim()) })
+        if (!r.ok) throw authError(r)
+    }
+
+    override fun requestPasswordReset(email: String) {
+        val r = call("POST", "/auth/v1/recover", null, buildJsonObject { put("email", email.trim()) })
+        if (!r.ok) throw authError(r)
+    }
+
+    override fun resetPassword(email: String, code: String, newPassword: String): CloudSession {
+        val session = verify("recovery", email, code)
+        setPassword(session, newPassword)
+        return session
+    }
+
+    override fun setPassword(session: CloudSession, password: String) {
+        val r = call("PUT", "/auth/v1/user", session.accessToken, buildJsonObject { put("password", password) })
+        // being told that this is the password already is as good as having set it
+        if (!r.ok && !r.body.contains("same_password")) throw authError(r)
     }
 
     override fun signIn(email: String, password: String): CloudSession =

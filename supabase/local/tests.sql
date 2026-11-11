@@ -34,16 +34,16 @@ update public.mps_config set user_quota_bytes = 52428800, total_quota_bytes = 94
 insert into test.ids (name) values ('alice'), ('bob'), ('carol'), ('dave'), ('eve'), ('admin'), ('google'), ('clash'), ('bad');
 
 -- ---------------------------------------------------------------- accounts
-insert into auth.users (id, email, raw_user_meta_data) values
-  (test.id('alice'), 'alice@x.io', '{"username": "Alice"}'),
-  (test.id('bob'), 'bob@x.io', '{"username": "bob"}'),
-  (test.id('carol'), 'carol@x.io', '{"username": "Кэрол"}'),
-  (test.id('dave'), 'dave@x.io', '{"username": "dave"}'),
-  (test.id('eve'), 'eve@x.io', '{"username": "eve"}'),
-  (test.id('admin'), 'admin@x.io', '{"username": "boss"}'),
-  (test.id('google'), 'g@x.io', '{"name": "Bob  Smith", "email": "g@x.io"}'),
-  (test.id('clash'), 'clash@x.io', '{"username": "ALICE"}'),
-  (test.id('bad'), 'bad@x.io', '{"username": "a b"}');
+insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at) values
+  (test.id('alice'), 'alice@x.io', '{"username": "Alice"}', now()),
+  (test.id('bob'), 'bob@x.io', '{"username": "bob"}', now()),
+  (test.id('carol'), 'carol@x.io', '{"username": "Кэрол"}', now()),
+  (test.id('dave'), 'dave@x.io', '{"username": "dave"}', now()),
+  (test.id('eve'), 'eve@x.io', '{"username": "eve"}', now()),
+  (test.id('admin'), 'admin@x.io', '{"username": "boss"}', now()),
+  (test.id('google'), 'g@x.io', '{"name": "Bob  Smith", "email": "g@x.io"}', now()),
+  (test.id('clash'), 'clash@x.io', '{"username": "ALICE"}', now()),
+  (test.id('bad'), 'bad@x.io', '{"username": "a b"}', now());
 update public.mps_profiles set is_admin = true where id = test.id('admin');
 
 select test.eq((select username from public.mps_profiles where id = test.id('alice')), 'Alice', 'name from sign-up');
@@ -53,6 +53,21 @@ select test.eq((select username like 'user\_%' from public.mps_profiles where id
 select test.eq((select username like 'user\_%' from public.mps_profiles where id = test.id('bad')), true, 'bad name is replaced');
 select test.eq(public.mps_username_free('alice'), false, 'username_free is case-insensitive');
 select test.eq(public.mps_username_free('nobody'), true, 'username_free');
+
+-- an account whose address is not confirmed yet has no profile and reserves no name
+insert into test.ids (name) values ('pending'), ('pending2');
+insert into auth.users (id, email, raw_user_meta_data) values (test.id('pending'), 'pending@x.io', '{"username": "Wanted"}');
+select test.eq((select count(*)::int from public.mps_profiles where id = test.id('pending')), 0, 'no profile before the address is confirmed');
+select test.eq(public.mps_username_free('wanted'), true, 'the name is not reserved');
+-- somebody else takes the name meanwhile; the late one gets a made-up name
+insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at) values (test.id('pending2'), 'pending2@x.io', '{"username": "wanted"}', now());
+update auth.users set email_confirmed_at = now() where id = test.id('pending');
+select test.eq((select username like 'user\_%' from public.mps_profiles where id = test.id('pending')), true, 'confirmed later, the name is gone: a made-up one');
+select test.eq((select username from public.mps_profiles where id = test.id('pending2')), 'wanted', 'the one who confirmed first has the name');
+-- the address being confirmed again, or the account changing in other ways, makes no second profile
+update auth.users set email_confirmed_at = now(), raw_user_meta_data = '{"username": "Other"}' where id = test.id('pending');
+update auth.users set raw_user_meta_data = '{}' where id = test.id('pending2');
+select test.eq((select count(*)::int from public.mps_profiles where id in (test.id('pending'), test.id('pending2'))), 2, 'still one profile each');
 
 -- ---------------------------------------------------------------- nobody (anon)
 set role anon;
@@ -368,7 +383,7 @@ reset role;
 select test.eq((select count(*)::int from auth.users where id = test.id('alice')), 0, 'account is gone');
 select test.eq((select count(*)::int from public.mps_items where owner = test.id('alice')), 0, 'its items are gone');
 select test.eq((select count(*)::int from public.mps_ratings), 0, 'marks on its items are gone');
-select test.eq((select count(*)::int from public.mps_profiles), 8, 'the others are still there');
+select test.eq((select count(*)::int from public.mps_profiles), 10, 'the others are still there');
 -- a person who rated something and then leaves: the mark goes, the totals follow
 set role authenticated;
 select test.be('bob');

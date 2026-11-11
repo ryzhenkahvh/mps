@@ -111,7 +111,13 @@ class AuthSettings(val google: Boolean, val signUpOpen: Boolean)
 class StorageUse(val used: Long, val quota: Long)
 
 /** Anything that went wrong while talking to the server, sorted by what the person can do about it. */
-class CloudException(val kind: Kind, detail: String? = null, val status: Int = 0) : IOException(kind.name + (if (detail.isNullOrEmpty()) "" else ": $detail")) {
+class CloudException(
+    val kind: Kind,
+    detail: String? = null,
+    val status: Int = 0,
+    /** For [Kind.MAIL_WAIT]: how long until another letter may be asked for. */
+    val waitSeconds: Int = 0,
+) : IOException(kind.name + (if (detail.isNullOrEmpty()) "" else ": $detail")) {
     enum class Kind {
         /** No server address or key was built into the app. */
         NOT_CONFIGURED,
@@ -122,8 +128,12 @@ class CloudException(val kind: Kind, detail: String? = null, val status: Int = 0
         EMAIL_TAKEN,
         WEAK_PASSWORD,
         BAD_EMAIL,
-        /** The server wants the e-mail address confirmed first. */
+        /** The address has to be confirmed first, with the code from the letter that was sent to it. */
         CONFIRM_EMAIL,
+        /** The code from the letter is wrong, used up or too old. */
+        BAD_CODE,
+        /** A letter went to this address less than a minute ago; the next one has to wait. */
+        MAIL_WAIT,
         SIGNUP_CLOSED,
         NAME_TAKEN,
         BAD_NAME,

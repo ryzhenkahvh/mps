@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -52,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jxpix.proger.mps.R
+import jxpix.proger.mps.cloud.Cloud
 import jxpix.proger.mps.cloud.CloudException
 import jxpix.proger.mps.cloud.CloudItem
 import jxpix.proger.mps.cloud.CloudKind
@@ -63,6 +66,7 @@ import jxpix.proger.mps.engine.Devices
 import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.ui.Fmt
 import jxpix.proger.mps.ui.Ic
+import jxpix.proger.mps.ui.Links
 import jxpix.proger.mps.ui.components.AppSheet
 import jxpix.proger.mps.ui.components.Chip
 import jxpix.proger.mps.ui.components.ConfirmDialog
@@ -147,7 +151,7 @@ internal fun ItemSheet(studio: Studio, item: CloudItem) {
                 if (item.cloudKind == CloudKind.PRESET) {
                     Devices[item.device ?: ""]?.let { parts += stringResource(R.string.cloud_preset_for, stringResource(it.nameRes)) }
                 }
-                if (item.durationMs > 0) parts += Fmt.soundLength(item.durationMs / 1000f)
+                if (item.durationMs > 0) parts += Fmt.soundLength(item.durationMs / 1000f, LocalResources.current)
                 if (item.bpm != null && item.bpm > 0f) parts += Fmt.bpm(item.bpm) + " BPM"
                 if (item.sizeBytes >= 100_000) parts += stringResource(R.string.cloud_size_mb, megabytes(item.sizeBytes.toLong()))
                 else if (item.sizeBytes > 0) parts += stringResource(R.string.cloud_size_kb, (item.sizeBytes + 1023) / 1024)
@@ -453,12 +457,56 @@ internal fun AuthSheet(studio: Studio) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
+    var newPassword by rememberSaveable { mutableStateOf("") }
     val failed = stringResource(R.string.cloud_err_google)
+    val codeFor = cloud.codeFor
+    val reset = cloud.codeStep == Cloud.CodeStep.PASSWORD
+    // every letter brings a code of its own
+    LaunchedEffect(codeFor, cloud.codeStep) {
+        code = ""
+        newPassword = ""
+    }
 
+    val title = when {
+        codeFor == null -> R.string.cloud_sign_in_title
+        reset -> R.string.cloud_password_title
+        else -> R.string.cloud_code_title
+    }
     AppSheet({
+        // the code step stays: the person may be on the way to the mail app and back
         cloud.askSignIn = false
         cloud.signInError = null
-    }, title = stringResource(R.string.cloud_sign_in_title), message = studio.message) {
+    }, title = stringResource(title), message = studio.message) {
+        if (codeFor != null) {
+            Text(
+                stringResource(if (reset) R.string.cloud_password_sent else R.string.cloud_code_sent, codeFor),
+                Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.text, fontSize = 14.sp, lineHeight = 20.sp,
+            )
+            Field(code, { code = it.filter(Char::isDigit).take(6) }, stringResource(R.string.cloud_code), max = 12, keyboard = KeyboardType.Number)
+            if (reset) {
+                Field(
+                    newPassword, { newPassword = it }, stringResource(R.string.cloud_password_title), stringResource(R.string.cloud_password_hint),
+                    max = 72, keyboard = KeyboardType.Password, secret = true,
+                )
+            }
+            cloud.signInError?.let {
+                Text(cloud.errorText(it), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.record, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+            MainButton(stringResource(R.string.cloud_code_confirm), enabled = !cloud.signingIn && code.length == 6 && (!reset || newPassword.length >= 6)) {
+                cloud.confirmCode(code, newPassword)
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val wait = cloud.resendIn
+                Chip(
+                    if (wait > 0) stringResource(R.string.cloud_code_resend_in, wait) else stringResource(R.string.cloud_code_resend),
+                    { cloud.resendCode() }, enabled = wait == 0 && !cloud.signingIn, icon = Ic.Refresh,
+                )
+                Chip(stringResource(R.string.cloud_code_back), { cloud.cancelCode() }, icon = Ic.ChevronLeft)
+            }
+            Spacer(Modifier.height(8.dp))
+            return@AppSheet
+        }
         Segmented(
             listOf(stringResource(R.string.cloud_sign_in), stringResource(R.string.cloud_sign_up)), mode,
             {
@@ -479,8 +527,18 @@ internal fun AuthSheet(studio: Studio) {
         MainButton(stringResource(if (mode == 0) R.string.cloud_sign_in else R.string.cloud_sign_up), enabled = !cloud.signingIn) {
             if (mode == 0) cloud.signIn(email, password) else cloud.signUp(email, password, name)
         }
-        if (mode == 1) {
+        if (mode == 0) {
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 2.dp)) {
+                Chip(stringResource(R.string.cloud_forgot), { cloud.forgotPassword(email) }, enabled = !cloud.signingIn)
+            }
+        } else {
             Text(stringResource(R.string.cloud_rules), Modifier.padding(horizontal = 20.dp, vertical = 2.dp), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
+            if (Links.available) {
+                Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Chip(stringResource(R.string.cloud_terms), { Links.open(context, Links.terms(context)) })
+                    Chip(stringResource(R.string.cloud_privacy), { Links.open(context, Links.privacy(context)) })
+                }
+            }
         }
         if (cloud.googleSignIn) {
             SheetDivider()
@@ -544,7 +602,7 @@ internal fun PublishSheet(studio: Studio, onDismiss: () -> Unit) {
             kind == CloudKind.SOUND -> {
                 if (studio.sounds.isEmpty()) Empty(stringResource(R.string.cloud_no_sounds))
                 for (sound in studio.sounds) {
-                    SheetItem(sound.title, { source = Source.Sound(sound) }, icon = Ic.Wave, description = Fmt.soundLength(sound.seconds))
+                    SheetItem(sound.title, { source = Source.Sound(sound) }, icon = Ic.Wave, description = Fmt.soundLength(sound.seconds, LocalResources.current))
                 }
             }
             kind == CloudKind.PRESET -> {

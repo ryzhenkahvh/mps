@@ -288,6 +288,94 @@ class CloudApiTest {
     }
 
     @Test
+    fun signUpIsConfirmedWithACodeFromALetter() {
+        val s = needServer()
+        s.confirmEmail = true
+        val name = "code_" + UUID.randomUUID().toString().take(6)
+        val mail = "$name@example.com"
+
+        // the account is asked for: no session yet, a letter with a code instead
+        assertEquals(Kind.CONFIRM_EMAIL, kindOf { api.signUp(mail, "first-password", name) })
+        val first = s.codeFor(mail)
+        assertEquals(6, first.length)
+        // until the code is given the account cannot be used and reserves nothing
+        assertEquals(Kind.CONFIRM_EMAIL, kindOf { api.signIn(mail, "first-password") })
+        assertEquals(Kind.INVALID_LOGIN, kindOf { api.signIn(mail, "wrong-password") })
+        assertTrue("the name stays free until the address is confirmed", api.usernameFree(name))
+
+        // one letter a minute: asking again at once is refused, and says for how long
+        s.letterIntervalMs = 60_000
+        val wait = try {
+            api.resendSignUpCode(mail)
+            null
+        } catch (e: CloudException) {
+            e
+        }
+        assertEquals(Kind.MAIL_WAIT, wait?.kind)
+        assertTrue("seconds to wait: ${wait?.waitSeconds}", wait!!.waitSeconds in 1..60)
+        assertEquals(Kind.MAIL_WAIT, kindOf { api.signUp(mail, "second-password", name) })
+        s.letterIntervalMs = 0
+
+        // a new letter brings a new code; the old one stops working
+        api.resendSignUpCode(mail)
+        val second = s.codeFor(mail)
+        assertEquals(Kind.BAD_CODE, kindOf { api.confirmSignUp(mail, if (second == "000000") "111111" else "000000") })
+        if (first != second) assertEquals(Kind.BAD_CODE, kindOf { api.confirmSignUp(mail, first) })
+        val session = api.confirmSignUp(mail, second)
+        assertEquals(mail, session.email)
+        // now the profile exists, under the name that was asked for
+        assertEquals(name, api.author(session.userId)!!.username)
+        assertFalse(api.usernameFree(name))
+        // a code works once
+        assertEquals(Kind.BAD_CODE, kindOf { api.confirmSignUp(mail, second) })
+        assertEquals(session.userId, api.signIn(mail, "first-password").userId)
+
+        // an address that has an account: no letter, and the app is told so
+        val before = s.letters.size
+        assertEquals(Kind.EMAIL_TAKEN, kindOf { api.signUp(mail, "another-password", "other_$name") })
+        api.resendSignUpCode(mail)
+        assertEquals(before, s.letters.size)
+
+        // somebody who never confirms does not keep a name from others
+        val squatter = "squat_" + UUID.randomUUID().toString().take(6)
+        assertEquals(Kind.CONFIRM_EMAIL, kindOf { api.signUp("$squatter@example.com", "some-password", squatter) })
+        assertEquals(Kind.CONFIRM_EMAIL, kindOf { api.signUp("other-$squatter@example.com", "some-password", squatter) })
+        val winner = api.confirmSignUp("other-$squatter@example.com", s.codeFor("other-$squatter@example.com"))
+        assertEquals(squatter, api.author(winner.userId)!!.username)
+        val late = api.confirmSignUp("$squatter@example.com", s.codeFor("$squatter@example.com"))
+        assertTrue(api.author(late.userId)!!.username.startsWith("user_"))
+    }
+
+    @Test
+    fun forgottenPasswordIsChangedWithACode() {
+        val s = needServer()
+        s.confirmEmail = true
+        val name = "reset_" + UUID.randomUUID().toString().take(6)
+        val mail = "$name@example.com"
+        assertEquals(Kind.CONFIRM_EMAIL, kindOf { api.signUp(mail, "old-password", name) })
+        val account = api.confirmSignUp(mail, s.codeFor(mail))
+
+        // nothing is said, and nothing sent, for an address that has no account
+        val before = s.letters.size
+        api.requestPasswordReset("nobody-$name@example.com")
+        assertEquals(before, s.letters.size)
+
+        api.requestPasswordReset(mail)
+        val code = s.letters.last()
+        assertEquals("recovery", code.kind)
+        assertEquals(Kind.BAD_CODE, kindOf { api.resetPassword(mail, if (code.code == "000000") "111111" else "000000", "new-password") })
+        val session = api.resetPassword(mail, code.code, "new-password")
+        assertEquals(account.userId, session.userId)
+        assertEquals(Kind.INVALID_LOGIN, kindOf { api.signIn(mail, "old-password") })
+        assertEquals(account.userId, api.signIn(mail, "new-password").userId)
+        assertEquals(Kind.BAD_CODE, kindOf { api.resetPassword(mail, code.code, "third-password") })
+
+        // setting the password that is already set is not an error; a short one is
+        api.setPassword(session, "new-password")
+        assertEquals(Kind.WEAK_PASSWORD, kindOf { api.setPassword(session, "123") })
+    }
+
+    @Test
     fun signInWithGoogle() {
         val s = needServer()
         assertFalse(api.authSettings().google)

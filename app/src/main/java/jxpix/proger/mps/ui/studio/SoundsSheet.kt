@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.studio
 
+import androidx.compose.ui.platform.LocalResources
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -145,7 +146,7 @@ fun SoundsSheet(studio: Studio, target: SoundTarget, onDismiss: () -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text(sound.title, color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        Fmt.soundLength(sound.seconds) + " · " + stringResource(if (sound.stereo) R.string.stereo else R.string.mono),
+                        Fmt.soundLength(sound.seconds, LocalResources.current) + " · " + stringResource(if (sound.stereo) R.string.stereo else R.string.mono),
                         color = c.textDim, fontSize = 12.sp,
                     )
                 }

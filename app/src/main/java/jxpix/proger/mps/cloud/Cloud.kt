@@ -142,6 +142,24 @@ class Cloud(private val app: Context, private val studio: Studio) {
         private set
     var signInError by mutableStateOf<Kind?>(null)
 
+    /** What a code from a letter is awaited for. */
+    enum class CodeStep { SIGN_UP, PASSWORD }
+
+    /** The address a letter with a code went to; non-null while the sign-in sheet asks for that code. */
+    var codeFor by mutableStateOf<String?>(null)
+        private set
+    var codeStep by mutableStateOf(CodeStep.SIGN_UP)
+        private set
+
+    /** Seconds until another letter may be asked for. */
+    var resendIn by mutableIntStateOf(0)
+        private set
+    private var resendJob: Job? = null
+
+    /** What was typed when the account was asked for: applied once the code is accepted. */
+    private var pendingPassword: String? = null
+    private var pendingName: String? = null
+
     /** The item that is playing, and the one that is still being fetched. */
     var playingId by mutableStateOf<String?>(null)
         private set
@@ -177,6 +195,8 @@ class Cloud(private val app: Context, private val studio: Studio) {
             Kind.WEAK_PASSWORD -> R.string.cloud_err_weak_password
             Kind.BAD_EMAIL -> R.string.cloud_err_bad_email
             Kind.CONFIRM_EMAIL -> R.string.cloud_err_confirm_email
+            Kind.BAD_CODE -> R.string.cloud_err_bad_code
+            Kind.MAIL_WAIT -> R.string.cloud_err_mail_wait
             Kind.SIGNUP_CLOSED -> R.string.cloud_err_signup_closed
             Kind.NAME_TAKEN -> R.string.cloud_err_name_taken
             Kind.BAD_NAME -> R.string.cloud_err_bad_name
@@ -279,6 +299,7 @@ class Cloud(private val app: Context, private val studio: Studio) {
         session = s
         askSignIn = false
         signInError = null
+        leaveCodeStep()
         me = null
         accountLoaded = false
         loadAccount()
@@ -297,7 +318,14 @@ class Cloud(private val app: Context, private val studio: Studio) {
             try {
                 accept(io { api.signIn(email, password) })
             } catch (e: Exception) {
-                signInError = kindOf(e)
+                if (kindOf(e) == Kind.CONFIRM_EMAIL) {
+                    // the account exists but its address was never confirmed: the code may be long gone, so ask for a new letter
+                    awaitCode(email, CodeStep.SIGN_UP, password, null, 0)
+                    signingIn = false
+                    resendCode(quiet = true)
+                } else {
+                    signInError = kindOf(e)
+                }
             } finally {
                 signingIn = false
             }
@@ -322,7 +350,133 @@ class Cloud(private val app: Context, private val studio: Studio) {
                     api.signUp(email, password, name)
                 })
             } catch (e: Exception) {
+                when (kindOf(e)) {
+                    // the usual way: a letter with a code is on its way
+                    Kind.CONFIRM_EMAIL -> awaitCode(email, CodeStep.SIGN_UP, password, name, MAIL_SECONDS)
+                    // asked twice within a minute: the letter of the first time is the one to use
+                    Kind.MAIL_WAIT -> awaitCode(email, CodeStep.SIGN_UP, password, name, (e as CloudException).waitSeconds)
+                    else -> signInError = kindOf(e)
+                }
+            } finally {
+                signingIn = false
+            }
+        }
+    }
+
+    /** Sends a letter with a code for choosing a new password. */
+    fun forgotPassword(email: String) {
+        if (signingIn) return
+        if (!email.contains('@')) {
+            signInError = Kind.BAD_EMAIL
+            return
+        }
+        signingIn = true
+        signInError = null
+        scope.launch {
+            try {
+                io { api.requestPasswordReset(email) }
+                awaitCode(email, CodeStep.PASSWORD, null, null, MAIL_SECONDS)
+            } catch (e: Exception) {
+                if (kindOf(e) == Kind.MAIL_WAIT) awaitCode(email, CodeStep.PASSWORD, null, null, (e as CloudException).waitSeconds)
+                else signInError = kindOf(e)
+            } finally {
+                signingIn = false
+            }
+        }
+    }
+
+    private fun awaitCode(email: String, step: CodeStep, password: String?, name: String?, wait: Int) {
+        codeFor = email.trim()
+        codeStep = step
+        pendingPassword = password
+        pendingName = name
+        signInError = null
+        countDown(wait)
+    }
+
+    private fun countDown(seconds: Int) {
+        resendJob?.cancel()
+        resendIn = seconds.coerceIn(0, 600)
+        if (resendIn == 0) return
+        resendJob = scope.launch {
+            while (resendIn > 0) {
+                delay(1000)
+                resendIn--
+            }
+        }
+    }
+
+    private fun leaveCodeStep() {
+        resendJob?.cancel()
+        resendIn = 0
+        codeFor = null
+        pendingPassword = null
+        pendingName = null
+    }
+
+    /** Back from the code to the form (to correct the address). */
+    fun cancelCode() {
+        leaveCodeStep()
+        signInError = null
+    }
+
+    /**
+     * The code from the letter. For a new account that is all; for a forgotten password
+     * [newPassword] is what the person wants to sign in with from now on.
+     */
+    fun confirmCode(code: String, newPassword: String = "") {
+        val email = codeFor ?: return
+        if (signingIn) return
+        val step = codeStep
+        signInError = when {
+            code.trim().length < 6 -> Kind.BAD_CODE
+            step == CodeStep.PASSWORD && newPassword.length < 6 -> Kind.WEAK_PASSWORD
+            else -> null
+        }
+        if (signInError != null) return
+        val password = pendingPassword
+        val name = pendingName
+        signingIn = true
+        scope.launch {
+            try {
+                val fresh = io {
+                    if (step == CodeStep.PASSWORD) return@io api.resetPassword(email, code, newPassword)
+                    val s = api.confirmSignUp(email, code)
+                    // When somebody asks for an account twice before confirming, the server keeps what was
+                    // typed the first time. What was typed last is what the person remembers: make it so.
+                    if (password != null) runCatching { api.setPassword(s, password) }
+                    if (name != null) runCatching {
+                        val profile = api.author(s.userId)
+                        if (profile != null && profile.username != name && api.usernameFree(name)) {
+                            api.updateProfile(s, name, profile.bio, profile.avatar)
+                        }
+                    }
+                    s
+                }
+                accept(fresh)
+                if (step == CodeStep.PASSWORD) say(R.string.cloud_password_changed)
+            } catch (e: Exception) {
                 signInError = kindOf(e)
+            } finally {
+                signingIn = false
+            }
+        }
+    }
+
+    /** Asks for the letter once more. [quiet]: say nothing when it works. */
+    fun resendCode(quiet: Boolean = false) {
+        val email = codeFor ?: return
+        if (signingIn || resendIn > 0) return
+        val step = codeStep
+        signingIn = true
+        scope.launch {
+            try {
+                io { if (step == CodeStep.PASSWORD) api.requestPasswordReset(email) else api.resendSignUpCode(email) }
+                countDown(MAIL_SECONDS)
+                signInError = null
+                if (!quiet) say(R.string.cloud_code_resent)
+            } catch (e: Exception) {
+                if (kindOf(e) == Kind.MAIL_WAIT) countDown((e as CloudException).waitSeconds) else signInError = kindOf(e)
             } finally {
                 signingIn = false
             }
@@ -359,6 +513,7 @@ class Cloud(private val app: Context, private val studio: Studio) {
     }
 
     fun signOut() {
+        leaveCodeStep()
         val s = live ?: return
         store(null)
         session = null
@@ -1061,6 +1216,9 @@ class Cloud(private val app: Context, private val studio: Studio) {
     companion object {
         /** Where the browser returns to after "Sign in with Google" (see the manifest). */
         const val REDIRECT = "jxpix.proger.mps://auth"
+
+        /** The server sends one letter per address per minute. */
+        const val MAIL_SECONDS = 60
 
         const val PAGE = 30
         const val MAX_SOUND_BYTES = 5L * 1024 * 1024
