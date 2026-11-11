@@ -222,12 +222,17 @@ class Cloud(private val app: Context, private val studio: Studio) {
 
     private fun now(): Long = System.currentTimeMillis() / 1000
 
-    /** Background thread. A sign-in that is about to run out is renewed; if that fails the person is signed out. */
+    /**
+     * Background thread. Renews the sign-in that [old] belongs to; if the server refuses, the person is signed out.
+     * Several requests may ask for this at once: only the first one talks to the server.
+     */
     private fun renew(old: CloudSession): CloudSession = synchronized(renewLock) {
-        val current = live
-        if (current != null && current.accessToken != old.accessToken && current.expiresAt - now() > 90) return current
+        // signed out while this request was on its way: its sign-in must not come back
+        val current = live ?: throw CloudException(Kind.SESSION)
+        // another request has renewed it already; the old refresh token is used up
+        if (current.accessToken != old.accessToken) return current
         try {
-            val fresh = api.refresh(old.refreshToken)
+            val fresh = api.refresh(current.refreshToken)
             store(fresh)
             fresh
         } catch (e: CloudException) {

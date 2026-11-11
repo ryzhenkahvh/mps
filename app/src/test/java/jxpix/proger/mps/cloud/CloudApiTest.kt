@@ -333,13 +333,43 @@ class CloudApiTest {
     }
 
     @Test
+    fun answersOfAProjectThatIsNotReadyAreUnderstood() {
+        // bodies copied from a real project: a key it does not know, and a database without schema.sql;
+        // the third one is what the sign-up says while "Confirm email" is on and no mail service is set up
+        val canned = mapOf(
+            "/rest/v1/mps_feed" to (401 to """{"message":"Invalid API key","hint":"Double check your API key."}"""),
+            "/rest/v1/mps_authors" to (404 to """{"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.mps_authors' in the schema cache"}"""),
+            "/auth/v1/signup" to (400 to """{"code":400,"error_code":"email_address_not_authorized","msg":"Email address not authorized"}"""),
+        )
+        val http = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        for ((path, answer) in canned) {
+            http.createContext(path) { x ->
+                x.requestBody.readBytes()
+                val bytes = answer.second.toByteArray()
+                x.responseHeaders.set("Content-Type", "application/json")
+                x.sendResponseHeaders(answer.first, bytes.size.toLong())
+                x.responseBody.use { it.write(bytes) }
+            }
+        }
+        http.start()
+        try {
+            val real = SupabaseApi("http://127.0.0.1:${http.address.port}", "sb_publishable_test")
+            assertEquals(Kind.NOT_CONFIGURED, kindOf { real.feed(FeedQuery(), null) })
+            assertEquals(Kind.NOT_CONFIGURED, kindOf { real.author("0d9c1a52-0000-4000-8000-000000000000") })
+            assertEquals(Kind.SIGNUP_CLOSED, kindOf { real.signUp("someone@gmail.com", "secret-secret", "someone") })
+        } finally {
+            http.stop(0)
+        }
+    }
+
+    @Test
     fun requestsAreBuiltSafely() {
         assertEquals(
-            "/rest/v1/feed?select=*&order=created_at.desc&limit=30&offset=0",
+            "/rest/v1/mps_feed?select=*&order=created_at.desc&limit=30&offset=0",
             SupabaseApi.feedPath(FeedQuery()),
         )
         assertEquals(
-            "/rest/v1/feed?select=*&kind=eq.sound&order=downloads.desc,created_at.desc&limit=10&offset=20",
+            "/rest/v1/mps_feed?select=*&kind=eq.sound&order=downloads.desc,created_at.desc&limit=10&offset=20",
             SupabaseApi.feedPath(FeedQuery(kind = CloudKind.SOUND, sort = CloudSort.POPULAR, limit = 10, offset = 20)),
         )
         // whatever is typed, the search text cannot break out of its place in the request

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import java.io.IOException
 
-/** What can be shared. The ids are the values of `items.kind` on the server. */
+/** What can be shared. The ids are the values of `mps_items.kind` on the server. */
 enum class CloudKind(val id: String) {
     SOUND("sound"), PRESET("preset"), PROJECT("project"), TRACK("track");
 
@@ -16,7 +16,7 @@ enum class CloudKind(val id: String) {
 
 enum class CloudSort { NEW, POPULAR, BEST }
 
-/** One published thing, as the server lists it (view `feed`). */
+/** One published thing, as the server lists it (view `mps_feed`). */
 @Serializable
 data class CloudItem(
     val id: String,
@@ -51,7 +51,7 @@ data class CloudItem(
     val rating: Float get() = if (ratingCount > 0) ratingSum.toFloat() / ratingCount else 0f
 }
 
-/** An author with the totals of their page (view `authors`). */
+/** An author with the totals of their page (view `mps_authors`). */
 @Serializable
 data class CloudProfile(
     val id: String,

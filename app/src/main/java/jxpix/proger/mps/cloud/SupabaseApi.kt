@@ -104,7 +104,11 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
 
     // ------------------------------------------------------------------ errors
 
+    /** The gateway in front of every service refuses a key it does not know. */
+    private fun badKey(r: HttpResponse): Boolean = r.code == 401 && r.body.contains("Invalid API key")
+
     private fun authError(r: HttpResponse): CloudException {
+        if (badKey(r)) return CloudException(Kind.NOT_CONFIGURED, "invalid key", r.code)
         val o = parse(r.body)
         val code = o?.str("error_code") ?: o?.str("error") ?: ""
         val text = o?.str("msg") ?: o?.str("error_description") ?: o?.str("message") ?: ""
@@ -115,7 +119,8 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
             code == "email_address_invalid" || text.contains("invalid format", true) ||
                 (code == "validation_failed" && text.contains("email", true)) -> Kind.BAD_EMAIL
             code == "email_not_confirmed" -> Kind.CONFIRM_EMAIL
-            code == "signup_disabled" || code == "email_provider_disabled" -> Kind.SIGNUP_CLOSED
+            // the last one: the project confirms addresses by e-mail but has no mail service of its own
+            code == "signup_disabled" || code == "email_provider_disabled" || code == "email_address_not_authorized" -> Kind.SIGNUP_CLOSED
             r.code == 429 || code.startsWith("over_") -> Kind.RATE_LIMIT
             code in SESSION_CODES || r.code == 401 || r.code == 403 -> Kind.SESSION
             else -> Kind.SERVER
@@ -124,10 +129,13 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
     }
 
     private fun restError(r: HttpResponse): CloudException {
+        if (badKey(r)) return CloudException(Kind.NOT_CONFIGURED, "invalid key", r.code)
         val o = parse(r.body)
         val code = o?.str("code") ?: ""
         val text = (o?.str("message") ?: "") + " " + (o?.str("details") ?: "")
         val kind = when {
+            // the tables or functions are not there: schema.sql has not been run on this project
+            code.startsWith("PGRST2") -> Kind.NOT_CONFIGURED
             code.startsWith("PGRST3") || text.contains("JWT", true) -> Kind.SESSION
             text.contains("MPS_SIGN_IN") -> Kind.SESSION
             text.contains("MPS_DAILY_LIMIT") -> Kind.DAILY_LIMIT
@@ -145,19 +153,20 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
     }
 
     private fun storageError(r: HttpResponse): CloudException {
+        if (badKey(r)) return CloudException(Kind.NOT_CONFIGURED, "invalid key", r.code)
         val o = parse(r.body)
         val status = o?.str("statusCode") ?: ""
         val error = o?.str("error") ?: ""
         val text = o?.str("message") ?: ""
         val kind = when {
-            text.contains("jwt", true) || text.contains("token", true) && r.code in 400..403 -> Kind.SESSION
             r.code == 413 || status == "413" || text.contains("maximum allowed size", true) -> Kind.TOO_LARGE
             error.contains("mime", true) || text.contains("mime", true) || status == "415" -> Kind.NOT_ALLOWED
-            // in their own folder the only rule a person can break is the limit on space
-            text.contains("row-level security", true) || status == "403" || r.code == 403 -> Kind.NO_ROOM
+            // the rules of the database said no: in their own folder the only one a person can break is the limit on space
+            text.contains("row-level security", true) -> Kind.NO_ROOM
             r.code == 404 || status == "404" -> Kind.NOT_FOUND
-            r.code == 401 -> Kind.SESSION
-            r.code == 429 -> Kind.RATE_LIMIT
+            r.code == 429 || status == "429" -> Kind.RATE_LIMIT
+            // any other refusal is about who is asking: a sign-in that has run out or is not accepted
+            r.code == 401 || r.code == 403 || status == "401" || status == "403" || text.contains("jwt", true) -> Kind.SESSION
             else -> Kind.SERVER
         }
         return CloudException(kind, "$status $error $text".trim(), r.code)
@@ -238,7 +247,7 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
     // ------------------------------------------------------------------ database
 
     private fun rpc(name: String, args: JsonObject, token: String?): String {
-        val r = call("POST", "/rest/v1/rpc/$name", token, args)
+        val r = call("POST", "/rest/v1/rpc/$PREFIX$name", token, args)
         if (!r.ok) throw restError(r)
         return r.body
     }
@@ -254,7 +263,7 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
     }
 
     override fun author(id: String): CloudProfile? =
-        list("/rest/v1/authors?select=*&id=eq.${enc(id)}&limit=1", null, CloudProfile.serializer()).firstOrNull()
+        list("/rest/v1/${PREFIX}authors?select=*&id=eq.${enc(id)}&limit=1", null, CloudProfile.serializer()).firstOrNull()
 
     override fun usernameFree(name: String): Boolean =
         rpc("username_free", buildJsonObject { put("name", name) }, null).trim() == "true"
@@ -271,7 +280,7 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
         list(feedPath(query), session?.accessToken, CloudItem.serializer())
 
     override fun item(id: String, session: CloudSession?): CloudItem? =
-        list("/rest/v1/feed?select=*&id=eq.${enc(id)}&limit=1", session?.accessToken, CloudItem.serializer()).firstOrNull()
+        list("/rest/v1/${PREFIX}feed?select=*&id=eq.${enc(id)}&limit=1", session?.accessToken, CloudItem.serializer()).firstOrNull()
 
     override fun publish(session: CloudSession, item: NewItem): CloudItem {
         val body = buildJsonObject {
@@ -287,7 +296,7 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
             if (item.device != null) put("device", item.device)
             if (item.payload != null) put("payload", item.payload)
         }
-        val r = call("POST", "/rest/v1/items?select=id", session.accessToken, body, prefer = "return=representation")
+        val r = call("POST", "/rest/v1/${PREFIX}items?select=id", session.accessToken, body, prefer = "return=representation")
         if (!r.ok) throw restError(r)
         val id = try {
             (json.parseToJsonElement(r.body) as JsonArray)[0].jsonObject["id"]!!.jsonPrimitive.content
@@ -313,12 +322,12 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
     override fun deleteItem(session: CloudSession, item: CloudItem) {
         // files first: once the row is gone nothing points at them any more
         deleteFiles(session, listOfNotNull(item.filePath, item.previewPath))
-        val r = call("DELETE", "/rest/v1/items?id=eq.${enc(item.id)}", session.accessToken)
+        val r = call("DELETE", "/rest/v1/${PREFIX}items?id=eq.${enc(item.id)}", session.accessToken)
         if (!r.ok) throw restError(r)
     }
 
     override fun myRating(session: CloudSession, itemId: String): Int {
-        val path = "/rest/v1/ratings?select=stars&item_id=eq.${enc(itemId)}&user_id=eq.${enc(session.userId)}&limit=1"
+        val path = "/rest/v1/${PREFIX}ratings?select=stars&item_id=eq.${enc(itemId)}&user_id=eq.${enc(session.userId)}&limit=1"
         val r = call("GET", path, session.accessToken)
         if (!r.ok) throw restError(r)
         return try {
@@ -340,7 +349,7 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
 
     override fun report(session: CloudSession, itemId: String, reason: String) {
         val body = buildJsonObject { put("item_id", itemId); put("reason", reason.trim().take(300)) }
-        val r = call("POST", "/rest/v1/reports", session.accessToken, body, prefer = "return=minimal")
+        val r = call("POST", "/rest/v1/${PREFIX}reports", session.accessToken, body, prefer = "return=minimal")
         // a second complaint from the same person changes nothing and is not an error
         if (!r.ok && r.code != 409) throw restError(r)
     }
@@ -407,7 +416,9 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
     }
 
     companion object {
-        const val BUCKET = "files"
+        /** Every table, view and function of the app on the server starts with this (see schema.sql). */
+        const val PREFIX = "mps_"
+        const val BUCKET = "mps-files"
 
         private val SESSION_CODES = setOf(
             "refresh_token_not_found", "refresh_token_already_used", "session_not_found", "session_expired",
@@ -430,7 +441,7 @@ class SupabaseApi(baseUrl: String, private val key: String, fallbackUrl: String 
         /** The request that lists a part of the catalogue. */
         fun feedPath(q: FeedQuery): String {
             fun enc(value: String) = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
-            val sb = StringBuilder("/rest/v1/feed?select=*")
+            val sb = StringBuilder("/rest/v1/${PREFIX}feed?select=*")
             if (q.kind != null) sb.append("&kind=eq.").append(q.kind.id)
             if (q.owner != null) sb.append("&owner=eq.").append(enc(q.owner))
             if (q.device != null) sb.append("&device=eq.").append(enc(q.device))

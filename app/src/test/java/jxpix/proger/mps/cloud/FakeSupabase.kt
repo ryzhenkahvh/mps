@@ -283,13 +283,13 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
     private fun storage(x: HttpExchange) {
         val path = URLDecoder.decode(x.requestURI.rawPath.removePrefix("/storage/v1"), "UTF-8")
         when {
-            path.startsWith("/object/public/files/") -> {
-                val bytes = files[path.removePrefix("/object/public/files/")]
+            path.startsWith("/object/public/$BUCKET/") -> {
+                val bytes = files[path.removePrefix("/object/public/$BUCKET/")]
                 if (bytes == null) storageError(x, 400, "404", "not_found", "Object not found")
                 else reply(x, 200, bytes, "application/octet-stream")
             }
-            path.startsWith("/object/files/") -> {
-                val name = path.removePrefix("/object/files/")
+            path.startsWith("/object/$BUCKET/") -> {
+                val name = path.removePrefix("/object/$BUCKET/")
                 val who = subject(x)
                 if (who == null) {
                     x.requestBody.readBytes()
@@ -309,7 +309,7 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
                         else -> {
                             files[name] = bytes
                             admin("test_storage_put", buildJsonObject { put("path", name); put("bytes", bytes.size) })
-                            reply(x, 200, """{"Key":"files/$name","Id":"${UUID.randomUUID()}"}""")
+                            reply(x, 200, """{"Key":"$BUCKET/$name","Id":"${UUID.randomUUID()}"}""")
                         }
                     }
                 } else if (x.requestMethod == "DELETE") {
@@ -329,6 +329,7 @@ class FakeSupabase(private val rest: String = REST, private val secret: String =
         /** Where `supabase/local/start.sh` (or any PostgREST over the schema) listens. */
         val REST: String = System.getenv("MPS_TEST_REST") ?: "http://127.0.0.1:54330"
         val SECRET: String = System.getenv("MPS_TEST_JWT_SECRET") ?: "mps-local-test-secret-0123456789abcdef0123456789"
+        private const val BUCKET = SupabaseApi.BUCKET
         private val MIME = setOf("audio/wav", "audio/x-wav", "audio/mpeg", "application/zip")
 
         /** True when the local database with its REST layer is running. */
