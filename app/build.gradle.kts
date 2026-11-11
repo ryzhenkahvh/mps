@@ -1,8 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// Address and public key of the community server (see supabase/README.md).
+// Both are meant to be shipped inside the app; what a person may do is decided by the server.
+val cloud = Properties().apply {
+    val file = rootProject.file("cloud.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun cloudValue(name: String): String = "\"" + (cloud.getProperty(name) ?: "").trim().replace("\\", "").replace("\"", "") + "\""
 
 android {
     namespace = "jxpix.proger.mps"
@@ -18,6 +29,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "CLOUD_URL", cloudValue("url"))
+        buildConfigField("String", "CLOUD_KEY", cloudValue("key"))
+        buildConfigField("String", "CLOUD_FALLBACK_URL", cloudValue("fallbackUrl"))
     }
 
     buildTypes {
@@ -36,6 +51,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         // plain JVM tests may run code that writes to the Android log

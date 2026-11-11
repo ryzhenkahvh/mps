@@ -200,6 +200,10 @@ fun MenuSheet(
         SheetItem(stringResource(R.string.menu_export), onExport, icon = Ic.Download, description = stringResource(R.string.menu_export_desc))
         SheetItem(stringResource(R.string.project_export), onProjectFile, icon = Ic.Save, description = stringResource(R.string.project_export_desc))
         SheetItem(stringResource(R.string.sounds_title), onSounds, icon = Ic.Library, description = stringResource(R.string.sounds_menu_desc))
+        SheetItem(stringResource(R.string.community), {
+            onDismiss()
+            studio.cloud.show()
+        }, icon = Ic.People, description = stringResource(R.string.cloud_menu_desc))
         SheetItem(stringResource(R.string.menu_song_settings), onTempo, icon = Ic.Speed)
         SheetItem(stringResource(R.string.master_effects), onMaster, icon = Ic.Tune)
         SheetItem(stringResource(R.string.menu_rename), onRename, icon = Ic.Rename)

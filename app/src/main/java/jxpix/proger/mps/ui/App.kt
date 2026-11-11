@@ -45,6 +45,7 @@ import jxpix.proger.mps.R
 import jxpix.proger.mps.audio.AudioExporter
 import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.studio.Tab
+import jxpix.proger.mps.ui.cloud.CommunityScreen
 import jxpix.proger.mps.ui.home.HomeScreen
 import jxpix.proger.mps.ui.studio.StudioScreen
 import jxpix.proger.mps.ui.theme.Mps
@@ -74,12 +75,16 @@ fun App(studio: Studio, onLanguageChanged: () -> Unit) {
     }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
-        if (inStudio) {
+        val community = studio.cloud.visible
+        if (community) {
+            // takes the place of the screen underneath, which comes back as it was left
+            CommunityScreen(studio)
+        } else if (inStudio) {
             StudioScreen(studio, onSettings = { showSettings = true }, onHelp = { showHelp = true })
         } else {
             HomeScreen(studio, onSettings = { showSettings = true }, onHelp = { showHelp = true })
         }
-        MessageBar(studio, Modifier.align(Alignment.BottomCenter), raised = inStudio)
+        MessageBar(studio, Modifier.align(Alignment.BottomCenter), raised = inStudio, community = community)
     }
 
     if (showSettings) SettingsSheet(studio, onDismiss = { showSettings = false }, onLanguageChanged = onLanguageChanged)
@@ -90,12 +95,14 @@ fun App(studio: Studio, onLanguageChanged: () -> Unit) {
 
 /** Short messages from the studio ("Recording added to the playlist"). */
 @Composable
-private fun MessageBar(studio: Studio, modifier: Modifier, raised: Boolean) {
+private fun MessageBar(studio: Studio, modifier: Modifier, raised: Boolean, community: Boolean) {
     val c = Mps.colors
     val message = studio.message ?: return
     // stay clear of the bottom navigation and of the action bar of a selection
     val ui = studio.ui
     val bottom = when {
+        // above the "Publish" button
+        community -> 76.dp
         !raised -> 20.dp
         ui.editor == null && ui.tab == Tab.PLAYLIST && ui.selectedClip != 0 -> 136.dp
         ui.editor == null && ui.tab == Tab.PIANO && ui.rollSelection.isNotEmpty() -> 184.dp

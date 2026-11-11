@@ -3,4 +3,6 @@
 <full-backup-content>
     <include domain="file" path="projects/" />
     <include domain="sharedpref" path="." />
+    <!-- the sign-in of the community section stays on this phone -->
+    <exclude domain="sharedpref" path="cloud.xml" />
 </full-backup-content>

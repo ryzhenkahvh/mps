@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -106,6 +107,8 @@ fun Chip(
     val fg = (if (selected) c.onAccent else c.text).copy(alpha = if (enabled) 1f else 0.4f)
     Row(
         modifier
+            // also gives the text a limit to shrink against where the parent has none (a scrolling row)
+            .widthIn(max = maxWidth)
             .heightIn(min = 36.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(bg)

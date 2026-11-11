@@ -16,6 +16,8 @@ MPS — приложение для Android, в котором можно соб
 | ![Плейлист в горизонтальном режиме](docs/screenshots/landscape_playlist.png) | ![Экспорт трека](docs/screenshots/landscape_export.png) |
 | **Мои звуки** | **FM-синтезатор** |
 | ![Библиотека своих звуков](docs/screenshots/landscape_sounds.png) | ![Редактор FM-синтезатора](docs/screenshots/landscape_fm.png) |
+| **Сообщество** | **Публикация и оценки** |
+| ![Каталог сообщества](docs/screenshots/landscape_community.png) | ![Страница публикации](docs/screenshots/landscape_community_item.png) |
 
 ## Что умеет
 
@@ -51,6 +53,20 @@ MPS — приложение для Android, в котором можно соб
 - **Пресеты** — у каждого инструмента и эффекта есть готовые настройки (19 у синтезатора, по 7 у FM-синтезатора
   и струны, от трёх до пяти у каждого эффекта), а свои можно сохранить под именем — они будут видны во всех проектах
   ([как это выглядит](docs/screenshots/landscape_presets.png)).
+
+**Сообщество**
+- Каталог того, чем делятся другие: **звуки** (удары и лупы), **пресеты** инструментов и эффектов,
+  **проекты** целиком и готовые **треки**. Поиск по названию, автору и тегам, сортировка по новизне,
+  числу скачиваний и оценке.
+- Всё можно послушать до скачивания. Пресет при этом ничего не качает: приложение играет его на своём инструменте.
+- Одно нажатие — и звук оказывается в «Моих звуках», пресет — среди ваших пресетов, проект — в списке проектов.
+- Свои публикации: звук из «Моих звуков», сохранённый пресет, проект (к нему прикладывается MP3 для прослушивания)
+  или трек, который приложение само сводит в MP3.
+- Профили авторов с числом публикаций, скачиваний и средней оценкой; оценки от 1 до 5; жалобы и скрытие
+  публикаций, на которые пожаловались несколько человек.
+- Смотреть, слушать и скачивать можно без аккаунта; чтобы публиковать и оценивать — войти по почте и паролю
+  или через Google.
+- Работает на бесплатном тарифе Supabase; как подключить свой проект — в [supabase/README.md](supabase/README.md).
 
 **Работа над треком**
 - Микшер с индикаторами уровня, панорамой, mute / solo и цепочкой эффектов мастера.
@@ -115,6 +131,7 @@ app/src/main/java/jxpix/proger/mps/
   model/     проект (каналы, паттерны, клипы), пресеты, шаблоны, чистые функции правки
   audio/     вывод звука, запись с микрофона, декодирование и экспорт, MIDI
   data/      хранение проектов, настроек, библиотеки звуков и своих пресетов
+  cloud/     сообщество: клиент сервера, вход, загрузка и скачивание
   studio/    состояние приложения: открытый проект, транспорт, отмена, запись
   ui/        экраны на Jetpack Compose
 ```
@@ -138,6 +155,12 @@ app/src/main/java/jxpix/proger/mps/
   появление клипа в плейлисте и его воспроизведение;
 - MP3-файлы, записанные приложением, прочитаны сторонним декодером (mpg123) и сверены с исходным звуком;
   сумма отдельных дорожек совпадает с миксом без мастер-обработки.
+
+- сообщество: правила доступа базы проверены на настоящем PostgreSQL от имени разных людей, клиент приложения —
+  поверх той же базы; экраны пройдены целиком (каталог, прослушивание, скачивание, регистрация, публикация
+  звука, пресета, проекта и трека, оценки, жалобы, профиль, модерация). Регистрация и хранилище файлов
+  в этих проверках изображались — **на настоящем проекте Supabase раздел ещё не запускался**, вход через
+  Google не проверялся совсем.
 
 **Ещё не проверено на настоящем устройстве.** Только на нём можно увидеть реальную задержку и нагрузку,
 работу микрофона, MIDI-устройств, кодировщика AAC, системного выбора файлов и сохранения в папку «Музыка».
@@ -168,7 +191,8 @@ MPS is a pocket music studio for Android built around the FL Studio workflow: ch
 piano roll, playlist, mixer, keyboard and pads. It ships with a drum synthesizer, a polyphonic synthesizer with
 19 presets, an FM synthesizer, a plucked-string model, a sampler, audio tracks with microphone recording,
 15 effects, built-in and user presets for every instrument and effect, a library of your own sounds shared
-by all projects, per-pattern automation curves for any channel knob, MIDI keyboard input, undo / redo,
+by all projects, per-pattern automation curves for any channel knob, MIDI keyboard input, undo / redo, a community catalogue for sharing sounds, presets,
+projects and tracks (profiles, ratings, reports; backed by a free Supabase project, see `supabase/`),
 WAV, MP3 and AAC export, per-channel stem export (WAV), self-contained project files (`.mps`) for backup and
 moving between phones, a landscape-first layout, light and dark pink themes, and English and Russian interfaces.
 

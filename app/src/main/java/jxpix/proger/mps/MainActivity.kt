@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import android.content.pm.ActivityInfo
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -66,6 +67,22 @@ class MainActivity : ComponentActivity() {
             MpsTheme(dark) {
                 App(studio, onLanguageChanged = { recreate() })
             }
+        }
+        handleLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleLink(intent)
+    }
+
+    /** The browser comes back here after "Sign in with Google" in the community section. */
+    private fun handleLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "jxpix.proger.mps" && data.host == "auth") {
+            // once is enough: the activity may be recreated with the same intent
+            intent.data = null
+            studio.cloud.onAuthRedirect(data)
         }
     }
 

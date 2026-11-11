@@ -103,6 +103,8 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Ic.Logo, "MPS", Modifier.size(width = 96.dp, height = 34.dp), tint = c.text)
             Spacer(Modifier.weight(1f))
+            Chip(stringResource(R.string.community), { studio.cloud.show() }, icon = Ic.People)
+            Spacer(Modifier.width(4.dp))
             IconBtn(Ic.Help, stringResource(R.string.help), onHelp, tint = c.textDim)
             IconBtn(Ic.Settings, stringResource(R.string.settings), onSettings, tint = c.textDim)
         }

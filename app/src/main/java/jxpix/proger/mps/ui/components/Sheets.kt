@@ -59,6 +59,7 @@ fun AppSheet(
     onDismiss: () -> Unit,
     title: String? = null,
     scroll: Boolean = true,
+    message: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = Mps.colors
@@ -75,6 +76,19 @@ fun AppSheet(
             )
         },
     ) {
+        // the message bar of the screen is hidden behind the sheet: what it says is repeated here
+        if (message != null) {
+            Text(
+                message,
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(c.text)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                color = c.bg, fontSize = 13.sp, lineHeight = 18.sp,
+            )
+        }
         Column(
             Modifier
                 .fillMaxWidth()

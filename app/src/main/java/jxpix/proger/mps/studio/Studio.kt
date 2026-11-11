@@ -3,6 +3,7 @@ package jxpix.proger.mps.studio
 import jxpix.proger.mps.model.DeviceState
 import jxpix.proger.mps.model.applyParams
 import jxpix.proger.mps.model.USER_PRESET_PREFIX
+import jxpix.proger.mps.cloud.Cloud
 import jxpix.proger.mps.data.UserPreset
 import jxpix.proger.mps.data.PresetStore
 import jxpix.proger.mps.data.SoundInfo
@@ -118,6 +119,10 @@ class Studio(context: Context) {
     val engine = Engine(output.sampleRate)
     val recorder = Recorder(app)
     val midi = MidiInput(app) { on, pitch, velocity -> onMidiNote(on, pitch, velocity) }
+
+    /** The community section: sharing sounds, presets, projects and tracks with other people. */
+    private val cloudHolder = lazy { Cloud(app, this) }
+    val cloud: Cloud by cloudHolder
 
     /** Text lookup in the language of the UI; replaced by the activity. */
     var strings: (Int) -> String = { app.getString(it) }
@@ -238,6 +243,8 @@ class Studio(context: Context) {
     fun stopAudio() {
         if (recordMode != RecordMode.NONE) stopRecording()
         if (playing) pause()
+        // a track streaming from the community stops too
+        if (cloudHolder.isInitialized()) cloud.stopPlaying()
         engine.panic()
         midi.stop()
         output.stop()
@@ -1406,6 +1413,33 @@ class Studio(context: Context) {
 
     fun cancelBusy() {
         exportJob?.cancel()
+        if (cloudHolder.isInitialized()) cloud.cancel()
+    }
+
+    // The community section runs long jobs of its own and shows them in the same progress dialog.
+
+    /** Shows the progress dialog; false when another long job is already running. */
+    internal fun beginBusy(text: String, progress: Float = -1f): Boolean {
+        if (busy != null) return false
+        busy = progress
+        busyText = text
+        return true
+    }
+
+    /** Any thread. */
+    internal fun busyProgress(value: Float) = reportProgress(value)
+
+    internal fun endBusy() {
+        busy = null
+    }
+
+    /** Reads "My sounds" and the saved presets again, after something was added to them from outside. */
+    internal fun reloadLibrary() {
+        scope.launch {
+            val loaded = withContext(Dispatchers.IO) { library.list() to presetStore.loadAll() }
+            sounds = loaded.first
+            userPresets = loaded.second
+        }
     }
 
     private var lastProgress = 0L

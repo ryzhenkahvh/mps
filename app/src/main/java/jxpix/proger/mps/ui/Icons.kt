@@ -42,6 +42,28 @@ object Ic {
     /** Automation curve. */
     val Curve: ImageVector get() = line("Curve", "M3 17.5l6-7.5 5 4.5 7-9")
 
+    /** Builds a 24dp filled icon from path data drawn on a 24 x 24 grid. */
+    private fun solid(name: String, path: String): ImageVector = cache.getOrPut(name) {
+        ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
+            .addPath(
+                pathData = addPathNodes(path), fill = SolidColor(Color.Black), stroke = SolidColor(Color.Black), strokeLineWidth = 1.5f,
+                strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
+            )
+            .build()
+    }
+
+    // The community section; drawn by hand in the same weight as the rest.
+    val People: ImageVector
+        get() = line("People", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.3a3.5 3.5 0 0 1 0 6.4M17.6 14.3c2.3.8 3.9 2.8 3.9 5.7")
+    val Person: ImageVector get() = line("Person", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5")
+    val Star: ImageVector get() = line("Star", STAR, 1.8f)
+    val StarFilled: ImageVector get() = solid("StarFilled", STAR)
+    val Search: ImageVector get() = line("Search", "M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.4 15.4L20 20")
+    val Flag: ImageVector get() = line("Flag", "M5 21V4M5 4.5h11.5l-2 3.8 2 3.7H5")
+    val Logout: ImageVector get() = line("Logout", "M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9")
+    val Sort: ImageVector get() = line("Sort", "M4 7h16M7 12h10M10 17h4")
+    private const val STAR = "M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8L12 3.6z"
+
     /** The wordmark of the app (letters M, P, S with equalizer bars inside the M). */
     val Logo: ImageVector
         get() = cache.getOrPut("Logo") {
