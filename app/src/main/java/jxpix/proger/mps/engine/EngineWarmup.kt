@@ -120,6 +120,12 @@ object EngineWarmup {
             }
             channel(Devices.SYNTH.id, preset.params, notes)
         }
+        // the other instruments, with a couple of their presets each
+        for (type in listOf(Devices.FM, Devices.STRING)) {
+            Presets.forType(type.id).take(3).forEachIndexed { i, preset ->
+                channel(type.id, preset.params, List(p.beatsPerBar) { Note(it * beat, beat * 3 / 4, 48 + i * 7 + it * 2, 0.8f) })
+            }
+        }
         // a short tone for the sampler and for an audio clip
         val tone = ShortArray(sampleRate / 2) {
             (sin(2.0 * PI * 220.0 * it / sampleRate) * 12000.0 * (1.0 - it.toDouble() / (sampleRate / 2))).toInt().toShort()

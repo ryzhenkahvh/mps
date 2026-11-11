@@ -459,6 +459,22 @@ fun AddChannelSheet(studio: Studio, onDismiss: () -> Unit, onCreated: (Int) -> U
             }
         }
 
+        // the other instruments: every preset is a ready-made channel
+        for (type in listOf(Devices.FM, Devices.STRING)) {
+            SheetDivider()
+            SheetLabel(stringResource(type.nameRes))
+            Text(stringResource(type.descRes), Modifier.padding(horizontal = 20.dp), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
+            FlowRow(
+                Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                for (preset in remember(type) { Presets.forType(type.id) }) {
+                    val name = stringResource(preset.nameRes)
+                    Chip(name, { create(type.id, name, preset.params, preset.id) })
+                }
+            }
+        }
+
         SheetDivider()
         val samplerName = stringResource(R.string.ch_sampler)
         SheetItem(stringResource(R.string.dev_sampler), {

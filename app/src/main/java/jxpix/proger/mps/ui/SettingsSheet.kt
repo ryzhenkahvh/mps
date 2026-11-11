@@ -242,6 +242,7 @@ fun HelpSheet(onDismiss: () -> Unit) {
         Triple(Ic.Playlist, R.string.help_3_title, R.string.help_3_text),
         Triple(Ic.Mixer, R.string.help_4_title, R.string.help_4_text),
         Triple(Ic.Curve, R.string.help_auto_title, R.string.help_auto_text),
+        Triple(Ic.Library, R.string.help_lib_title, R.string.help_lib_text),
         Triple(Ic.Mic, R.string.help_5_title, R.string.help_5_text),
         Triple(Ic.Download, R.string.help_6_title, R.string.help_6_text),
     )

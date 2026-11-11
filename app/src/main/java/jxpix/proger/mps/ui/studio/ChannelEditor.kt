@@ -475,24 +475,24 @@ private fun ChannelPage(studio: Studio, channel: Channel) {
         panels += {
         Panel(stringResource(R.string.instrument_type)) {
             Column {
-                val types = remember { listOf(Devices.DRUM, Devices.SYNTH, Devices.SAMPLER) }
-                Segmented(
-                    types.map { stringResource(it.nameRes) }, types.indexOfFirst { it.id == channel.instrument.type }.coerceAtLeast(0),
-                    { i ->
-                        val type = types[i]
-                        if (type.id != channel.instrument.type) {
-                            studio.edit { p ->
-                                when (type.id) {
-                                    Devices.DRUM.id -> p.replaceInstrument(channel.id, type.id, DrumSynth.defaultsFor(0))
-                                    Devices.SYNTH.id -> Presets.synth("init").let { p.replaceInstrument(channel.id, type.id, it.params, it.id) }
-                                    else -> p.replaceInstrument(channel.id, type.id)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (type in Devices.playable) {
+                        Chip(stringResource(type.nameRes), {
+                            if (type.id != channel.instrument.type) {
+                                studio.edit { p ->
+                                    // every kind starts from its first preset, so that it sounds right away
+                                    val first = Presets.forType(type.id).firstOrNull()
+                                    when {
+                                        type.id == Devices.DRUM.id -> p.replaceInstrument(channel.id, type.id, DrumSynth.defaultsFor(0))
+                                        first != null -> p.replaceInstrument(channel.id, type.id, first.params, first.id)
+                                        else -> p.replaceInstrument(channel.id, type.id)
+                                    }
                                 }
+                                studio.preview(channel.id, channel.rootNote)
                             }
-                            studio.preview(channel.id, channel.rootNote)
-                        }
-                    },
-                    Modifier.fillMaxWidth(), equalWidth = true,
-                )
+                        }, selected = type.id == channel.instrument.type)
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
                 Text(stringResource(R.string.instrument_type_hint), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
             }

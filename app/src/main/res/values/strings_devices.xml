@@ -312,4 +312,70 @@
     <string name="fxp_safety">Safety</string>
     <string name="fxp_louder">Louder</string>
     <string name="fxp_loud">Loud</string>
+
+    <!-- More instruments and effects -->
+    <string name="dev_fm">FM synth</string>
+    <string name="dev_fm_desc">Electric pianos, bells and glassy keys.</string>
+    <string name="dev_strings">String</string>
+    <string name="dev_strings_desc">Guitar, harp, koto and plucked bass: a physical model of a string.</string>
+    <string name="fx_flanger">Flanger</string>
+    <string name="fx_flanger_desc">The sweep of a jet plane flying by.</string>
+    <string name="fx_tremolo">Tremolo / auto-pan</string>
+    <string name="fx_tremolo_desc">The volume pulses in rhythm, or the sound travels left and right.</string>
+    <string name="fx_stereo">Stereo width</string>
+    <string name="fx_stereo_desc">Wider or narrower, with the bass kept in the middle.</string>
+    <string name="fx_tape">Tape</string>
+    <string name="fx_tape_desc">Warm saturation and the gentle drift of an old cassette.</string>
+    <string name="g_fm">FM tone</string>
+    <string name="g_string">String</string>
+    <string name="p_fm_ratio">Harmonic</string>
+    <string name="p_brightness">Brightness</string>
+    <string name="p_fm_decay">Bright decay</string>
+    <string name="p_fm_hold">Bright hold</string>
+    <string name="p_ring">Ring time</string>
+    <string name="p_pick">Pick</string>
+    <string name="p_shape">Shape</string>
+    <string name="p_haas">Spread</string>
+    <string name="p_mono_below">Mono below</string>
+    <string name="p_wow">Wow</string>
+    <string name="p_flutter">Flutter</string>
+    <string-array name="arr_trem_sync">
+        <item>Free</item>
+        <item>1/2</item>
+        <item>1/4</item>
+        <item>1/8</item>
+        <item>1/8T</item>
+        <item>1/16</item>
+    </string-array>
+
+    <!-- Presets of the new devices -->
+    <string name="fmp_epiano">Electric piano</string>
+    <string name="fmp_bell">Bell</string>
+    <string name="fmp_glass">Glass keys</string>
+    <string name="fmp_bass">FM bass</string>
+    <string name="fmp_organ">Organ</string>
+    <string name="fmp_brass">Brass</string>
+    <string name="fmp_marimba">Marimba</string>
+    <string name="stp_guitar">Guitar</string>
+    <string name="stp_nylon">Nylon</string>
+    <string name="stp_harp">Harp</string>
+    <string name="stp_bass">Plucked bass</string>
+    <string name="stp_koto">Koto</string>
+    <string name="stp_muted">Muted</string>
+    <string name="stp_harpsi">Harpsichord</string>
+    <string name="fxp_classic">Classic</string>
+    <string name="fxp_soft">Soft</string>
+    <string name="fxp_soft_tremolo">Soft tremolo</string>
+    <string name="fxp_chop">Chop 1/8</string>
+    <string name="fxp_auto_pan">Auto-pan</string>
+    <string name="fxp_helicopter">Helicopter</string>
+    <string name="fxp_wider">Wider</string>
+    <string name="fxp_mono">Mono</string>
+    <string name="fxp_spread_mono">Spread a mono sound</string>
+    <string name="fxp_bass_middle">Bass in the middle</string>
+    <string name="fxp_warm_tape">Warm tape</string>
+    <string name="fxp_cassette">Worn cassette</string>
+    <string name="fxp_seasick">Seasick</string>
+    <string name="fxp_hot">Hot</string>
+    <string name="p_fm_feedback">Edge</string>
 </resources>

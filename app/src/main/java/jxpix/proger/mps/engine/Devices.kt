@@ -1,5 +1,11 @@
 package jxpix.proger.mps.engine
 
+import jxpix.proger.mps.engine.effects.Tape
+import jxpix.proger.mps.engine.effects.StereoWidth
+import jxpix.proger.mps.engine.effects.Tremolo
+import jxpix.proger.mps.engine.effects.Flanger
+import jxpix.proger.mps.engine.instruments.StringSynth
+import jxpix.proger.mps.engine.instruments.FmSynth
 import jxpix.proger.mps.R
 import jxpix.proger.mps.engine.effects.BitCrusher
 import jxpix.proger.mps.engine.effects.Chorus
@@ -29,9 +35,14 @@ object Devices {
     val SYNTH: DeviceType = PolySynth.TYPE
     val DRUM: DeviceType = DrumSynth.TYPE
     val SAMPLER: DeviceType = Sampler.TYPE
+    val FM: DeviceType = FmSynth.TYPE
+    val STRING: DeviceType = StringSynth.TYPE
     val AUDIO: DeviceType = DeviceType(AUDIO_TYPE_ID, R.string.dev_audio, R.string.dev_audio_desc, true, emptyList()) { null }
 
-    val instruments: List<DeviceType> = listOf(DRUM, SYNTH, SAMPLER, AUDIO)
+    val instruments: List<DeviceType> = listOf(DRUM, SYNTH, FM, STRING, SAMPLER, AUDIO)
+
+    /** The kinds of instrument a channel can be switched between; they all play notes. */
+    val playable: List<DeviceType> = listOf(DRUM, SYNTH, FM, STRING, SAMPLER)
 
     val effects: List<DeviceType> = listOf(
         Eq3.TYPE,
@@ -43,7 +54,11 @@ object Devices {
         Chorus.TYPE,
         Phaser.TYPE,
         BitCrusher.TYPE,
+        Flanger.TYPE,
+        Tremolo.TYPE,
         Pumper.TYPE,
+        StereoWidth.TYPE,
+        Tape.TYPE,
         Limiter.TYPE,
     )
 

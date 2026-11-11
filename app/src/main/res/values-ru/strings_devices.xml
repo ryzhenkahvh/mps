@@ -306,4 +306,70 @@
     <string name="fxp_safety">Страховка</string>
     <string name="fxp_louder">Громче</string>
     <string name="fxp_loud">Максимум</string>
+
+    <!-- More instruments and effects -->
+    <string name="dev_fm">FM-синтезатор</string>
+    <string name="dev_fm_desc">Электропиано, колокольчики и стеклянные клавиши.</string>
+    <string name="dev_strings">Струна</string>
+    <string name="dev_strings_desc">Гитара, арфа, кото и щипковый бас: физическая модель струны.</string>
+    <string name="fx_flanger">Флэнжер</string>
+    <string name="fx_flanger_desc">Звук пролетающего реактивного самолёта.</string>
+    <string name="fx_tremolo">Тремоло / автопан</string>
+    <string name="fx_tremolo_desc">Громкость пульсирует в ритм, или звук ходит слева направо.</string>
+    <string name="fx_stereo">Стереоширина</string>
+    <string name="fx_stereo_desc">Шире или уже, а бас остаётся по центру.</string>
+    <string name="fx_tape">Плёнка</string>
+    <string name="fx_tape_desc">Тёплое насыщение и лёгкое плавание старой кассеты.</string>
+    <string name="g_fm">FM-тембр</string>
+    <string name="g_string">Струна</string>
+    <string name="p_fm_ratio">Гармоника</string>
+    <string name="p_brightness">Яркость</string>
+    <string name="p_fm_decay">Спад яркости</string>
+    <string name="p_fm_hold">Остаток яркости</string>
+    <string name="p_ring">Звучание</string>
+    <string name="p_pick">Медиатор</string>
+    <string name="p_shape">Форма</string>
+    <string name="p_haas">Разнос</string>
+    <string name="p_mono_below">Моно ниже</string>
+    <string name="p_wow">Плавание</string>
+    <string name="p_flutter">Дрожание</string>
+    <string-array name="arr_trem_sync">
+        <item>Свободно</item>
+        <item>1/2</item>
+        <item>1/4</item>
+        <item>1/8</item>
+        <item>1/8T</item>
+        <item>1/16</item>
+    </string-array>
+
+    <!-- Presets of the new devices -->
+    <string name="fmp_epiano">Электропиано</string>
+    <string name="fmp_bell">Колокол</string>
+    <string name="fmp_glass">Стекло</string>
+    <string name="fmp_bass">FM-бас</string>
+    <string name="fmp_organ">Орган</string>
+    <string name="fmp_brass">Медные</string>
+    <string name="fmp_marimba">Маримба</string>
+    <string name="stp_guitar">Гитара</string>
+    <string name="stp_nylon">Нейлон</string>
+    <string name="stp_harp">Арфа</string>
+    <string name="stp_bass">Щипковый бас</string>
+    <string name="stp_koto">Кото</string>
+    <string name="stp_muted">Глушёная</string>
+    <string name="stp_harpsi">Клавесин</string>
+    <string name="fxp_classic">Классика</string>
+    <string name="fxp_soft">Мягкий</string>
+    <string name="fxp_soft_tremolo">Мягкое тремоло</string>
+    <string name="fxp_chop">Нарезка 1/8</string>
+    <string name="fxp_auto_pan">Автопан</string>
+    <string name="fxp_helicopter">Вертолёт</string>
+    <string name="fxp_wider">Шире</string>
+    <string name="fxp_mono">Моно</string>
+    <string name="fxp_spread_mono">Раздвинуть моно</string>
+    <string name="fxp_bass_middle">Бас по центру</string>
+    <string name="fxp_warm_tape">Тёплая плёнка</string>
+    <string name="fxp_cassette">Старая кассета</string>
+    <string name="fxp_seasick">Укачало</string>
+    <string name="fxp_hot">Перегруз</string>
+    <string name="p_fm_feedback">Резкость</string>
 </resources>

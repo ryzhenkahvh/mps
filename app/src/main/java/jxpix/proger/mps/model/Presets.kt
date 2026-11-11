@@ -1,5 +1,11 @@
 package jxpix.proger.mps.model
 
+import jxpix.proger.mps.engine.effects.Tape
+import jxpix.proger.mps.engine.effects.StereoWidth
+import jxpix.proger.mps.engine.effects.Tremolo
+import jxpix.proger.mps.engine.effects.Flanger
+import jxpix.proger.mps.engine.instruments.StringSynth
+import jxpix.proger.mps.engine.instruments.FmSynth
 import androidx.annotation.StringRes
 import jxpix.proger.mps.R
 import jxpix.proger.mps.engine.DeviceType
@@ -296,6 +302,60 @@ object Presets {
                 of(t, "pmp_soft", R.string.fxp_soft_pump, "rate" to 1f, "depth" to 0.4f, "recover" to 0.7f),
                 of(t, "pmp_hard", R.string.fxp_hard_pump, "rate" to 1f, "depth" to 0.9f, "recover" to 0.5f),
                 of(t, "pmp_gate", R.string.fxp_gate_eighths, "rate" to 2f, "depth" to 1f, "recover" to 0.3f),
+            )
+        },
+        FmSynth.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "fm_epiano", R.string.fmp_epiano, "ratio" to 1f, "amount" to 0.5f, "brightDecay" to 0.6f, "brightHold" to 0.15f, "decay" to 1.5f, "sustain" to 0.3f, "release" to 0.4f),
+                of(t, "fm_bell", R.string.fmp_bell, "ratio" to 3.5f, "amount" to 0.6f, "brightDecay" to 2.5f, "brightHold" to 0.1f, "attack" to 0.001f, "decay" to 4f, "sustain" to 0f, "release" to 3f, "detune" to 10f),
+                of(t, "fm_glass", R.string.fmp_glass, "ratio" to 7f, "amount" to 0.35f, "brightDecay" to 0.3f, "brightHold" to 0.1f, "decay" to 2f, "sustain" to 0.2f, "release" to 1f, "detune" to 12f),
+                of(t, "fm_marimba", R.string.fmp_marimba, "ratio" to 4f, "amount" to 0.45f, "brightDecay" to 0.05f, "brightHold" to 0f, "attack" to 0.001f, "decay" to 0.5f, "sustain" to 0f, "release" to 0.4f, "detune" to 3f),
+                of(t, "fm_organ", R.string.fmp_organ, "ratio" to 2f, "amount" to 0.3f, "brightDecay" to 5f, "brightHold" to 1f, "feedback" to 0.2f, "attack" to 0.005f, "decay" to 0.1f, "sustain" to 1f, "release" to 0.08f, "detune" to 5f),
+                of(t, "fm_brass", R.string.fmp_brass, "ratio" to 1f, "amount" to 0.65f, "brightDecay" to 5f, "brightHold" to 0.9f, "feedback" to 0.5f, "attack" to 0.06f, "decay" to 0.3f, "sustain" to 0.8f, "release" to 0.15f, "detune" to 8f),
+                of(t, "fm_bass", R.string.fmp_bass, "ratio" to 1f, "amount" to 0.7f, "brightDecay" to 0.15f, "brightHold" to 0.2f, "feedback" to 0.3f, "decay" to 0.4f, "sustain" to 0.6f, "release" to 0.1f, "octave" to -1f, "detune" to 0f),
+            )
+        },
+        StringSynth.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "st_guitar", R.string.stp_guitar, "bright" to 0.6f, "sustain" to 3f, "pick" to 0.55f, "release" to 0.25f, "stereo" to 0.3f),
+                of(t, "st_nylon", R.string.stp_nylon, "bright" to 0.4f, "sustain" to 2f, "pick" to 0.25f, "release" to 0.2f, "stereo" to 0.3f),
+                of(t, "st_harp", R.string.stp_harp, "bright" to 0.75f, "sustain" to 6f, "pick" to 0.35f, "release" to 2.5f, "stereo" to 0.6f),
+                of(t, "st_koto", R.string.stp_koto, "bright" to 0.85f, "sustain" to 1.6f, "pick" to 0.9f, "release" to 0.3f, "stereo" to 0.4f),
+                of(t, "st_harpsi", R.string.stp_harpsi, "bright" to 1f, "sustain" to 2.5f, "pick" to 1f, "release" to 0.15f, "stereo" to 0.5f),
+                of(t, "st_muted", R.string.stp_muted, "bright" to 0.3f, "sustain" to 0.35f, "pick" to 0.6f, "release" to 0.08f, "stereo" to 0.2f),
+                of(t, "st_bass", R.string.stp_bass, "bright" to 0.45f, "sustain" to 2f, "pick" to 0.4f, "release" to 0.12f, "octave" to -1f, "stereo" to 0f),
+            )
+        },
+        Flanger.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "flg_classic", R.string.fxp_classic),
+                of(t, "flg_soft", R.string.fxp_soft, "rate" to 0.6f, "depth" to 0.5f, "delay" to 6f, "feedback" to 0.1f, "mix" to 0.4f),
+                of(t, "flg_jet", R.string.fxp_jet, "rate" to 0.1f, "depth" to 1f, "delay" to 4f, "feedback" to 0.9f, "mix" to 0.5f),
+                of(t, "flg_metal", R.string.fxp_metallic, "rate" to 0.5f, "depth" to 0.2f, "delay" to 1f, "feedback" to 0.92f, "mix" to 0.5f),
+            )
+        },
+        Tremolo.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "trm_soft", R.string.fxp_soft_tremolo, "sync" to 0f, "rate" to 5f, "depth" to 0.4f, "shape" to 0f, "stereo" to 0f),
+                of(t, "trm_chop", R.string.fxp_chop, "sync" to 3f, "depth" to 1f, "shape" to 0.9f, "stereo" to 0f),
+                of(t, "trm_pan", R.string.fxp_auto_pan, "sync" to 2f, "depth" to 0.8f, "shape" to 0f, "stereo" to 1f),
+                of(t, "trm_heli", R.string.fxp_helicopter, "sync" to 5f, "depth" to 0.9f, "shape" to 0.6f, "stereo" to 0f),
+            )
+        },
+        StereoWidth.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "stw_wider", R.string.fxp_wider, "width" to 1.5f, "haas" to 0f, "monoBelow" to 120f),
+                of(t, "stw_spread", R.string.fxp_spread_mono, "width" to 1.2f, "haas" to 12f, "monoBelow" to 150f),
+                of(t, "stw_bass", R.string.fxp_bass_middle, "width" to 1f, "haas" to 0f, "monoBelow" to 200f),
+                of(t, "stw_mono", R.string.fxp_mono, "width" to 0f, "haas" to 0f, "monoBelow" to 20f),
+            )
+        },
+        Tape.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "tap_warm", R.string.fxp_warm_tape, "wow" to 0.15f, "flutter" to 0.1f, "drive" to 0.35f, "tone" to 0.75f),
+                of(t, "tap_cassette", R.string.fxp_cassette, "wow" to 0.5f, "flutter" to 0.45f, "drive" to 0.5f, "tone" to 0.35f),
+                of(t, "tap_seasick", R.string.fxp_seasick, "wow" to 0.9f, "flutter" to 0.2f, "drive" to 0.2f, "tone" to 0.6f),
+                of(t, "tap_hot", R.string.fxp_hot, "wow" to 0.05f, "flutter" to 0.05f, "drive" to 0.9f, "tone" to 0.6f),
             )
         },
         Limiter.TYPE.let { t ->

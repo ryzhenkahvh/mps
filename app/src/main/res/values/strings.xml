@@ -173,7 +173,6 @@
     <string name="tab_channel">Channel</string>
     <string name="preset">Preset</string>
     <string name="preset_custom">Custom</string>
-    <string name="sample">Sample</string>
     <string name="sample_none">No audio loaded yet. Load a file from the phone.</string>
     <string name="sample_file">Audio file</string>
     <string name="load_file">Load file</string>
@@ -198,7 +197,7 @@
     <string name="sound_delete_text">“%s” will be removed from My sounds. Projects that already use it keep their copy.</string>
     <string name="sound_keep">Keep in My sounds</string>
     <string name="msg_sounds_added">Added to My sounds</string>
-    <string name="msg_sounds_some_failed">Added, but %d files could not be read</string>
+    <string name="msg_sounds_some_failed">Added. Files that could not be read: %d</string>
     <string name="msg_sound_saved">Saved to My sounds</string>
     <string name="msg_name_taken">This name is already taken</string>
     <string name="presets_of">Presets: %s</string>
@@ -276,7 +275,7 @@
     <string name="export_go">Export</string>
     <string name="stems_folder">tracks</string>
     <string name="export_done_stems_title">Tracks saved</string>
-    <string name="export_done_stems">%1$d files are in the folder Music/MPS/%2$s.</string>
+    <string name="export_done_stems">Files saved: %1$d. They are in the folder Music/MPS/%2$s.</string>
     <string name="track_length">Length %s</string>
     <string name="cd_time">Time %s</string>
     <string name="export_song">The whole playlist will be exported.</string>
@@ -334,7 +333,7 @@
     <string name="about_mp3">MP3 files are written by jump3r, a Java port of the LAME encoder (GNU LGPL 2.1).</string>
     <string name="about_plugins">All instruments and effects are built in. Android has no system-wide plugin standard like VST on desktop; support for the open AAP format (Audio Plugins for Android) is planned.</string>
     <string name="help_1_title">Channels</string>
-    <string name="help_1_text">Each channel is one instrument: a drum, a synth, a sampler or an audio track. Tap its name to pick another sound, add effects or rename it.</string>
+    <string name="help_1_text">Each channel is one instrument: drums, a synth, an FM synth, a plucked string, a sampler or an audio track. Tap its name to pick another sound, add effects or rename it.</string>
     <string name="help_2_title">Patterns</string>
     <string name="help_2_text">A pattern is a short loop. Tap the squares to place drum hits. For melodies open the Notes tab and draw notes on the piano roll.</string>
     <string name="help_3_title">Playlist</string>
@@ -343,8 +342,10 @@
     <string name="help_4_text">Set the volume and panning of every channel and add effects: reverb, delay, compressor, equalizer and more.</string>
     <string name="help_auto_title">Automation</string>
     <string name="help_auto_text">Make the sound change over time: on the Notes tab open the menu, turn on Automation, pick a knob and draw its curve. The knob follows the curve while the pattern plays.</string>
+    <string name="help_lib_title">Your sounds and presets</string>
+    <string name="help_lib_text">Add your own audio files to “My sounds” in the studio menu and use them in any project: as an instrument or as a clip in the playlist. Every instrument and effect comes with ready-made presets, and your own settings can be saved as a preset too.</string>
     <string name="help_5_title">Recording</string>
-    <string name="help_5_text">Press ● to record: either notes played on the keys and pads, or your voice from the microphone.</string>
+    <string name="help_5_text">Press ● to record: either notes played on the keys and pads, or your voice from the microphone. While the microphone records, a red bar shows the time and the level; the finished take appears on a free track of the playlist.</string>
     <string name="help_6_title">Export</string>
     <string name="help_6_text">When the track is ready, open the menu and export it as WAV, MP3 or M4A - or every channel as a separate WAV. The files appear in the Music/MPS folder. “Save project to a file” puts the project with all its sounds into one .mps file that opens on another phone.</string>
     <string name="unit_hz">%s Hz</string>
