@@ -331,7 +331,6 @@
     <string name="settings_about">About</string>
     <string name="about_version">Version %s</string>
     <string name="about_mp3">MP3 files are written by jump3r, a Java port of the LAME encoder (GNU LGPL 2.1).</string>
-    <string name="about_plugins">All instruments and effects are built in. Android has no system-wide plugin standard like VST on desktop; support for the open AAP format (Audio Plugins for Android) is planned.</string>
     <string name="community">Community</string>
     <string name="cloud_menu_desc">Sounds, presets, projects and tracks shared by other people</string>
     <string name="cloud_all">All</string>

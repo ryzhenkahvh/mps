@@ -156,7 +156,6 @@ fun SettingsSheet(studio: Studio, onDismiss: () -> Unit, onLanguageChanged: () -
             "MPS · " + stringResource(R.string.about_version, version), Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             color = c.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
         )
-        Text(stringResource(R.string.about_plugins), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp)
         Text(stringResource(R.string.about_mp3), Modifier.padding(horizontal = 20.dp, vertical = 4.dp), color = c.textDim, fontSize = 13.sp, lineHeight = 18.sp)
         if (Links.available) {
             SheetItem(

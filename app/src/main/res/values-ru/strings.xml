@@ -330,7 +330,6 @@
     <string name="settings_about">О приложении</string>
     <string name="about_version">Версия %s</string>
     <string name="about_mp3">MP3-файлы записывает jump3r - перенос кодировщика LAME на Java (GNU LGPL 2.1).</string>
-    <string name="about_plugins">Все инструменты и эффекты встроены. В Android нет общесистемного стандарта плагинов, как VST на компьютере; поддержка открытого формата AAP (Audio Plugins for Android) запланирована.</string>
     <string name="community">Сообщество</string>
     <string name="cloud_menu_desc">Звуки, пресеты, проекты и треки других людей</string>
     <string name="cloud_all">Всё</string>
