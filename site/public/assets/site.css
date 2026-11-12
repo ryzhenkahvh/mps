@@ -260,8 +260,12 @@ meter::-moz-meter-bar { background: var(--accent); border-radius: 6px; }
   .card p { font-size: 0.95rem; line-height: 1.5; }
   .scale { gap: 3px; }
   .scale span { min-height: 44px; border-radius: 9px; font-size: 0.95rem; }
-  .bars th { width: auto; }
-  .bars .bar { display: none; }
+  .bars, .bars tbody { display: block; }
+  .bars tr { display: grid; grid-template-columns: minmax(0, 1fr) 3em 3.4em; align-items: center; padding: 8px 0; }
+  .bars th, .bars td { padding: 0; width: auto; }
+  .bars .num { width: auto; }
+  .bars .bar { grid-column: 1 / -1; width: auto; padding-top: 6px; }
+  .legend li { grid-template-columns: 14px minmax(0, 1fr) auto 3em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -273,3 +277,42 @@ meter::-moz-meter-bar { background: var(--accent); border-radius: 6px; }
 .other input { padding: 12px 16px; }
 #form-error { position: sticky; top: 76px; z-index: 5; background: #2b1217; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55); }
 .form + .note { margin-top: 20px; }
+
+/* charts of the closed page */
+.period { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.period a { padding: 8px 16px; border: 1px solid var(--line-strong); border-radius: 999px; text-decoration: none; color: var(--dim); font-weight: 650; font-size: 0.95rem; }
+.period a[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.charts { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); align-items: start; }
+.charts.small { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+.chart-card { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 14px; min-width: 0; }
+.chart-card figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 10px; }
+.chart-card figcaption b { font-size: 1.05rem; }
+.chart-card figcaption span { color: var(--dim); font-size: 0.9rem; }
+.chart { display: block; width: 100%; height: auto; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .tick { fill: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chart .value { fill: var(--text); font-size: 12px; font-weight: 650; }
+.chart .line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.c1 { fill: #ff4f96; } .c2 { fill: #45d0c3; } .c3 { fill: #a78bfa; } .c4 { fill: #f5b942; } .c5 { fill: #6ea8ff; } .c6 { fill: #8b7f88; }
+.l1 { stroke: #ff4f96; } .l2 { stroke: #45d0c3; } .l3 { stroke: #a78bfa; }
+.donut-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+.donut { width: 132px; height: 132px; flex: none; }
+.donut .ring { fill: none; stroke: var(--surface-2); stroke-width: 6; }
+.donut .seg { fill: none; stroke-width: 6; }
+.donut .total { fill: var(--text); font-size: 8px; font-weight: 700; }
+.s1 { stroke: #ff4f96; } .s2 { stroke: #45d0c3; } .s3 { stroke: #a78bfa; } .s4 { stroke: #f5b942; } .s5 { stroke: #6ea8ff; } .s6 { stroke: #8b7f88; }
+.legend { list-style: none; margin: 0; padding: 0; flex: 1 1 200px; min-width: 0; display: grid; gap: 6px; }
+.legend li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto 3.2em; align-items: center; gap: 10px; font-size: 0.95rem; }
+.legend span { overflow-wrap: anywhere; }
+.legend b { font-variant-numeric: tabular-nums; }
+.legend small { color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+.legend.inline { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 8px; }
+.legend.inline li { display: flex; gap: 8px; }
+.key { width: 12px; height: 12px; border-radius: 4px; display: block; }
+.k1 { background: #ff4f96; } .k2 { background: #45d0c3; } .k3 { background: #a78bfa; } .k4 { background: #f5b942; } .k5 { background: #6ea8ff; } .k6 { background: #8b7f88; }
+.numbers { margin-top: 8px; color: var(--dim); font-size: 0.92rem; }
+.numbers summary { cursor: pointer; padding: 6px 0; }
+.numbers table { width: 100%; border-collapse: collapse; }
+.numbers th { text-align: left; font-weight: 400; padding: 4px 0; }
+.numbers td { text-align: right; font-variant-numeric: tabular-nums; padding: 4px 0; }
+.numbers tr { border-bottom: 1px solid var(--line); }

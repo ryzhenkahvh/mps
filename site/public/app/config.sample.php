@@ -28,6 +28,8 @@ return [
     // ],
 
     'site_url' => 'https://mp-studio.online',
+    // the days of the charts on /admin/ begin at midnight of this time zone
+    'timezone' => 'Europe/Minsk',
     'support_email' => 'support@mp-studio.online',
     // the Telegram account of the project, without "@"; '' hides the links to it
     'telegram' => 'mobprodstudio',

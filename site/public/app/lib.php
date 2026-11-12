@@ -161,9 +161,20 @@ final class Site
             'url' => '/download/' . rawurlencode($name),
             'version' => $version,
             'bytes' => filesize($file),
-            'megabytes' => number_format(filesize($file) / 1048576, 0, '.', ''),
+            'megabytes' => self::megabytes((int) filesize($file)),
             'date' => date('Y-m-d', filemtime($file)),
         ];
+    }
+
+    /**
+     * The size of a file the way a phone shows it after the download: a megabyte is a million bytes
+     * (not 1 048 576), with one digit after the point, written the way the language of the page writes it:
+     * 24618964 bytes are «24,6» in Russian and "24.6" in English.
+     */
+    public static function megabytes(int $bytes): string
+    {
+        $text = number_format($bytes / 1000000, 1, self::$lang === 'en' ? '.' : ',', '');
+        return preg_replace('/[.,]0$/', '', $text) ?? $text;
     }
 
     /**

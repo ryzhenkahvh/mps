@@ -279,7 +279,7 @@ if ($export === 'survey' || $export === 'feedback') {
     return;
 }
 
-$tab = in_array($_GET['tab'] ?? '', ['survey', 'feedback', 'settings'], true) ? $_GET['tab'] : 'summary';
+$tab = in_array($_GET['tab'] ?? '', ['stats', 'survey', 'feedback', 'settings'], true) ? $_GET['tab'] : 'summary';
 $count = static function (string $sql, array $args = []) use ($pdo): int {
     $st = $pdo->prepare($sql);
     $st->execute($args);
@@ -306,11 +306,19 @@ admin_page('Ответы и отзывы', static function () use ($pdo, $questi
     </ul>
     <nav class="tabs" aria-label="Разделы">
       <a href="/admin/"<?= $tab === 'summary' ? ' aria-current="page"' : '' ?>>Сводка</a>
+      <a href="/admin/?tab=stats"<?= $tab === 'stats' ? ' aria-current="page"' : '' ?>>Статистика</a>
       <a href="/admin/?tab=survey"<?= $tab === 'survey' ? ' aria-current="page"' : '' ?>>Анкеты</a>
       <a href="/admin/?tab=feedback"<?= $tab === 'feedback' ? ' aria-current="page"' : '' ?>>Отзывы</a>
       <a href="/admin/?tab=settings"<?= $tab === 'settings' ? ' aria-current="page"' : '' ?>>Настройки</a>
     </nav>
     <?php
+    if ($tab === 'stats') {
+        // charts: another view of the same rows, nothing is written
+        require_once __DIR__ . '/../charts.php';
+        $days = (int) ($_GET['days'] ?? 30);
+        echo stats_view($pdo, in_array($days, [7, 30, 90, 365], true) ? $days : 30, $kinds);
+        return;
+    }
     if ($tab === 'summary') {
         $rows = $pdo->query('SELECT answers, source FROM mps_responses WHERE kind = \'survey\'')->fetchAll();
         $n = count($rows);

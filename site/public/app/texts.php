@@ -21,7 +21,7 @@ return [
         'foot_line' => 'Музыкальная студия для Android.',
 
         'home_title' => 'MPS — музыкальная студия в кармане',
-        'home_description' => 'MPS — музыкальная студия для Android: биты по шагам, пианоролл, запись голоса, микшер с эффектами, экспорт в MP3 и WAV, сообщество со звуками и треками. Сейчас доступна бета-версия, пока она бесплатна.',
+        'home_description' => 'MPS — музыкальная студия для Android: биты по шагам, пианоролл, запись голоса, микшер с эффектами, экспорт в MP3 и WAV, сообщество со звуками и треками. Сейчас доступна бета-версия.',
         'hero_h1' => 'Музыкальная студия в кармане',
         'hero_lead' => 'MPS — приложение для Android. Соберите бит по шагам, сыграйте мелодию, запишите голос и сведите трек — прямо в телефоне. Сейчас доступна бета-версия: пока она бесплатна.',
         'hero_download' => 'Скачать для Android',
@@ -34,8 +34,8 @@ return [
         'features_h2' => 'Что внутри',
         'features' => [
             ['steps', 'Биты по шагам', 'Пошаговый секвенсор: нажали на клетку — появился удар, провели пальцем — нарисовали несколько. Метроном, tap tempo и свинг.'],
-            ['piano', 'Пианоролл', 'Мелодии и аккорды рисуются пальцем. Сетка от 1/4 до 1/32, у каждой ноты своя длина, громкость и панорама. Тональность трека подсвечена прямо в сетке.'],
-            ['playlist', 'Плейлист', 'Трек собирается из паттернов и аудиозаписей: до 16 дорожек, клипы можно двигать, растягивать и резать.'],
+            ['piano', 'Пианоролл и генератор', 'Мелодии и аккорды рисуются пальцем, тональность трека подсвечена прямо в сетке. Нет идей — генератор сам напишет аккорды, бас, мелодию или арпеджио под то, что уже звучит.'],
+            ['playlist', 'Плейлист и аранжировка', 'Трек собирается из паттернов и аудиозаписей: до 16 дорожек, клипы можно двигать, растягивать и резать. Аранжировка по шаблону сама раскладывает луп в целый трек, слой за слоем.'],
             ['mixer', 'Микшер и 24 эффекта', 'Эквалайзер, компрессор, реверб, дилэй, коррекция тона для голоса, 3D-звук для наушников, half-time, OTT и другие. Ручки можно автоматизировать.'],
             ['synth', 'Инструменты', 'Ударные, синтезатор, FM-синтезатор, струна и сэмплер. Десятки готовых пресетов и место для своих.'],
             ['mic', 'Запись', 'Голос и живые инструменты — через микрофон, ноты — с экранных клавиш, пэдов или MIDI-клавиатуры.'],
@@ -162,7 +162,7 @@ return [
         'foot_line' => 'A music studio for Android.',
 
         'home_title' => 'MPS — a music studio in your pocket',
-        'home_description' => 'MPS is a music studio for Android: step-sequenced beats, piano roll, voice recording, a mixer with effects, MP3 and WAV export, and a community of sounds and tracks. Now in beta, and free while the beta lasts.',
+        'home_description' => 'MPS is a music studio for Android: step-sequenced beats, piano roll, voice recording, a mixer with effects, MP3 and WAV export, and a community of sounds and tracks. Now in beta.',
         'hero_h1' => 'A music studio in your pocket',
         'hero_lead' => 'MPS is an app for Android. Build a beat step by step, play a melody, record your voice and mix the track, all on your phone. Now in beta: free while the beta lasts.',
         'hero_download' => 'Download for Android',
@@ -175,8 +175,8 @@ return [
         'features_h2' => 'What is inside',
         'features' => [
             ['steps', 'Beats in steps', 'A step sequencer: tap a cell for a hit, drag a finger to draw several. Metronome, tap tempo and swing.'],
-            ['piano', 'Piano roll', 'Draw melodies and chords with a finger. A grid from 1/4 to 1/32; every note has its own length, loudness and panning. The key of the song is marked right in the grid.'],
-            ['playlist', 'Playlist', 'A track is built from patterns and audio recordings: up to 16 tracks, and clips can be moved, stretched and cut.'],
+            ['piano', 'Piano roll and generator', 'Draw melodies and chords with a finger; the key of the song is marked right in the grid. Out of ideas? The generator writes chords, a bass line, a melody or an arpeggio to fit what already plays.'],
+            ['playlist', 'Playlist and arrangement', 'A track is built from patterns and audio recordings: up to 16 tracks, and clips can be moved, stretched and cut. Arrangement by template lays a loop out as a whole track, layer by layer.'],
             ['mixer', 'Mixer and 24 effects', 'Equaliser, compressor, reverb, delay, pitch correction for vocals, 3D sound for headphones, half-time, OTT and more. The knobs can be automated.'],
             ['synth', 'Instruments', 'Drums, a synthesizer, an FM synthesizer, a plucked string and a sampler. Dozens of presets, and room for your own.'],
             ['mic', 'Recording', 'Voice and live instruments through the microphone; notes from the on-screen keys, pads or a MIDI keyboard.'],
