@@ -58,6 +58,10 @@ class Prefs(context: Context) {
     var keepScreenOn by mutableStateOf(sp.getBoolean("keepScreenOn", true))
         private set
 
+    /** The logo video when the app starts. */
+    var intro by mutableStateOf(sp.getBoolean("intro", true))
+        private set
+
     /** Quiet microphone takes are made louder automatically. */
     var autoLevel by mutableStateOf(sp.getBoolean("autoLevel", true))
         private set
@@ -88,6 +92,7 @@ class Prefs(context: Context) {
     fun updateCountIn(value: Boolean) { countIn = value; sp.edit().putBoolean("countIn", value).apply() }
     fun updateQuantize(value: Boolean) { quantize = value; sp.edit().putBoolean("quantize", value).apply() }
     fun updateKeepScreenOn(value: Boolean) { keepScreenOn = value; sp.edit().putBoolean("keepScreenOn", value).apply() }
+    fun updateIntro(value: Boolean) { intro = value; sp.edit().putBoolean("intro", value).apply() }
     fun updateRecordOffset(value: Int) { recordOffsetMs = value; sp.edit().putInt("recordOffsetMs", value).apply() }
     fun updateLastProject(value: String?) { lastProject = value; sp.edit().putString("lastProject", value).apply() }
 

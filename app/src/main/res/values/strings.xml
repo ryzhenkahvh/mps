@@ -330,6 +330,11 @@
     <string name="theme_light">White and pink</string>
     <string name="theme_dark">Black and pink</string>
     <string name="theme_system">Same as system</string>
+    <string name="set_intro">Intro at launch</string>
+    <string name="set_intro_desc">The logo video shown when the app starts. A tap skips it.</string>
+    <string name="intro_label">MPS intro</string>
+    <string name="intro_skip">Tap to skip</string>
+    <string name="intro_skip_action">Skip</string>
     <string name="settings_language">Language</string>
     <string name="lang_system">System</string>
     <string name="settings_sound">Sound</string>

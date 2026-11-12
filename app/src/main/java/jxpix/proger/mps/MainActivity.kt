@@ -22,6 +22,8 @@ import jxpix.proger.mps.data.ThemeMode
 import jxpix.proger.mps.engine.EngineWarmup
 import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.ui.App
+import jxpix.proger.mps.ui.Intro
+import jxpix.proger.mps.ui.IntroOverlay
 import jxpix.proger.mps.ui.theme.MpsTheme
 import java.util.Locale
 
@@ -40,7 +42,16 @@ class MainActivity : ComponentActivity() {
         // the volume buttons always control the music volume while the app is open
         volumeControlStream = AudioManager.STREAM_MUSIC
 
+        // asked before the app opens its own sound output, which would count as "something is playing"
+        val quiet = Intro.quiet(getSystemService(AudioManager::class.java))
         val studio = studio
+        // the logo video: once per start of the app, not when Android brings the app back and not when a link opens it
+        Intro.decide(
+            enabled = studio.prefs.intro,
+            fresh = savedInstanceState == null,
+            fromLauncher = intent?.action == Intent.ACTION_MAIN && intent?.data == null,
+            muted = quiet,
+        )
         applyOrientation(studio.prefs.orientation)
         // compile the sound engine in the background while the user is still looking at the start screen
         EngineWarmup.start(studio.output.sampleRate, studio.output.framesPerBurst)
@@ -66,6 +77,10 @@ class MainActivity : ComponentActivity() {
             }
             MpsTheme(dark) {
                 App(studio, onLanguageChanged = { recreate() })
+            }
+            // over the app, which gets ready underneath in the meantime
+            if (Intro.pending) {
+                IntroOverlay(Intro.muted, Intro.positionMs, onPosition = { if (Intro.pending) Intro.positionMs = it }, onDone = { Intro.done() })
             }
         }
         handleLink(intent)
@@ -94,7 +109,17 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         // A music editor has no reason to make sound (or use the battery) in the background.
-        if (!isChangingConfigurations) studio.stopAudio()
+        if (!isChangingConfigurations) {
+            studio.stopAudio()
+            // whoever left during the logo video comes back to the app, not to the rest of the video
+            Intro.done()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // closed by the user, not rebuilt: the next start opens with the logo video again
+        if (isFinishing) Intro.closed()
     }
 
     /**

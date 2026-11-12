@@ -119,6 +119,8 @@ MPS — приложение для Android, в котором можно соб
   в настройках можно включить автоповорот или вертикальный режим.
 - Шаблоны (House, Trap, Lo-fi) и демо-трек, который можно открыть и разобрать.
 - Две темы — бело-розовая и чёрно-розовая; русский и английский языки, переключаются в настройках.
+- Заставка при запуске: видео с логотипом ([исходник](docs/logo-intro.mp4)). Пропускается нажатием, отключается
+  в настройках; на телефоне в беззвучном режиме и поверх чужой музыки идёт без звука.
 
 ## Низкая задержка звука
 
@@ -163,6 +165,9 @@ MPS — приложение для Android, в котором можно соб
   добавление новых инструментов и эффектов;
 - запись с микрофона пройдена целиком на подставном микрофоне: отсчёт, уровень, выравнивание громкости,
   появление клипа в плейлисте и его воспроизведение;
+- заставка пройдена на подставном проигрывателе: пропуск нажатием и кнопкой «Назад», выключение в настройках,
+  тишина в беззвучном режиме, а видео, которое не запускается, приложение не задерживает. Само видео на экране
+  вне устройства увидеть нельзя — это не проверено;
 - MP3-файлы, записанные приложением, прочитаны сторонним декодером (mpg123) и сверены с исходным звуком;
   сумма отдельных дорожек совпадает с миксом без мастер-обработки.
 
@@ -219,7 +224,8 @@ per-pattern automation curves for any channel setting and song-long curves for a
 undo / redo, a community catalogue for sharing sounds, presets,
 projects and tracks (profiles, ratings, reports; backed by a free Supabase project, see `supabase/`),
 WAV, MP3 and AAC export, per-channel stem export (WAV), self-contained project files (`.mps`) for backup and
-moving between phones, a landscape-first layout, light and dark pink themes, and English and Russian interfaces.
+moving between phones, a landscape-first layout, light and dark pink themes, a logo intro video at launch
+(a tap skips it, the settings switch it off), and English and Russian interfaces.
 Sign-up is confirmed with a six-digit code sent by e-mail; a forgotten password is changed the same way.
 
 The website ([mp-studio.online](https://mp-studio.online): landing page, APK download, a survey, a feedback form

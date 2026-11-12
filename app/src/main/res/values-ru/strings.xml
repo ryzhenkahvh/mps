@@ -329,6 +329,11 @@
     <string name="theme_light">Бело-розовая</string>
     <string name="theme_dark">Чёрно-розовая</string>
     <string name="theme_system">Как в системе</string>
+    <string name="set_intro">Заставка при запуске</string>
+    <string name="set_intro_desc">Видео с логотипом при запуске приложения. Пропускается нажатием.</string>
+    <string name="intro_label">Заставка MPS</string>
+    <string name="intro_skip">Нажмите, чтобы пропустить</string>
+    <string name="intro_skip_action">Пропустить</string>
     <string name="settings_language">Язык</string>
     <string name="lang_system">Системный</string>
     <string name="settings_sound">Звук</string>

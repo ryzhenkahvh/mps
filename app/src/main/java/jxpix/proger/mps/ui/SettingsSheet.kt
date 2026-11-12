@@ -73,6 +73,7 @@ fun SettingsSheet(studio: Studio, onDismiss: () -> Unit, onLanguageChanged: () -
         Option(stringResource(R.string.theme_light), prefs.theme == ThemeMode.LIGHT, Ic.Light) { prefs.updateTheme(ThemeMode.LIGHT) }
         Option(stringResource(R.string.theme_dark), prefs.theme == ThemeMode.DARK, Ic.Dark) { prefs.updateTheme(ThemeMode.DARK) }
         Option(stringResource(R.string.theme_system), prefs.theme == ThemeMode.SYSTEM, Ic.Settings) { prefs.updateTheme(ThemeMode.SYSTEM) }
+        SwitchRow(stringResource(R.string.set_intro), stringResource(R.string.set_intro_desc), prefs.intro) { prefs.updateIntro(it) }
 
         // ---- language
         SheetDivider()
