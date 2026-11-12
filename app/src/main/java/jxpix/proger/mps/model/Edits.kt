@@ -336,6 +336,23 @@ fun Project.stemOf(channelId: Int): Project = copy(
 )
 
 /**
+ * The pattern played twice in a row as one pattern of twice the length: its notes and curves
+ * are repeated. Unchanged when the result would be longer than a pattern may be.
+ */
+fun Project.doublePattern(patternId: Int): Project {
+    val pattern = pattern(patternId) ?: return this
+    if (pattern.bars * 2 > MAX_PATTERN_BARS) return this
+    val length = patternLength(pattern)
+    return updatePattern(patternId) { pat ->
+        pat.copy(
+            bars = pat.bars * 2,
+            notes = pat.notes.mapValues { (_, list) -> list + list.map { it.copy(start = it.start + length) } },
+            automation = pat.automation.map { lane -> lane.copy(points = repeatPoints(lane.points, length)) },
+        )
+    }
+}
+
+/**
  * The curve played twice in a row, for a pattern that is doubled from [length] ticks: the second
  * pass starts with the value the curve had at its very beginning, just like a loop would.
  */

@@ -71,7 +71,7 @@ import jxpix.proger.mps.model.Note
 import jxpix.proger.mps.model.Pattern
 import jxpix.proger.mps.model.isBlackKey
 import jxpix.proger.mps.model.noteName
-import jxpix.proger.mps.model.repeatPoints
+import jxpix.proger.mps.model.doublePattern
 import jxpix.proger.mps.model.setNotes
 import jxpix.proger.mps.model.updatePattern
 import jxpix.proger.mps.studio.Studio
@@ -117,6 +117,7 @@ fun PianoRollTab(studio: Studio) {
     var snapSheet by remember { mutableStateOf(false) }
     var moreSheet by remember { mutableStateOf(false) }
     var keySheet by remember { mutableStateOf(false) }
+    var generatorSheet by remember { mutableStateOf(false) }
     val res = LocalResources.current
 
     val notes = if (channel == null) emptyList() else pattern.notesOf(channel.id)
@@ -232,9 +233,15 @@ fun PianoRollTab(studio: Studio) {
         }
     }
     if (keySheet) KeySheet(studio) { keySheet = false }
+    if (generatorSheet) GeneratorSheet(studio) { generatorSheet = false }
     if (moreSheet && channel != null) {
         val view = ui.roll
         AppSheet({ moreSheet = false }, title = channel.name) {
+            SheetItem(stringResource(R.string.gen_title), {
+                moreSheet = false
+                generatorSheet = true
+            }, icon = Ic.Bolt, description = stringResource(R.string.gen_desc))
+            SheetDivider()
             SheetItem(stringResource(R.string.select_all), {
                 ui.rollSelection = notes.toSet()
                 moreSheet = false
@@ -257,16 +264,7 @@ fun PianoRollTab(studio: Studio) {
                 moreSheet = false
             }, icon = Ic.Magic, enabled = notes.isNotEmpty())
             SheetItem(stringResource(R.string.double_length), {
-                studio.edit { p ->
-                    val length = p.patternLength(pattern)
-                    p.updatePattern(pattern.id) { pat ->
-                        pat.copy(
-                            bars = pat.bars * 2,
-                            notes = pat.notes.mapValues { (_, list) -> list + list.map { it.copy(start = it.start + length) } },
-                            automation = pat.automation.map { lane -> lane.copy(points = repeatPoints(lane.points, length)) },
-                        )
-                    }
-                }
+                studio.edit { p -> p.doublePattern(pattern.id) }
                 moreSheet = false
             }, icon = Ic.Duplicate, enabled = pattern.bars * 2 <= MAX_PATTERN_BARS)
             SheetItem(stringResource(R.string.clear_notes), {

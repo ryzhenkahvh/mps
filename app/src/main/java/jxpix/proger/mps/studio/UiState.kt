@@ -3,6 +3,7 @@ package jxpix.proger.mps.studio
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jxpix.proger.mps.engine.TICKS_PER_STEP
@@ -20,6 +21,31 @@ class GridView {
 
     /** Horizontal zoom; 0 until the view has been laid out for the first time. */
     var pxPerTick by mutableFloatStateOf(0f)
+}
+
+/** The choices made in the generator of notes; kept so that opening it again continues where one stopped. */
+class GeneratorState {
+    /** One of the kinds of [jxpix.proger.mps.music.Generator]: chords, melody, bass, arpeggio. */
+    var kind by mutableIntStateOf(0)
+
+    /** -1 = the chords heard in the pattern, otherwise the number of a progression of the key. */
+    var progression by mutableIntStateOf(-1)
+
+    /** How long a chord of a progression lasts: 0 = half a bar, 1 = a bar, 2 = two bars. */
+    var chordLength by mutableIntStateOf(1)
+    var chordStyle by mutableIntStateOf(0)
+    var bassStyle by mutableIntStateOf(2)
+    var density by mutableIntStateOf(1)
+    var sevenths by mutableStateOf(false)
+
+    /** An arpeggio is made of the notes the channel holds (true) or of the chords of the song. */
+    var fromNotes by mutableStateOf(true)
+    var order by mutableIntStateOf(0)
+    var step by mutableIntStateOf(1)
+    var octaves by mutableIntStateOf(1)
+
+    /** Changes with every "another one". */
+    var seed by mutableLongStateOf(1L)
 }
 
 /**
@@ -69,6 +95,12 @@ class UiState {
     var songLaneChannel by mutableIntStateOf(0)
     var songLaneDevice by mutableIntStateOf(STRIP_DEVICE)
     var songLaneParam by mutableStateOf(PARAM_PAN)
+
+    // arrangement by template: the shape chosen last and whether the short version was wanted
+    var arrangeTemplate by mutableIntStateOf(0)
+    var arrangeShort by mutableStateOf(false)
+
+    val generator = GeneratorState()
 
     /** Ask the playlist to scroll this track into view (-1 = nothing to do); the playlist resets it. */
     var revealTrack by mutableIntStateOf(-1)

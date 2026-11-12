@@ -249,6 +249,7 @@ fun HelpSheet(onDismiss: () -> Unit) {
         Triple(Ic.Mixer, R.string.help_4_title, R.string.help_4_text),
         Triple(Ic.Curve, R.string.help_auto_title, R.string.help_auto_text),
         Triple(Ic.Piano, R.string.help_key_title, R.string.help_key_text),
+        Triple(Ic.Bolt, R.string.help_gen_title, R.string.help_gen_text),
         Triple(Ic.Library, R.string.help_lib_title, R.string.help_lib_text),
         Triple(Ic.People, R.string.help_cloud_title, R.string.help_cloud_text),
         Triple(Ic.Mic, R.string.help_5_title, R.string.help_5_text),

@@ -136,6 +136,7 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     var audioSheet by remember { mutableStateOf(false) }
     var moreSheet by remember { mutableStateOf(false) }
     var soundsSheet by remember { mutableStateOf(false) }
+    var arrangeSheet by remember { mutableStateOf(false) }
     val selected = p.clip(ui.selectedClip)
     val res = LocalResources.current
 
@@ -175,10 +176,17 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Timeline(studio, Modifier.fillMaxSize())
             if (p.clips.isEmpty() && pattern != null) {
-                Text(
-                    stringResource(R.string.playlist_empty, pattern.name), Modifier.align(Alignment.Center).padding(start = 48.dp, end = 24.dp),
-                    color = c.textDim, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
-                )
+                Column(Modifier.align(Alignment.Center).padding(start = 48.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        stringResource(R.string.playlist_empty, pattern.name), color = c.textDim, fontSize = 14.sp, lineHeight = 20.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    // a loop with notes in it can be laid out as a whole track at once
+                    if (!pattern.isEmpty) {
+                        Spacer(Modifier.height(14.dp))
+                        Chip(stringResource(R.string.arr_title), { arrangeSheet = true }, icon = Ic.Layers, maxWidth = 280.dp)
+                    }
+                }
             }
             if (studio.loadingSamples > 0) {
                 Text(
@@ -197,6 +205,7 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     }
 
     if (patternSheet) PatternSheet(studio) { patternSheet = false }
+    if (arrangeSheet) ArrangeSheet(studio) { arrangeSheet = false }
     if (audioSheet) {
         AppSheet({ audioSheet = false }, title = stringResource(R.string.add_audio)) {
             SheetItem(stringResource(R.string.record_mic), {
@@ -221,6 +230,11 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     if (moreSheet) {
         val view = ui.playlist
         AppSheet({ moreSheet = false }, title = stringResource(R.string.tab_playlist)) {
+            SheetItem(stringResource(R.string.arr_title), {
+                moreSheet = false
+                arrangeSheet = true
+            }, icon = Ic.Layers, description = stringResource(R.string.arr_menu_desc))
+            SheetDivider()
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.tracks_count, p.tracks), Modifier.weight(1f), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 val lastUsed = p.clips.any { it.track == p.tracks - 1 }
