@@ -41,8 +41,8 @@ with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     for rel in names:
         path = os.path.join(root, rel)
         info = zipfile.ZipInfo(rel, time.gmtime(os.path.getmtime(path))[:6])
-        # an APK and a PNG are compressed already
-        info.compress_type = zipfile.ZIP_STORED if rel.endswith(('.apk', '.png')) else zipfile.ZIP_DEFLATED
+        # an APK, a picture and a video are compressed already
+        info.compress_type = zipfile.ZIP_STORED if rel.endswith(('.apk', '.png', '.jpg', '.mp4')) else zipfile.ZIP_DEFLATED
         info.external_attr = 0o100644 << 16
         with open(path, 'rb') as f:
             z.writestr(info, f.read(), compresslevel=9)

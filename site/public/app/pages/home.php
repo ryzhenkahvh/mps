@@ -125,6 +125,25 @@ layout(t('home_title'), t('home_description'), static function () use ($apk, $fa
     </div>
   </div>
 </section>
+<section class="section outro">
+  <div class="wrap narrow">
+    <!-- the logo animation the app opens with: silent here, played once when it comes into view -->
+    <video class="logo-clip" muted playsinline preload="none" width="960" height="480" data-play-in-view
+           poster="<?= e(Site::asset('intro.jpg')) ?>" aria-label="<?= e(t('intro_alt')) ?>">
+      <source src="<?= e(Site::asset('intro.mp4')) ?>" type="video/mp4">
+    </video>
+    <div class="actions center">
+      <?php if ($apk): ?>
+        <a class="button primary" href="<?= e(Site::url('download')) ?>"><?= e(t('hero_download')) ?></a>
+      <?php else: ?>
+        <a class="button primary" href="<?= e(Site::url('survey')) ?>"><?= e(t('cta_button')) ?></a>
+      <?php endif; ?>
+    </div>
+    <?php if ($apk): ?>
+      <p class="note"><?= $facts(t('hero_note', $apk['version'] ?: '1.0', $apk['megabytes'])) ?></p>
+    <?php endif; ?>
+  </div>
+</section>
 <script type="application/ld+json"><?= json_encode([
     '@context' => 'https://schema.org',
     '@type' => 'SoftwareApplication',

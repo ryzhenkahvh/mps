@@ -30,6 +30,7 @@ return [
         'hero_note' => 'Бета-версия %s · Android 9 и новее · %s МБ',
         'hero_note_soon' => 'Android 9 и новее. Оставьте отзыв — расскажем, когда можно будет скачать.',
         'hero_alt' => 'Экран MPS: плейлист с паттернами и аудиодорожками',
+        'intro_alt' => 'Логотип MPS: заставка, с которой открывается приложение',
 
         'features_h2' => 'Что внутри',
         'features' => [
@@ -171,6 +172,7 @@ return [
         'hero_note' => 'Beta %s · Android 9 or newer · %s MB',
         'hero_note_soon' => 'Android 9 or newer. Leave feedback and we will tell you when the download is ready.',
         'hero_alt' => 'MPS screen: the playlist with patterns and audio tracks',
+        'intro_alt' => 'The MPS logo: the animation the app opens with',
 
         'features_h2' => 'What is inside',
         'features' => [

@@ -13,14 +13,15 @@ ErrorDocument 404 /404.php
 
 <IfModule mod_mime.c>
     AddType application/vnd.android.package-archive .apk
+    AddType video/mp4 .mp4
 </IfModule>
 
 <IfModule mod_headers.c>
     # the pages send their own headers; these are for plain files
-    <FilesMatch "\.(apk|png|svg|css|js|txt|xml)$">
+    <FilesMatch "\.(apk|png|jpg|mp4|svg|css|js|txt|xml)$">
         Header set X-Content-Type-Options "nosniff"
     </FilesMatch>
-    <FilesMatch "\.(png|svg|css|js)$">
+    <FilesMatch "\.(png|jpg|mp4|svg|css|js)$">
         Header set Cache-Control "public, max-age=604800"
     </FilesMatch>
 </IfModule>

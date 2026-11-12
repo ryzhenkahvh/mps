@@ -49,6 +49,26 @@
     update();
   }
 
+  // the logo animation plays once, when it comes into view; a click plays it again
+  var clip = doc.querySelector('video[data-play-in-view]');
+  if (clip) {
+    clip.muted = true;
+    var play = function () {
+      var started = clip.play();
+      if (started && started.catch) { started.catch(function () {}); }
+    };
+    var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var saving = navigator.connection && navigator.connection.saveData;
+    // whoever asked for less motion or less traffic keeps the still picture
+    if (!calm && !saving && 'IntersectionObserver' in window) {
+      var watch = new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting) { watch.disconnect(); play(); }
+      }, { threshold: 0.6 });
+      watch.observe(clip);
+    }
+    clip.addEventListener('click', function () { clip.currentTime = 0; play(); });
+  }
+
   var form = doc.querySelector('form.form[data-check]');
   if (form) {
     // questions that only make sense after a certain answer to another one
