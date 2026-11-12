@@ -64,16 +64,20 @@ import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.ui.Fmt
 import jxpix.proger.mps.ui.Ic
 import jxpix.proger.mps.ui.components.HintBanner
-import jxpix.proger.mps.ui.components.Knob
+import jxpix.proger.mps.ui.components.NumberDialog
+import jxpix.proger.mps.ui.components.NumberField
 import jxpix.proger.mps.ui.components.ToggleTag
 import jxpix.proger.mps.ui.theme.Mps
 import jxpix.proger.mps.ui.theme.NumberStyle
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 import kotlin.math.cbrt
 import kotlin.math.sign
 
-private val STRIP_WIDTH = 70.dp
+private val STRIP_WIDTH = 74.dp
 private val MASTER_WIDTH = 82.dp
 
 /** Mixer: volume, panning and effects of every channel, plus the master strip. */
@@ -166,16 +170,50 @@ private fun ChannelStrip(studio: Studio, ch: Channel, selected: Boolean, modifie
             }
         }
         val panLabel = stringResource(R.string.pan) + ": " + ch.name
-        Knob(
-            value = (ch.pan + 1f) / 2f,
-            onValueChange = { v ->
-                // a small dead zone makes it easy to return to the centre
-                val pan = (v * 2f - 1f).let { if (abs(it) < 0.04f) 0f else it }
-                studio.edit("pan${ch.id}") { it.updateChannel(ch.id) { x -> x.copy(pan = pan) } }
+        var typingPan by remember { mutableStateOf(false) }
+        val setPan = { percent: Int -> studio.edit("pan${ch.id}") { it.updateChannel(ch.id) { x -> x.copy(pan = percent.coerceIn(-100, 100) / 100f) } } }
+        val percent = (ch.pan * 100f).roundToInt()
+        Spacer(Modifier.height(2.dp))
+        // the place between the speakers: one percent per press, left of the middle or right of it
+        NumberField(
+            label = panLabel,
+            number = Fmt.pan(ch.pan, res),
+            unit = "",
+            position = (ch.pan + 1f) / 2f,
+            onStep = { direction, held ->
+                // held down, the arrow goes by five once it has been going for a while
+                val by = if (held < 1200L) 1 else 5
+                setPan(if (direction > 0) (floor(percent / by.toFloat() + 0.001f).toInt() + 1) * by else (ceil(percent / by.toFloat() - 0.001f).toInt() - 1) * by)
             },
-            size = 38.dp, color = color, defaultValue = 0.5f, bipolar = true, onChangeEnd = { studio.commit() }, description = panLabel,
+            onOpen = { typingPan = true },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+            color = color, bipolar = true, canLess = percent > -100, canMore = percent < 100,
+            onReset = {
+                if (percent != 0) {
+                    setPan(0)
+                    studio.commit()
+                }
+            },
+            onPosition = { v ->
+                setPan((v * 200f - 100f).roundToInt())
+                studio.commit()
+            },
+            compact = true,
         )
-        Text(Fmt.pan(ch.pan, res), color = c.textDim, fontSize = 10.sp, lineHeight = 12.sp, style = NumberStyle)
+        if (typingPan) {
+            NumberDialog(
+                title = panLabel, initial = percent.toString(), range = stringResource(R.string.pan_range), unit = "", signed = true, letters = false,
+                accept = { typed ->
+                    val v = typed.trim().replace('−', '-').replace(',', '.').toFloatOrNull()
+                    if (v != null && !v.isNaN()) {
+                        setPan(v.roundToInt())
+                        studio.commit()
+                    }
+                    v != null && !v.isNaN()
+                },
+                onDismiss = { typingPan = false },
+            )
+        }
         Fader(
             value = ch.volume,
             onChange = { v -> studio.edit("vol${ch.id}") { it.updateChannel(ch.id) { x -> x.copy(volume = v) } } },

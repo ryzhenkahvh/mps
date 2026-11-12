@@ -179,6 +179,12 @@ class Engine(val sampleRate: Int) {
     @Volatile
     private var plan: Plan = Plan.EMPTY
 
+    /**
+     * The device that plays for [uid] right now, if the engine has made one: the screen reads from
+     * it what the device is doing (see [Effect.scope]). Call from the thread that calls [setProject].
+     */
+    fun deviceOf(uid: Int): Device? = devices[uid]?.device
+
     /** Compiles [project] and hands it to the audio thread. Call from one thread only. */
     fun setProject(project: Project, samples: SamplePool) {
         plan = compile(project, samples)
@@ -496,7 +502,12 @@ class Engine(val sampleRate: Int) {
         java.util.Arrays.fill(masterR, 0, n, 0f)
         for (cp in plan.channels) renderChannel(plan, cp, n, tpf)
 
-        for (fx in plan.masterEffects) if (fx.enabled) fx.effect.process(masterL, masterR, n, ctx)
+        for (fx in plan.masterEffects) {
+            if (fx.enabled) {
+                fx.effect.process(masterL, masterR, n, ctx)
+                fx.effect.listener?.write(masterL, masterR, n)
+            }
+        }
 
         // master fader (smoothed)
         val target = plan.masterGain
@@ -943,6 +954,8 @@ class Engine(val sampleRate: Int) {
         for (fx in cp.effects) {
             if (fx.enabled) {
                 fx.effect.process(bufL, bufR, n, ctx)
+                // somebody is looking at the picture of this effect: leave what it put out for the spectrum
+                fx.effect.listener?.write(bufL, bufR, n)
                 any = true
             }
         }

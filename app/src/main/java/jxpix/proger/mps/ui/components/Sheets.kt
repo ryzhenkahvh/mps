@@ -1,5 +1,6 @@
 package jxpix.proger.mps.ui.components
 
+import android.view.Gravity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -24,11 +26,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +44,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +55,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
 import jxpix.proger.mps.R
 import jxpix.proger.mps.ui.theme.Mps
 
@@ -165,6 +173,48 @@ fun SheetLabel(text: String) {
     )
 }
 
+/**
+ * How a dialog that asks for text is shown: in a window of its own, taking the keyboard as soon
+ * as it opens. Only the off-device tests change this. There the window of a dialog with a text
+ * field in it never comes to rest, and a test that asks anything about the screen waits for that
+ * forever - so a test that types into the dialog has its parts put into the page instead.
+ */
+object DialogHost {
+    @Volatile
+    var window = true
+
+    @Volatile
+    var keyboard = true
+
+    /** A screen lower than this (a phone on its side) gets the low dialog: see [LowInputDialog]. */
+    const val LOW_SCREEN_DP = 480
+}
+
+/**
+ * The dialog with a field for a low screen. On a phone that lies on its side the keyboard takes more than
+ * half of the height, and the usual dialog (title, field, buttons under each other) no longer fits above it:
+ * its field would be squeezed away. Here everything stands in one line at the top of the screen.
+ */
+@Composable
+fun LowInputDialog(title: String, onDismiss: () -> Unit, onConfirm: () -> Unit, field: @Composable () -> Unit) {
+    val c = Mps.colors
+    Dialog(onDismissRequest = onDismiss) {
+        // at the top: the keyboard comes from below
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { window?.setGravity(Gravity.TOP) }
+        Surface(shape = RoundedCornerShape(20.dp), color = c.bg, contentColor = c.text, modifier = Modifier.padding(top = 8.dp).widthIn(max = 520.dp)) {
+            Column(Modifier.padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 6.dp)) {
+                Text(title, color = c.textDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(Modifier.weight(1f).padding(top = 4.dp)) { field() }
+                    TextButton(onClick = onDismiss, modifier = Modifier.padding(start = 6.dp, top = 8.dp)) { Text(stringResource(R.string.cancel)) }
+                    TextButton(onClick = onConfirm, modifier = Modifier.padding(top = 8.dp)) { Text(stringResource(R.string.ok)) }
+                }
+            }
+        }
+    }
+}
+
 /** Asks for a short text (names). */
 @Composable
 fun TextInputDialog(
@@ -181,31 +231,37 @@ fun TextInputDialog(
         val t = field.text.trim()
         if (t.isNotEmpty()) onConfirm(t) else onDismiss()
     }
+    val body: @Composable () -> Unit = {
+        OutlinedTextField(
+            value = field,
+            onValueChange = { if (it.text.length <= maxLength) field = it },
+            singleLine = true,
+            label = { Text(stringResource(R.string.name)) },
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submit() }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus),
+        )
+        // asked for here, inside the dialog: outside of it the request would come before the field exists
+        LaunchedEffect(Unit) {
+            try {
+                if (DialogHost.keyboard) focus.requestFocus()
+            } catch (_: Exception) {
+            }
+        }
+    }
+    if (LocalConfiguration.current.screenHeightDp < DialogHost.LOW_SCREEN_DP) {
+        LowInputDialog(title, onDismiss, submit, body)
+        return
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = c.bg,
         titleContentColor = c.text,
         title = { Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-        text = {
-            OutlinedTextField(
-                value = field,
-                onValueChange = { if (it.text.length <= maxLength) field = it },
-                singleLine = true,
-                label = { Text(stringResource(R.string.name)) },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { submit() }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
-            )
-        },
+        text = body,
         confirmButton = { TextButton(onClick = submit) { Text(stringResource(R.string.ok)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
-    LaunchedEffect(Unit) {
-        try {
-            focus.requestFocus()
-        } catch (_: Exception) {
-        }
-    }
 }
 
 @Composable

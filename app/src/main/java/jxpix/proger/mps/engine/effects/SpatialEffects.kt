@@ -230,6 +230,8 @@ class Space3D : Effect() {
             if (nowAz > 720f || nowAz < -720f) nowAz -= 360f * Math.round(nowAz / 360f)
             nowEl += (el - nowEl) * glide
         }
+        // for the picture: where the sound is right now
+        scope[0] = nowAz
         val azR = nowAz * RAD
         val elR = nowEl * RAD
         val ce = cos(elR)

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -35,12 +38,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jxpix.proger.mps.engine.DeviceType
 import jxpix.proger.mps.engine.ParamSpec
+import jxpix.proger.mps.engine.ParamUnit
+import jxpix.proger.mps.engine.Pictures
 import jxpix.proger.mps.model.DeviceState
-import jxpix.proger.mps.ui.Fmt
+import jxpix.proger.mps.studio.Studio
+import jxpix.proger.mps.ui.ParamNumber
 import jxpix.proger.mps.ui.Ic
 import jxpix.proger.mps.ui.theme.Mps
 import kotlin.math.roundToInt
@@ -103,7 +111,7 @@ fun ChoiceCell(
     }
 }
 
-/** One parameter: a knob, or a selector when the parameter has named options. */
+/** One parameter: a number between two arrows, or a selector when the parameter has named options. */
 @Composable
 fun ParamControl(
     spec: ParamSpec,
@@ -126,25 +134,63 @@ fun ParamControl(
         )
     } else {
         val res = LocalResources.current
-        val steps = if (spec.integer) (spec.max - spec.min).roundToInt() else 0
-        LabeledKnob(
+        var typing by remember { mutableStateOf(false) }
+        // the arrows take what the number can spare: 32 dp where three cells share a phone, up to 44 dp in a wide cell
+        val cell = LocalCellWidth.current
+        val room = (if (cell.isSpecified) minOf(cell, 180.dp) else 118.dp) - 6.dp
+        NumberField(
             label = label,
-            valueText = Fmt.param(spec, value, res),
-            value = spec.toNorm(value),
-            onValueChange = { onChange(spec.fromNorm(it)) },
-            modifier = modifier,
+            number = ParamNumber.text(spec, value),
+            unit = ParamNumber.unit(spec, res),
+            position = spec.toNorm(value),
+            // presses that follow each other closely are one step for "undo": the studio joins them by itself
+            onStep = { direction, held -> onChange(ParamNumber.stepped(spec, value, direction, ParamNumber.speed(spec, held))) },
+            onOpen = { typing = true },
+            // in a wide cell the two arrows stay within reach of each other
+            modifier = modifier.widthIn(max = 180.dp).fillMaxWidth().padding(horizontal = 3.dp),
+            arrow = ((room - 48.dp) / 2).coerceIn(30.dp, 44.dp),
             color = color,
-            defaultValue = spec.toNorm(spec.default),
             bipolar = spec.min < 0f && spec.max > 0f && spec.min == -spec.max,
-            steps = steps,
-            onChangeEnd = onEnd,
+            canLess = value > spec.min,
+            canMore = value < spec.max,
+            onReset = {
+                if (value != spec.default) {
+                    onChange(spec.default)
+                    onEnd()
+                }
+            },
+            onPosition = {
+                onChange(spec.fromNorm(it))
+                onEnd()
+            },
         )
+        if (typing) {
+            NumberDialog(
+                title = label,
+                initial = ParamNumber.text(spec, value, plain = true),
+                range = ParamNumber.range(spec, res),
+                unit = ParamNumber.unit(spec, res),
+                signed = spec.min < 0f,
+                letters = spec.unit == ParamUnit.NOTE,
+                accept = { typed ->
+                    val v = ParamNumber.parse(spec, typed)
+                    if (v != null) {
+                        onChange(v)
+                        onEnd()
+                    }
+                    v != null
+                },
+                onDismiss = { typing = false },
+            )
+        }
     }
 }
 
 /**
- * All parameters of a device, grouped the way the device declares them.
- * [skip] hides parameters that the caller presents in another way.
+ * All parameters of a device, grouped the way the device declares them, each group under the
+ * picture of what it does (see [DevicePicture]) where there is one.
+ * [skip] hides parameters that the caller presents in another way; [sounding] tells whether
+ * sound runs through the device right now, for what moves in the pictures.
  */
 @Composable
 fun DeviceParams(
@@ -157,6 +203,8 @@ fun DeviceParams(
     skip: Set<String> = emptySet(),
     framed: Boolean = true,
     before: List<@Composable () -> Unit> = emptyList(),
+    studio: Studio? = null,
+    sounding: () -> Boolean = { false },
 ) {
     val specs = remember(type, skip) { type.params.filter { it.id !in skip } }
     // consecutive parameters of the same group form one panel
@@ -179,9 +227,34 @@ fun DeviceParams(
     for ((group, list) in groups) {
         panels += {
             val grid: @Composable () -> Unit = {
-                CellGrid(list.size, span = { if (list[it].wide) 2 else 1 }) { i ->
-                    val spec = list[i]
-                    ParamControl(spec, state.param(spec.id), color, onChange = { onParam(spec.id, it) }, onEnd = onEnd)
+                val cells: @Composable () -> Unit = {
+                    // a number between its arrows needs more room than a knob did
+                    CellGrid(list.size, minCell = 116.dp, span = { if (list[it].wide) 2 else 1 }) { i ->
+                        val spec = list[i]
+                        ParamControl(spec, state.param(spec.id), color, onChange = { onParam(spec.id, it) }, onEnd = onEnd)
+                    }
+                }
+                if (studio == null || !Pictures.has(type.id, group)) {
+                    cells()
+                } else {
+                    // a phone on its side has little height
+                    val short = LocalConfiguration.current.screenHeightDp < 480
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth >= 600.dp) {
+                            // room to the side: the picture stands next to its settings instead of above them
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                DevicePicture(studio, type, group, state, color, sounding, Modifier.width(300.dp), height = 104.dp)
+                                Spacer(Modifier.width(14.dp))
+                                Box(Modifier.weight(1f)) { cells() }
+                            }
+                        } else {
+                            Column {
+                                DevicePicture(studio, type, group, state, color, sounding, Modifier.fillMaxWidth(), height = if (short) 76.dp else if (framed) 84.dp else 96.dp)
+                                Spacer(Modifier.height(10.dp))
+                                cells()
+                            }
+                        }
+                    }
                 }
             }
             if (framed) Panel(if (group != 0) stringResource(group) else null) { grid() } else grid()
@@ -192,7 +265,7 @@ fun DeviceParams(
 
 /**
  * Panels one under another - or, when the screen is wide enough (a phone on its side, a tablet),
- * in two columns, so that twice as many knobs are in view without scrolling.
+ * in two columns, so that twice as many settings are in view without scrolling.
  */
 @Composable
 fun PanelColumns(panels: List<@Composable () -> Unit>, modifier: Modifier = Modifier, allowTwo: Boolean = true) {

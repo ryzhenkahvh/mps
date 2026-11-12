@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -170,143 +172,6 @@ fun Segmented(
     }
 }
 
-/**
- * Rotary knob. Drag up/right to increase, down/left to decrease; double-tap to reset.
- *
- * @param value position 0..1
- * @param steps for stepped parameters: the number of intervals (positions - 1), 0 = continuous
- */
-@Composable
-fun Knob(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    size: Dp = 46.dp,
-    color: Color = Mps.colors.accent,
-    defaultValue: Float? = null,
-    bipolar: Boolean = false,
-    steps: Int = 0,
-    onChangeEnd: () -> Unit = {},
-    enabled: Boolean = true,
-    description: String = "",
-) {
-    val c = Mps.colors
-    val current by rememberUpdatedState(value)
-    val change by rememberUpdatedState(onValueChange)
-    val end by rememberUpdatedState(onChangeEnd)
-    val default by rememberUpdatedState(defaultValue)
-    val lastTap = remember { mutableLongStateOf(0L) }
-    val track = c.line
-    val body = c.surfaceHigh
-    val pointer = if (enabled) c.text else c.textDim
-    val arc = if (enabled) color else c.textDim
-
-    Canvas(
-        modifier
-            .size(size)
-            .semantics {
-                contentDescription = description
-                progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..1f, steps = if (steps > 1) steps - 1 else 0)
-                setProgress { v ->
-                    change(v.coerceIn(0f, 1f))
-                    end()
-                    true
-                }
-            }
-            .pointerInput(steps, enabled) {
-                if (!enabled) return@pointerInput
-                val travel = 190.dp.toPx()
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    down.consume()
-                    var position = current
-                    var moved = 0f
-                    drag(down.id) { ev ->
-                        val d = ev.positionChange()
-                        ev.consume()
-                        val delta = (d.x - d.y) / travel
-                        moved += kotlin.math.abs(d.x) + kotlin.math.abs(d.y)
-                        position = (position + delta).coerceIn(0f, 1f)
-                        val v = if (steps > 0) (position * steps).roundToInt() / steps.toFloat() else position
-                        if (v != current) change(v)
-                    }
-                    if (moved > viewConfiguration.touchSlop) {
-                        end()
-                    } else {
-                        val now = System.currentTimeMillis()
-                        val reset = default
-                        if (reset != null && now - lastTap.longValue < 350) {
-                            lastTap.longValue = 0
-                            if (reset != current) {
-                                change(reset)
-                                end()
-                            }
-                        } else lastTap.longValue = now
-                    }
-                }
-            },
-    ) {
-        val stroke = this.size.minDimension * 0.095f
-        val radius = (this.size.minDimension - stroke) / 2f
-        val topLeft = Offset(center.x - radius, center.y - radius)
-        val arcSize = Size(radius * 2, radius * 2)
-        val start = 135f
-        val sweep = 270f
-        drawArc(track, start, sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-        if (bipolar) {
-            val s = (value - 0.5f) * sweep
-            if (kotlin.math.abs(s) > 0.5f) drawArc(arc, 270f, s, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-        } else if (value > 0.002f) {
-            drawArc(arc, start, sweep * value, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-        }
-        val inner = radius - stroke * 1.25f
-        drawCircle(body, inner)
-        val angle = Math.toRadians((start + sweep * value).toDouble())
-        val dx = cos(angle).toFloat()
-        val dy = sin(angle).toFloat()
-        drawLine(
-            pointer,
-            Offset(center.x + dx * inner * 0.35f, center.y + dy * inner * 0.35f),
-            Offset(center.x + dx * inner * 0.82f, center.y + dy * inner * 0.82f),
-            strokeWidth = stroke * 0.85f, cap = StrokeCap.Round,
-        )
-    }
-}
-
-/** Knob with its value and name underneath. */
-@Composable
-fun LabeledKnob(
-    label: String,
-    valueText: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    color: Color = Mps.colors.accent,
-    defaultValue: Float? = null,
-    bipolar: Boolean = false,
-    steps: Int = 0,
-    onChangeEnd: () -> Unit = {},
-    enabled: Boolean = true,
-    size: Dp = 46.dp,
-) {
-    val c = Mps.colors
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Knob(
-            value, onValueChange, size = size, color = color, defaultValue = defaultValue, bipolar = bipolar,
-            steps = steps, onChangeEnd = onChangeEnd, enabled = enabled, description = label,
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            valueText, color = c.text, fontSize = 11.sp, lineHeight = 13.sp, maxLines = 1, style = NumberStyle,
-            overflow = TextOverflow.Clip, softWrap = false,
-        )
-        Text(
-            label, color = c.textDim, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 2, textAlign = TextAlign.Center,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
 /** A dismissible one-time tip shown at the top of a screen. */
 @Composable
 fun HintBanner(text: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
@@ -387,9 +252,13 @@ fun Panel(
     }
 }
 
+/** How wide the cell is that a [CellGrid] gives to the child it lays out; unspecified outside of a grid. */
+val LocalCellWidth = compositionLocalOf { Dp.Unspecified }
+
 /**
  * Lays children out in rows of equal-width cells, as many per row as fit [minCell].
  * A child may take the room of several cells ([span]); a row is closed when the next child does not fit.
+ * The child can read its width from [LocalCellWidth].
  */
 @Composable
 fun CellGrid(
@@ -418,7 +287,10 @@ fun CellGrid(
                 val last = i
                 Row(Modifier.fillMaxWidth()) {
                     for (k in first until last) {
-                        Box(Modifier.weight(span(k).coerceIn(1, columns).toFloat()), contentAlignment = Alignment.TopCenter) { cell(k) }
+                        val wide = span(k).coerceIn(1, columns)
+                        Box(Modifier.weight(wide.toFloat()), contentAlignment = Alignment.TopCenter) {
+                            CompositionLocalProvider(LocalCellWidth provides this@BoxWithConstraints.maxWidth / columns * wide) { cell(k) }
+                        }
                     }
                     if (used < columns) Spacer(Modifier.weight((columns - used).toFloat()))
                 }

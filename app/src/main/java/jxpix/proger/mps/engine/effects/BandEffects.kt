@@ -112,15 +112,7 @@ class Ott : Effect() {
     /** The gain a band should have right now, from how loud it is. */
     private fun aim(band: Int): Float {
         val level = 20f * LOG10_E * ln(env[band] + 1e-9f)
-        var change = 0f
-        if (level > ABOVE) {
-            change = (ABOVE - level) * (1f - 1f / RATIO_DOWN)
-        } else if (level < BELOW) {
-            change = min(MAX_LIFT, (BELOW - level) * (1f - 1f / RATIO_UP))
-            // near silence there is nothing worth lifting: only hiss would come up
-            if (level < FLOOR) change *= max(0f, 1f - (FLOOR - level) / FLOOR_FADE)
-        }
-        return FastMath.dbToGain(depth * (change + MAKEUP[band]) + trim[band])
+        return FastMath.dbToGain(changeDb(band, level, depth, trim[band]))
     }
 
     override fun reset() {
@@ -170,6 +162,23 @@ class Ott : Effect() {
 
     companion object {
         const val TYPE_ID = "ott"
+
+        /**
+         * The whole law of the effect: by how many decibels a band is turned up or down while it is
+         * [level] dB loud. Loud sound is pressed down, quiet sound is lifted; [depth] says how much
+         * of that is done and [trim] is the gain of the band itself.
+         */
+        fun changeDb(band: Int, level: Float, depth: Float, trim: Float): Float {
+            var change = 0f
+            if (level > ABOVE) {
+                change = (ABOVE - level) * (1f - 1f / RATIO_DOWN)
+            } else if (level < BELOW) {
+                change = min(MAX_LIFT, (BELOW - level) * (1f - 1f / RATIO_UP))
+                // near silence there is nothing worth lifting: only hiss would come up
+                if (level < FLOOR) change *= max(0f, 1f - (FLOOR - level) / FLOOR_FADE)
+            }
+            return depth * (change + MAKEUP[band]) + trim
+        }
         const val DEPTH = 0
         const val TIME = 1
         const val LOW = 2
@@ -260,6 +269,7 @@ class AutoWah : Effect() {
                 // quiet playing already moves the filter; loud playing takes it all the way
                 val open = sqrt(min(1f, env * sens))
                 val cutoff = min(top, base * 2f.pow(octaves * open))
+                scope[0] = cutoff
                 filterL.set(cutoff, resonance, sampleRate)
                 filterR.set(cutoff, resonance, sampleRate)
             }

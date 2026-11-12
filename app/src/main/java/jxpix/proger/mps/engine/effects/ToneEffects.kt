@@ -104,6 +104,7 @@ class FilterFx : Effect() {
                 if (lfoPhase >= 1f) lfoPhase -= floor(lfoPhase)
                 val target = cutoff * 2f.pow(FastMath.sin01(lfoPhase) * lfoDepth * 3f)
                 current += (target - current) * 0.35f
+                scope[0] = current
                 fl.set(current, resonance, sampleRate)
                 fr.set(current, resonance, sampleRate)
             }

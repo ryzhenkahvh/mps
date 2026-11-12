@@ -149,7 +149,7 @@ fun ChannelEditor(studio: Studio, ownerId: Int) {
                 channel != null -> InstrumentPage(studio, channel, color, presetRow = !compact) { presetSheet = true }
             }
         }
-        // something to play the sound with while turning the knobs
+        // something to play the sound with while changing it
         if (channel != null && !channel.isAudio) {
             Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
             if (channel.isDrum) {
@@ -218,8 +218,8 @@ private fun InstrumentPage(studio: Studio, channel: Channel, color: Color, prese
     val state = channel.instrument
     val type = Devices[state.type]
 
-    if ("knob" !in studio.prefs.hintsSeen && !channel.isAudio) {
-        HintBanner(stringResource(R.string.knob_hint), { studio.prefs.markHintSeen("knob") })
+    if ("number" !in studio.prefs.hintsSeen && !channel.isAudio) {
+        HintBanner(stringResource(R.string.number_hint), { studio.prefs.markHintSeen("number") })
     }
     val onParam = { id: String, value: Float -> studio.edit("param${state.uid}:$id") { it.setParam(state.uid, id, value) } }
     val onEnd = { studio.commit() }
@@ -257,14 +257,14 @@ private fun InstrumentPage(studio: Studio, channel: Channel, color: Color, prese
                 }
             }
             if (presetRow) PresetRow(state, onPresets)
-            DeviceParams(type, state, color, onParam, onEnd, skip = setOf("type"))
+            DeviceParams(type, state, color, onParam, onEnd, skip = setOf("type"), studio = studio)
         }
         else -> {
             if (presetRow) PresetRow(state, onPresets)
-            // the sound file of a sampler sits among the knob panels, so that it gets a column of its own on a wide screen
+            // the sound file of a sampler sits among the panels of settings, so that it gets a column of its own on a wide screen
             val before: List<@Composable () -> Unit> =
                 if (state.type == Devices.SAMPLER.id) listOf({ SamplePanel(studio, channel, color) }) else emptyList()
-            DeviceParams(type, state, color, onParam, onEnd, before = before)
+            DeviceParams(type, state, color, onParam, onEnd, before = before, studio = studio)
         }
     }
 
@@ -424,7 +424,9 @@ private fun EffectCard(studio: Studio, ownerId: Int, fx: DeviceState, name: Stri
             type, fx, color,
             onParam = { id, value -> studio.edit("param${fx.uid}:$id") { it.setParam(fx.uid, id, value) } },
             onEnd = { studio.commit() },
-            modifier = Modifier.alpha(if (fx.enabled) 1f else 0.45f), framed = false,
+            modifier = Modifier.alpha(if (fx.enabled) 1f else 0.45f), framed = false, studio = studio,
+            // sound runs through the effect while the meter of its channel moves
+            sounding = { fx.enabled && (if (ownerId == MASTER_ID) studio.masterMeterL.level else studio.meter(ownerId).level) > 0.0005f },
         )
     }
     if (presets) PresetSheet(studio, fx.uid, { presets = false })

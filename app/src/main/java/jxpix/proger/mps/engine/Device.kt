@@ -136,8 +136,54 @@ abstract class Instrument : Device() {
 }
 
 abstract class Effect : Device() {
+    /**
+     * What the effect is doing at this moment, for its picture on the screen: how many decibels it
+     * takes away, where its filter or its source stands... What the numbers mean is up to the
+     * effect. Written by the audio thread once per block, read by the screen, which does not mind
+     * a value that is one block old.
+     */
+    @JvmField
+    val scope = FloatArray(2)
+
+    /** While the picture of the effect shows a spectrum, the engine leaves here what the effect puts out. */
+    @Volatile
+    var listener: Tap? = null
+
     /** Processes the buffers in place. */
     abstract fun process(l: FloatArray, r: FloatArray, frames: Int, ctx: ProcessContext)
+}
+
+/**
+ * The last few thousand samples a device has put out (both sides added together), for the
+ * spectrum behind its picture. One writer, the audio thread; a reader may get a block that is
+ * being written, which shows as nothing worse than a flicker of one frame.
+ */
+class Tap(size: Int = 4096) {
+    private val data = FloatArray(size)
+    private val mask = size - 1
+
+    @Volatile
+    private var position = 0
+
+    init {
+        require(size and mask == 0) { "the size has to be a power of two" }
+    }
+
+    fun write(l: FloatArray, r: FloatArray, frames: Int) {
+        var p = position
+        for (i in 0 until frames) {
+            data[p] = (l[i] + r[i]) * 0.5f
+            p = (p + 1) and mask
+        }
+        position = p
+    }
+
+    /** Copies the newest samples into [out], the oldest of them first. */
+    fun read(out: FloatArray) {
+        val p = position
+        val n = out.size
+        for (i in 0 until n) out[i] = data[(p - n + i) and mask]
+    }
 }
 
 /** Registry entry: metadata + factory for one kind of device. */

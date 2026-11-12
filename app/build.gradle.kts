@@ -36,8 +36,8 @@ android {
         applicationId = "jxpix.proger.mps"
         minSdk = 28
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.2-beta"
+        versionCode = 5
+        versionName = "1.3-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

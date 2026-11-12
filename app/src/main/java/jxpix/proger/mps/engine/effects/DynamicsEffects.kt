@@ -57,6 +57,7 @@ class Compressor : Effect() {
         }
         if (env < 1e-12f) env = 0f
         reductionDb = -FastMath.gainToDb(minGain)
+        scope[0] = reductionDb
     }
 
     override fun reset() {
@@ -173,6 +174,7 @@ class Limiter : Effect() {
         this.hold = hold
         this.w = w
         minGain = lowest
+        scope[0] = -FastMath.gainToDb(lowest)
     }
 
     override fun reset() {

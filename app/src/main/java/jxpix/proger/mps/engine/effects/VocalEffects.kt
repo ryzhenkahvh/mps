@@ -70,6 +70,8 @@ class Gate : Effect() {
             r[i] = xr * gain
         }
         if (env < 1e-12f) env = 0f
+        // for the picture: how far the gate is closed right now
+        scope[0] = -FastMath.gainToDb(gain)
     }
 
     override fun reset() {
@@ -163,6 +165,7 @@ class DeEsser : Effect() {
         }
         if (env < 1e-12f) env = 0f
         reductionDb = -FastMath.gainToDb(strongest)
+        scope[0] = reductionDb
     }
 
     override fun reset() {
@@ -569,6 +572,8 @@ class PitchCorrect : Effect() {
             l[i] = core.outL
             r[i] = core.outR
         }
+        // for the picture: the note the voice is pulled to
+        scope[0] = heardNote.toFloat()
     }
 
     /** Once per hop: where is the voice, and where should it be? */
