@@ -228,9 +228,7 @@ moving between phones, a landscape-first layout, light and dark pink themes, a l
 (a tap skips it, the settings switch it off), and English and Russian interfaces.
 Sign-up is confirmed with a six-digit code sent by e-mail; a forgotten password is changed the same way.
 
-The website ([mp-studio.online](https://mp-studio.online): landing page, APK download, a survey, a feedback form
-and a private page with the answers) is plain PHP in `site/public`; `site/mps-site.zip` is the archive to unpack
-on a hosting. It holds no passwords: the first visit to `/admin/` asks for the database and keeps it on the server.
+The website ([mp-studio.online](https://mp-studio.online): landing page with the intro video, APK download, a survey, live public survey statistics with presentation-ready charts and QR code at `/stats/` and `/en/stats/`, a feedback form and a private page with the answers) is plain PHP in `site/public`; `site/mps-site.zip` is the archive to unpack on a hosting. It holds no passwords: the first visit to `/admin/` asks for the database and keeps it on the server.
 
 The audio engine is written from scratch in Kotlin and follows real-time rules: native sample rate and burst
 size, low-latency `AudioTrack` mode, an adaptive buffer, and an audio thread that never allocates or locks.

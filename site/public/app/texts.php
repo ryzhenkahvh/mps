@@ -14,6 +14,7 @@ return [
         'nav_community' => 'Сообщество',
         'nav_download' => 'Скачать',
         'nav_survey' => 'Опрос',
+        'nav_stats' => 'Статистика',
         'nav_feedback' => 'Обратная связь',
         'nav_privacy' => 'Конфиденциальность',
         'nav_terms' => 'Правила',
@@ -30,7 +31,14 @@ return [
         'hero_note' => 'Бета-версия %s · Android 9 и новее · %s МБ',
         'hero_note_soon' => 'Android 9 и новее. Оставьте отзыв — расскажем, когда можно будет скачать.',
         'hero_alt' => 'Экран MPS: плейлист с паттернами и аудиодорожками',
-        'intro_alt' => 'Логотип MPS: заставка, с которой открывается приложение',
+        'hero_video_alt' => 'Анимированный логотип MPS',
+        'hero_sound_on' => 'Звук',
+        'hero_sound_off' => 'Без звука',
+        'hero_replay' => 'Сначала',
+        'hero_play' => 'Играть',
+        'hero_pause' => 'Пауза',
+        'hero_view_logo' => 'Заставка',
+        'hero_view_screen' => 'Экран студии',
 
         'features_h2' => 'Что внутри',
         'features' => [
@@ -147,6 +155,13 @@ return [
         'missing_title' => 'Страница не найдена — MPS',
         'missing_h1' => 'Такой страницы нет',
         'missing_lead' => 'Возможно, адрес набран с ошибкой.',
+
+        'stats_title' => 'Статистика опроса — MPS',
+        'stats_description' => 'Сводные результаты опроса музыкантов о создании музыки на телефоне и о приложении MPS.',
+        'stats_h1' => 'Как люди делают музыку: результаты опроса',
+        'stats_lead' => 'Обезличенная сводка по всем ответам. Любой график можно скачать в PNG или SVG и вставить в презентацию.',
+        'stats_privacy_note' => 'Показываются только обезличенные суммарные числа и доли без контактов и личных текстов.',
+        'stats_empty' => 'Ответов пока нет. Станьте первым — пройдите короткий опрос.',
     ],
 
     'en' => [
@@ -156,6 +171,7 @@ return [
         'nav_community' => 'Community',
         'nav_download' => 'Download',
         'nav_survey' => 'Survey',
+        'nav_stats' => 'Stats',
         'nav_feedback' => 'Feedback',
         'nav_privacy' => 'Privacy',
         'nav_terms' => 'Rules',
@@ -172,7 +188,14 @@ return [
         'hero_note' => 'Beta %s · Android 9 or newer · %s MB',
         'hero_note_soon' => 'Android 9 or newer. Leave feedback and we will tell you when the download is ready.',
         'hero_alt' => 'MPS screen: the playlist with patterns and audio tracks',
-        'intro_alt' => 'The MPS logo: the animation the app opens with',
+        'hero_video_alt' => 'Animated MPS logo',
+        'hero_sound_on' => 'Sound',
+        'hero_sound_off' => 'Muted',
+        'hero_replay' => 'Replay',
+        'hero_play' => 'Play',
+        'hero_pause' => 'Pause',
+        'hero_view_logo' => 'Intro',
+        'hero_view_screen' => 'Studio screen',
 
         'features_h2' => 'What is inside',
         'features' => [
@@ -289,5 +312,12 @@ return [
         'missing_title' => 'Page not found — MPS',
         'missing_h1' => 'There is no such page',
         'missing_lead' => 'The address may have been typed wrong.',
+
+        'stats_title' => 'Survey statistics — MPS',
+        'stats_description' => 'Aggregated survey results on how musicians make music on their phones and on MPS.',
+        'stats_h1' => 'How people make music: survey results',
+        'stats_lead' => 'An anonymised summary of all answers. Every chart can be downloaded as PNG or SVG for a presentation.',
+        'stats_privacy_note' => 'Only aggregated totals and shares are shown, with no contacts or free-text answers.',
+        'stats_empty' => 'No responses yet. Be the first to take the short survey.',
     ],
 ];

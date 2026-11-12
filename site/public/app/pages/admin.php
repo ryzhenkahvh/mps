@@ -314,70 +314,64 @@ admin_page('Ответы и отзывы', static function () use ($pdo, $questi
     <?php
     if ($tab === 'stats') {
         // charts: another view of the same rows, nothing is written
+        require_once __DIR__ . '/../qr.php';
         require_once __DIR__ . '/../charts.php';
         $days = (int) ($_GET['days'] ?? 30);
-        echo stats_view($pdo, in_array($days, [7, 30, 90, 365], true) ? $days : 30, $kinds);
+        $publicUrl = rtrim((string) Site::$config['site_url'], '/') . '/stats/';
+        echo '<div class="stats-deck" data-slide-deck data-theme="dark" data-slide-qr="0" data-brand="MPS · mp-studio.online">'
+            . stats_view($pdo, in_array($days, [7, 30, 90, 365], true) ? $days : 30, $kinds)
+            . '</div>';
         return;
     }
     if ($tab === 'summary') {
-        $rows = $pdo->query('SELECT answers, source FROM mps_responses WHERE kind = \'survey\'')->fetchAll();
+        require_once __DIR__ . '/../qr.php';
+        require_once __DIR__ . '/../charts.php';
+        $rows = $pdo->query('SELECT answers, source, lang, created_at FROM mps_responses WHERE kind = \'survey\' ORDER BY id')->fetchAll();
         $n = count($rows);
         if ($n === 0) {
             echo '<p class="lead">Анкет пока нет. Ссылка на опрос: <code>' . e(rtrim((string) Site::$config['site_url'], '/')) . '/survey/</code>. Чтобы видеть, откуда пришли люди, добавляйте к ссылке метку, например <code>/survey/?src=telegram</code>.</p>';
             return;
         }
-        $tally = [];
         $sources = [];
-        $nps = [];
         $own = [];
         foreach ($rows as $row) {
             $a = json_decode((string) $row['answers'], true) ?: [];
             $sources[$row['source']] = ($sources[$row['source']] ?? 0) + 1;
             foreach ($questions as $q) {
-                if (is_string($a[$q['id'] . '_other'] ?? null)) {
-                    $own[$q['id']][] = $a[$q['id'] . '_other'];
+                $id = $q['id'];
+                if (is_string($a[$id . '_other'] ?? null) && trim($a[$id . '_other']) !== '') {
+                    $own[$id][] = trim($a[$id . '_other']);
                 }
-                $v = $a[$q['id']] ?? null;
-                if ($v === null) {
-                    continue;
-                }
-                if ($q['type'] === 'scale') {
-                    $nps[] = (int) $v;
-                } elseif ($q['type'] === 'one' || $q['type'] === 'many') {
-                    $tally[$q['id']]['answered'] = ($tally[$q['id']]['answered'] ?? 0) + 1;
-                    foreach ((array) $v as $key) {
-                        $tally[$q['id']]['options'][$key] = ($tally[$q['id']]['options'][$key] ?? 0) + 1;
-                    }
+                if ($q['type'] === 'text' && is_string($a[$id] ?? null) && trim($a[$id]) !== '') {
+                    $own[$id][] = trim($a[$id]);
                 }
             }
         }
         arsort($sources);
-        echo '<p class="note">Откуда пришли: ' . e(implode(', ', array_map(static fn ($k, $v) => $k . ' — ' . $v, array_keys($sources), $sources))) . '. <a href="/admin/?export=survey">Скачать таблицу (CSV)</a></p>';
-        foreach ($questions as $q) {
-            if ($q['type'] === 'scale') {
-                if ($nps) {
-                    $promoters = count(array_filter($nps, static fn ($x) => $x >= 9));
-                    $detractors = count(array_filter($nps, static fn ($x) => $x <= 6));
-                    echo '<h2>' . e($q['q']['ru']) . '</h2><p>Ответов: ' . count($nps) . '. Средняя оценка: ' . number_format(array_sum($nps) / count($nps), 1, ',', '') . '. NPS: ' . round(($promoters - $detractors) * 100 / count($nps)) . ' (9–10: ' . $promoters . ', 0–6: ' . $detractors . ').</p>';
+        $publicUrl = rtrim((string) Site::$config['site_url'], '/') . '/stats/';
+        echo '<p class="note">Откуда пришли: ' . e(implode(', ', array_map(static fn ($k, $v) => $k . ' — ' . $v, array_keys($sources), $sources)))
+            . ' · <a href="/admin/?export=survey">Скачать таблицу (CSV)</a>'
+            . ' · <a href="' . e(Site::url('stats', 'ru')) . '">Публичная страница графиков (/stats/)</a></p>';
+
+        echo survey_presentation_stats($rows, $questions, 'ru', [
+            'baseUrl' => '/admin/?tab=summary',
+            'segment' => clean($_GET['segment'] ?? 'all', 20),
+            'qrUrl' => $publicUrl,
+            'downloads' => $totals['downloads'],
+        ]);
+
+        // Owner-only free-text quotes and "other" entries (never shown on public /stats/)
+        $hasOwn = array_filter($own);
+        if ($hasOwn) {
+            echo '<h2>Ответы своими словами (только в админке)</h2><div class="charts small">';
+            foreach ($questions as $q) {
+                if (empty($own[$q['id']])) {
+                    continue;
                 }
-                continue;
+                $items = array_slice(array_reverse($own[$q['id']]), 0, 30);
+                echo '<section class="card"><h3>' . e($q['q']['ru']) . '</h3><p class="note">' . e(implode(' · ', $items)) . '</p></section>';
             }
-            if ($q['type'] !== 'one' && $q['type'] !== 'many') {
-                continue;
-            }
-            $answered = $tally[$q['id']]['answered'] ?? 0;
-            echo '<h2>' . e($q['q']['ru']) . '</h2><p class="note">Ответили: ' . $answered . ' из ' . $n . '</p><table class="bars"><tbody>';
-            $options = $q['options'];
-            uksort($options, static fn ($x, $y) => ($tally[$q['id']]['options'][$y] ?? 0) <=> ($tally[$q['id']]['options'][$x] ?? 0));
-            foreach ($options as $key => $label) {
-                $c = $tally[$q['id']]['options'][$key] ?? 0;
-                $share = $answered ? (int) round($c * 100 / $answered) : 0;
-                echo '<tr><th scope="row">' . e($label['ru']) . '</th><td class="num">' . $c . '</td><td class="num">' . $share . '%</td><td class="bar"><meter min="0" max="100" value="' . $share . '">' . $share . '%</meter></td></tr>';
-            }
-            echo '</tbody></table>';
-            if (!empty($own[$q['id']])) {
-                echo '<p class="note">Своими словами: ' . e(implode(' · ', array_slice($own[$q['id']], -40))) . '</p>';
-            }
+            echo '</div>';
         }
         return;
     }

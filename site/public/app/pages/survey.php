@@ -98,7 +98,10 @@ layout(t('survey_title'), t('survey_description'), static function () use ($ques
   <div class="wrap narrow">
     <h1><?= e(t('survey_done_h')) ?></h1>
     <p class="lead"><?= e(t('survey_done')) ?></p>
-    <a class="button primary" href="<?= e(Site::url('home')) ?>"><?= e(t('back_home')) ?></a>
+    <div class="actions">
+      <a class="button primary" href="<?= e(Site::url('home')) ?>"><?= e(t('back_home')) ?></a>
+      <a class="button ghost" href="<?= e(Site::url('stats')) ?>"><?= e(t('nav_stats')) ?></a>
+    </div>
   </div>
 </section>
         <?php

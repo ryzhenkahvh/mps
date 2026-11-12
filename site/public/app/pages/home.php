@@ -41,8 +41,23 @@ layout(t('home_title'), t('home_description'), static function () use ($apk, $fa
       </div>
       <p class="note"><?= $apk ? $facts(t('hero_note', $apk['version'] ?: '1.0', $apk['megabytes'])) : e(t('hero_note_soon')) ?></p>
     </div>
-    <div class="phone" role="img" aria-label="<?= e(t('hero_alt')) ?>">
-      <img src="<?= e(Site::shot('playlist')) ?>" alt="" width="1600" height="738" fetchpriority="high">
+    <div class="hero-media">
+      <div class="hero-stage" data-hero-stage>
+        <div class="hero-video-box" data-hero-panel="logo">
+          <video class="hero-video" src="<?= e(Site::asset('intro.mp4')) ?>" poster="<?= e(Site::asset('intro-poster.jpg')) ?>" autoplay muted loop playsinline preload="metadata" width="1440" height="1440" aria-label="<?= e(t('hero_video_alt')) ?>"></video>
+          <div class="video-controls">
+            <button type="button" class="vpill" data-video-mute aria-pressed="false" data-label-on="<?= e(t('hero_sound_on')) ?>" data-label-off="<?= e(t('hero_sound_off')) ?>"><?= e(t('hero_sound_off')) ?></button>
+            <button type="button" class="vpill" data-video-replay><?= e(t('hero_replay')) ?></button>
+          </div>
+        </div>
+        <div class="phone hero-screen" data-hero-panel="screen" role="img" aria-label="<?= e(t('hero_alt')) ?>" hidden>
+          <img src="<?= e(Site::shot('playlist')) ?>" alt="" width="1600" height="738">
+        </div>
+      </div>
+      <div class="hero-switch" role="group" aria-label="<?= e(t('hero_video_alt')) ?>">
+        <button type="button" class="chip active" data-hero-tab="logo" aria-pressed="true"><?= e(t('hero_view_logo')) ?></button>
+        <button type="button" class="chip" data-hero-tab="screen" aria-pressed="false"><?= e(t('hero_view_screen')) ?></button>
+      </div>
     </div>
   </div>
 </section>
@@ -123,25 +138,6 @@ layout(t('home_title'), t('home_description'), static function () use ($apk, $fa
         </details>
       <?php endforeach; ?>
     </div>
-  </div>
-</section>
-<section class="section outro">
-  <div class="wrap narrow">
-    <!-- the logo animation the app opens with: silent here, played once when it comes into view -->
-    <video class="logo-clip" muted playsinline preload="none" width="960" height="480" data-play-in-view
-           poster="<?= e(Site::asset('intro.jpg')) ?>" aria-label="<?= e(t('intro_alt')) ?>">
-      <source src="<?= e(Site::asset('intro.mp4')) ?>" type="video/mp4">
-    </video>
-    <div class="actions center">
-      <?php if ($apk): ?>
-        <a class="button primary" href="<?= e(Site::url('download')) ?>"><?= e(t('hero_download')) ?></a>
-      <?php else: ?>
-        <a class="button primary" href="<?= e(Site::url('survey')) ?>"><?= e(t('cta_button')) ?></a>
-      <?php endif; ?>
-    </div>
-    <?php if ($apk): ?>
-      <p class="note"><?= $facts(t('hero_note', $apk['version'] ?: '1.0', $apk['megabytes'])) ?></p>
-    <?php endif; ?>
   </div>
 </section>
 <script type="application/ld+json"><?= json_encode([

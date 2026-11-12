@@ -308,7 +308,7 @@ function layout(string $title, string $description, callable $content, array $op
       <a href="<?= e(Site::url('home')) ?>#community"><?= e(t('nav_community')) ?></a>
       <a href="<?= e(Site::url('download')) ?>"<?= $page === 'download' ? ' aria-current="page"' : '' ?>><?= e(t('nav_download')) ?></a>
       <a href="<?= e(Site::url('survey')) ?>"<?= $page === 'survey' ? ' aria-current="page"' : '' ?>><?= e(t('nav_survey')) ?></a>
-      <a class="lang" href="<?= e(Site::url(in_array($page, ['home', 'download', 'survey', 'feedback', 'privacy', 'terms'], true) ? $page : 'home', $other)) ?>" hreflang="<?= e($other) ?>" lang="<?= e($other) ?>"><?= $other === 'en' ? 'English' : 'Русский' ?></a>
+      <a class="lang" href="<?= e(Site::url(in_array($page, ['home', 'download', 'survey', 'stats', 'feedback', 'privacy', 'terms'], true) ? $page : 'home', $other)) ?>" hreflang="<?= e($other) ?>" lang="<?= e($other) ?>"><?= $other === 'en' ? 'English' : 'Русский' ?></a>
     </nav>
   </div>
 </header>
@@ -322,6 +322,7 @@ function layout(string $title, string $description, callable $content, array $op
       <p><?= e(t('foot_line')) ?></p>
     </div>
     <nav aria-label="<?= e(t('foot_nav')) ?>">
+      <a href="<?= e(Site::url('stats')) ?>"><?= e(t('nav_stats')) ?></a>
       <a href="<?= e(Site::url('feedback')) ?>"><?= e(t('nav_feedback')) ?></a>
       <a href="<?= e(Site::url('privacy')) ?>"><?= e(t('nav_privacy')) ?></a>
       <a href="<?= e(Site::url('terms')) ?>"><?= e(t('nav_terms')) ?></a>

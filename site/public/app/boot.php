@@ -102,7 +102,7 @@ $framed = empty($config['preview']) ? " frame-ancestors 'none';" : '';
 if ($framed !== '') {
     header('X-Frame-Options: DENY');
 }
-header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self';$framed base-uri 'self'");
+header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; form-action 'self';$framed base-uri 'self'");
 
 $file = __DIR__ . '/pages/' . preg_replace('/[^a-z]/', '', $page) . '.php';
 if (!is_file($file)) {
