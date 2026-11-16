@@ -9,6 +9,7 @@ import jxpix.proger.mps.engine.ParamUnit
 import jxpix.proger.mps.engine.dsp.Adsr
 import jxpix.proger.mps.engine.dsp.FastMath
 import jxpix.proger.mps.engine.dsp.Noise
+import jxpix.proger.mps.engine.dsp.WavetableBank
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.min
@@ -17,9 +18,9 @@ import kotlin.math.sqrt
 import kotlin.math.tan
 
 /**
- * Polyphonic virtual-analog synthesizer.
+ * Polyphonic virtual-analog and wavetable synthesizer.
  *
- * Signal path per voice: 2 band-limited oscillators (with up to 5x unison) + sub + noise
+ * Signal path per voice: 2 band-limited analog or morphing wavetable oscillators (with up to 5x unison) + sub + noise
  * -> drive -> resonant multimode filter -> amplifier. Pitch, cutoff and level can be
  * modulated by an LFO; the filter has its own envelope.
  */
@@ -31,6 +32,10 @@ class PolySynth : Instrument() {
     // ---- parameters (derived values, refreshed in setParams) ----
     private var wave1 = WAVE_SAW
     private var wave2 = WAVE_SAW
+    private var table1 = 0
+    private var table2 = 0
+    private var position1 = 0.5f
+    private var position2 = 0.5f
     private var level1 = 0.8f
     private var level2 = 0f
     private var subLevel = 0f
@@ -90,8 +95,12 @@ class PolySynth : Instrument() {
     }
 
     override fun setParams(p: FloatArray) {
-        wave1 = p[OSC1_WAVE].toInt()
-        wave2 = p[OSC2_WAVE].toInt()
+        wave1 = p[OSC1_WAVE].toInt().coerceIn(WAVE_SINE, WAVE_WAVETABLE)
+        wave2 = p[OSC2_WAVE].toInt().coerceIn(WAVE_SINE, WAVE_WAVETABLE)
+        table1 = p[OSC1_TABLE].toInt().coerceIn(0, WavetableBank.TABLE_COUNT - 1)
+        table2 = p[OSC2_TABLE].toInt().coerceIn(0, WavetableBank.TABLE_COUNT - 1)
+        position1 = p[OSC1_POSITION].coerceIn(0f, 1f)
+        position2 = p[OSC2_POSITION].coerceIn(0f, 1f)
         level1 = p[OSC1_LEVEL]
         level2 = p[OSC2_LEVEL]
         subLevel = p[SUB_LEVEL]
@@ -318,7 +327,7 @@ class PolySynth : Instrument() {
         else -> 0f
     }
 
-    private fun osc(wave: Int, ph: Float, dt: Float): Float = when (wave) {
+    private fun osc(wave: Int, ph: Float, dt: Float, table: Int, position: Float, mip: Int): Float = when (wave) {
         WAVE_SINE -> FastMath.sin01(ph)
         WAVE_TRIANGLE -> 1f - 4f * abs(ph - 0.5f)
         WAVE_SAW -> 2f * ph - 1f - blep(ph, dt)
@@ -330,6 +339,7 @@ class PolySynth : Instrument() {
             v -= blep(p2, dt)
             v - (2f * pw - 1f)
         }
+        WAVE_WAVETABLE -> WavetableBank.sample(table, position, ph, mip)
         else -> noise.next()
     }
 
@@ -348,6 +358,8 @@ class PolySynth : Instrument() {
         val ph2 = FloatArray(MAX_UNISON)
         val dt1 = FloatArray(MAX_UNISON)
         val dt2 = FloatArray(MAX_UNISON)
+        val mip1 = IntArray(MAX_UNISON)
+        val mip2 = IntArray(MAX_UNISON)
         var subPh = 0f
         var subDt = 0f
 
@@ -395,8 +407,12 @@ class PolySynth : Instrument() {
             val f2 = f1 * osc2Ratio
             for (u in 0 until unison) {
                 val r = uniRatio[u]
-                dt1[u] = min(0.45f, f1 * r * inv)
-                dt2[u] = min(0.45f, f2 * r * inv)
+                val d1 = min(0.45f, f1 * r * inv)
+                val d2 = min(0.45f, f2 * r * inv)
+                dt1[u] = d1
+                dt2[u] = d2
+                mip1[u] = WavetableBank.mipFor(d1)
+                mip2[u] = WavetableBank.mipFor(d2)
             }
             subDt = min(0.45f, f1 * 0.5f * inv)
 
@@ -416,6 +432,10 @@ class PolySynth : Instrument() {
             val uni = unison
             val w1 = wave1
             val w2 = wave2
+            val wt1 = table1
+            val wt2 = table2
+            val pos1 = position1
+            val pos2 = position2
             val lv1 = level1
             val lv2 = level2
             val sub = subLevel
@@ -447,14 +467,14 @@ class PolySynth : Instrument() {
                 for (u in 0 until uni) {
                     var ph = ph1[u]
                     val d = dt1[u]
-                    var s = osc(w1, ph, d) * lv1
+                    var s = osc(w1, ph, d, wt1, pos1, mip1[u]) * lv1
                     ph += d
                     if (ph >= 1f) ph -= 1f
                     ph1[u] = ph
                     if (useOsc2) {
                         var q = ph2[u]
                         val d2 = dt2[u]
-                        s += osc(w2, q, d2) * lv2
+                        s += osc(w2, q, d2, wt2, pos2, mip2[u]) * lv2
                         q += d2
                         if (q >= 1f) q -= 1f
                         ph2[u] = q
@@ -566,6 +586,7 @@ class PolySynth : Instrument() {
         const val WAVE_SAW = 2
         const val WAVE_SQUARE = 3
         const val WAVE_NOISE = 4
+        const val WAVE_WAVETABLE = 5
 
         const val FILTER_LP12 = 0
         const val FILTER_LP24 = 1
@@ -577,42 +598,46 @@ class PolySynth : Instrument() {
         const val MODE_LEGATO = 2
 
         const val OSC1_WAVE = 0
-        const val OSC1_OCT = 1
-        const val OSC1_LEVEL = 2
-        const val PULSE_WIDTH = 3
-        const val OSC2_WAVE = 4
-        const val OSC2_OCT = 5
-        const val OSC2_SEMI = 6
-        const val OSC2_DETUNE = 7
-        const val OSC2_LEVEL = 8
-        const val SUB_LEVEL = 9
-        const val NOISE_LEVEL = 10
-        const val UNISON = 11
-        const val UNI_DETUNE = 12
-        const val UNI_SPREAD = 13
-        const val FLT_TYPE = 14
-        const val CUTOFF = 15
-        const val RESO = 16
-        const val ENV_AMT = 17
-        const val KEYTRACK = 18
-        const val DRIVE = 19
-        const val AMP_A = 20
-        const val AMP_D = 21
-        const val AMP_S = 22
-        const val AMP_R = 23
-        const val FLT_A = 24
-        const val FLT_D = 25
-        const val FLT_S = 26
-        const val FLT_R = 27
-        const val LFO_WAVE = 28
-        const val LFO_RATE = 29
-        const val LFO_PITCH = 30
-        const val LFO_CUTOFF = 31
-        const val LFO_AMP = 32
-        const val MODE = 33
-        const val GLIDE = 34
-        const val VEL_SENS = 35
-        const val LEVEL = 36
+        const val OSC1_TABLE = 1
+        const val OSC1_POSITION = 2
+        const val OSC1_OCT = 3
+        const val OSC1_LEVEL = 4
+        const val PULSE_WIDTH = 5
+        const val OSC2_WAVE = 6
+        const val OSC2_TABLE = 7
+        const val OSC2_POSITION = 8
+        const val OSC2_OCT = 9
+        const val OSC2_SEMI = 10
+        const val OSC2_DETUNE = 11
+        const val OSC2_LEVEL = 12
+        const val SUB_LEVEL = 13
+        const val NOISE_LEVEL = 14
+        const val UNISON = 15
+        const val UNI_DETUNE = 16
+        const val UNI_SPREAD = 17
+        const val FLT_TYPE = 18
+        const val CUTOFF = 19
+        const val RESO = 20
+        const val ENV_AMT = 21
+        const val KEYTRACK = 22
+        const val DRIVE = 23
+        const val AMP_A = 24
+        const val AMP_D = 25
+        const val AMP_S = 26
+        const val AMP_R = 27
+        const val FLT_A = 28
+        const val FLT_D = 29
+        const val FLT_S = 30
+        const val FLT_R = 31
+        const val LFO_WAVE = 32
+        const val LFO_RATE = 33
+        const val LFO_PITCH = 34
+        const val LFO_CUTOFF = 35
+        const val LFO_AMP = 36
+        const val MODE = 37
+        const val GLIDE = 38
+        const val VEL_SENS = 39
+        const val LEVEL = 40
 
         private val G_OSC1 = R.string.g_osc1
         private val G_OSC2 = R.string.g_osc2
@@ -625,11 +650,15 @@ class PolySynth : Instrument() {
         private val G_VOICE = R.string.g_voice
 
         val PARAMS: List<ParamSpec> = listOf(
-            ParamSpec("osc1Wave", R.string.p_wave, 0f, 4f, 2f, choicesRes = R.array.arr_waves, group = G_OSC1),
+            ParamSpec("osc1Wave", R.string.p_wave, 0f, WAVE_WAVETABLE.toFloat(), 2f, choicesRes = R.array.arr_waves, group = G_OSC1),
+            ParamSpec("osc1Table", R.string.p_wt_table, 0f, (WavetableBank.TABLE_COUNT - 1).toFloat(), 0f, choicesRes = R.array.arr_wavetables, group = G_OSC1),
+            ParamSpec("osc1Position", R.string.p_wt_position, 0f, 1f, 0.5f, ParamUnit.PERCENT, group = G_OSC1),
             ParamSpec("osc1Oct", R.string.p_octave, -2f, 2f, 0f, ParamUnit.OCTAVES, group = G_OSC1, integer = true),
             ParamSpec("osc1Level", R.string.p_level, 0f, 1f, 0.8f, ParamUnit.PERCENT, group = G_OSC1),
             ParamSpec("pulseWidth", R.string.p_pulse_width, 0.05f, 0.95f, 0.5f, ParamUnit.PERCENT, group = G_OSC1),
-            ParamSpec("osc2Wave", R.string.p_wave, 0f, 4f, 2f, choicesRes = R.array.arr_waves, group = G_OSC2),
+            ParamSpec("osc2Wave", R.string.p_wave, 0f, WAVE_WAVETABLE.toFloat(), 2f, choicesRes = R.array.arr_waves, group = G_OSC2),
+            ParamSpec("osc2Table", R.string.p_wt_table, 0f, (WavetableBank.TABLE_COUNT - 1).toFloat(), 0f, choicesRes = R.array.arr_wavetables, group = G_OSC2),
+            ParamSpec("osc2Position", R.string.p_wt_position, 0f, 1f, 0.5f, ParamUnit.PERCENT, group = G_OSC2),
             ParamSpec("osc2Oct", R.string.p_octave, -2f, 2f, 0f, ParamUnit.OCTAVES, group = G_OSC2, integer = true),
             ParamSpec("osc2Semi", R.string.p_semitones, -12f, 12f, 0f, ParamUnit.SEMITONES, group = G_OSC2, integer = true),
             ParamSpec("osc2Detune", R.string.p_detune, -50f, 50f, 8f, ParamUnit.CENTS, group = G_OSC2),
@@ -665,5 +694,6 @@ class PolySynth : Instrument() {
         )
 
         val TYPE = DeviceType(TYPE_ID, R.string.dev_synth, R.string.dev_synth_desc, true, PARAMS) { PolySynth() }
+            .also { WavetableBank.prime() }
     }
 }

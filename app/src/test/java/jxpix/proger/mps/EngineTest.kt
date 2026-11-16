@@ -119,7 +119,8 @@ class EngineTest {
             val synth = Devices.SYNTH.create() as Instrument
             synth.prepare(rate)
             synth.setParams(Devices.SYNTH.toArray(preset.params))
-            val pitch = if (preset.categoryRes == R.string.cat_bass) 36 else 60
+            val isBass = preset.categoryRes == R.string.cat_bass || preset.id == "neon_bass" || preset.id == "midnight_pulse"
+            val pitch = if (isBass) 36 else 60
             val (peak, level) = measure(synth, pitch)
             println("preset %-12s peak %.3f rms %.3f".format(preset.id, peak, level))
             assertTrue("${preset.id} is silent", peak > 0.02f)

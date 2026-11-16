@@ -12,6 +12,9 @@ import jxpix.proger.mps.engine.effects.Flanger
 import jxpix.proger.mps.engine.effects.StereoWidth
 import jxpix.proger.mps.engine.effects.Tape
 import jxpix.proger.mps.engine.effects.Tremolo
+import jxpix.proger.mps.engine.effects.ParametricEq
+import jxpix.proger.mps.engine.dsp.WavetableBank
+import jxpix.proger.mps.engine.instruments.PolySynth
 import jxpix.proger.mps.model.Note
 import jxpix.proger.mps.model.Presets
 import jxpix.proger.mps.model.Project
@@ -32,10 +35,114 @@ import kotlin.math.max
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** The instruments and effects added after the first version: FM synth, string, flanger, tremolo, stereo, tape. */
+/** Coverage for the built-in instruments and effects added or expanded after the first version. */
 class PluginTest {
 
     private val rate = 48000
+
+    @Test
+    fun parametricEqBandsAndDynamicControlsMatchTheDspLayout() {
+        val type = requireNotNull(Devices[ParametricEq.TYPE_ID])
+        val fields = listOf("Type", "Freq", "Gain", "Q", "DynamicMode", "Threshold", "Range")
+        assertEquals("eight seven-parameter bands plus output and shared timing", 59, type.params.size)
+        for (band in 1..ParametricEq.BAND_COUNT) {
+            for ((field, suffix) in fields.withIndex()) {
+                assertEquals("B$band $suffix is at DSP index ${(band - 1) * fields.size + field}", (band - 1) * fields.size + field, type.indexOf("b$band$suffix"))
+            }
+        }
+        assertEquals(56, type.indexOf("output"))
+        assertEquals(57, type.indexOf("dynamicAttack"))
+        assertEquals(58, type.indexOf("dynamicRelease"))
+
+        val dynamic = requireNotNull(Presets.find(ParametricEq.TYPE_ID, "peq_dynamic_vocal"))
+        assertEquals(ParametricEq.DYNAMIC_DOWNWARD.toFloat(), requireNotNull(dynamic.params["b3DynamicMode"]), 0f)
+        val threshold = requireNotNull(dynamic.params["b3Threshold"])
+        assertTrue("the dynamic vocal preset keeps its threshold in range", threshold in -60f..0f)
+    }
+
+    @Test
+    fun synthwaveBankIsCompleteAndEveryParameterIsInRange() {
+        val bank = Presets.synth.filter { it.categoryRes == R.string.cat_synthwave }
+        assertEquals("the factory bank has seven distinct patches", 7, bank.size)
+        assertEquals(bank.size, bank.map { it.id }.toSet().size)
+
+        for (preset in bank) {
+            assertTrue("${preset.id} is listed in the synth preset catalogue", Presets.find(Devices.SYNTH.id, preset.id) != null)
+            for ((id, value) in preset.params) {
+                val spec = requireNotNull(Devices.SYNTH.spec(id)) { "${preset.id} has unknown parameter $id" }
+                assertTrue("${preset.id}: $id = $value is below ${spec.min}", value >= spec.min)
+                assertTrue("${preset.id}: $id = $value is above ${spec.max}", value <= spec.max)
+            }
+        }
+    }
+
+    @Test
+    fun wavetableBankMorphsAndSynthOscillatorsStayInTune() {
+        val bank = Presets.synth.filter { it.categoryRes == R.string.cat_wavetable }
+        assertEquals("five built-in wavetable patches", 5, bank.size)
+        assertEquals(bank.size, bank.map { it.id }.toSet().size)
+        val indexedParams = mapOf(
+            "osc1Wave" to PolySynth.OSC1_WAVE, "osc1Table" to PolySynth.OSC1_TABLE,
+            "osc1Position" to PolySynth.OSC1_POSITION, "osc1Oct" to PolySynth.OSC1_OCT,
+            "osc1Level" to PolySynth.OSC1_LEVEL, "pulseWidth" to PolySynth.PULSE_WIDTH,
+            "osc2Wave" to PolySynth.OSC2_WAVE, "osc2Table" to PolySynth.OSC2_TABLE,
+            "osc2Position" to PolySynth.OSC2_POSITION, "osc2Oct" to PolySynth.OSC2_OCT,
+            "osc2Semi" to PolySynth.OSC2_SEMI, "osc2Detune" to PolySynth.OSC2_DETUNE,
+            "osc2Level" to PolySynth.OSC2_LEVEL, "subLevel" to PolySynth.SUB_LEVEL,
+            "noiseLevel" to PolySynth.NOISE_LEVEL, "unison" to PolySynth.UNISON,
+            "uniDetune" to PolySynth.UNI_DETUNE, "uniSpread" to PolySynth.UNI_SPREAD,
+            "filterType" to PolySynth.FLT_TYPE, "cutoff" to PolySynth.CUTOFF,
+            "resonance" to PolySynth.RESO, "envAmount" to PolySynth.ENV_AMT,
+            "keyTrack" to PolySynth.KEYTRACK, "drive" to PolySynth.DRIVE,
+            "ampAttack" to PolySynth.AMP_A, "ampDecay" to PolySynth.AMP_D,
+            "ampSustain" to PolySynth.AMP_S, "ampRelease" to PolySynth.AMP_R,
+            "fltAttack" to PolySynth.FLT_A, "fltDecay" to PolySynth.FLT_D,
+            "fltSustain" to PolySynth.FLT_S, "fltRelease" to PolySynth.FLT_R,
+            "lfoWave" to PolySynth.LFO_WAVE, "lfoRate" to PolySynth.LFO_RATE,
+            "lfoPitch" to PolySynth.LFO_PITCH, "lfoCutoff" to PolySynth.LFO_CUTOFF,
+            "lfoAmp" to PolySynth.LFO_AMP, "mode" to PolySynth.MODE,
+            "glide" to PolySynth.GLIDE, "velSens" to PolySynth.VEL_SENS,
+            "level" to PolySynth.LEVEL,
+        )
+        for ((id, index) in indexedParams) assertEquals("DSP index for $id", index, Devices.SYNTH.indexOf(id))
+        for (preset in bank) {
+            assertTrue("${preset.id} is listed in the synth preset catalogue", Presets.find(Devices.SYNTH.id, preset.id) != null)
+            for ((id, value) in preset.params) {
+                val spec = requireNotNull(Devices.SYNTH.spec(id)) { "${preset.id} has unknown parameter $id" }
+                assertTrue("${preset.id}: $id is below range", value >= spec.min)
+                assertTrue("${preset.id}: $id is above range", value <= spec.max)
+            }
+        }
+
+        val start = WavetableBank.sample(0, 0.12f, 0f)
+        val wrapped = WavetableBank.sample(0, 0.12f, 1f)
+        assertEquals("table interpolation wraps at the cycle boundary", start, wrapped, 1e-5f)
+        assertEquals("a low note keeps the bright mip", 0, WavetableBank.mipFor(0.0005f))
+        assertEquals("a very high note falls back to the fundamental", 7, WavetableBank.mipFor(0.3f))
+
+        val base = mapOf(
+            "osc1Wave" to PolySynth.WAVE_WAVETABLE.toFloat(),
+            "osc1Table" to 0f,
+            "osc1Position" to 0.12f,
+            "osc1Level" to 0.8f,
+            "osc2Level" to 0f,
+            "unison" to 1f,
+            "cutoff" to 16000f,
+            "ampAttack" to 0.001f,
+            "ampSustain" to 1f,
+            "level" to 0.8f,
+        )
+        val (first, _) = play(instrument(Devices.SYNTH, base), 69, 0.5, 0.1)
+        val (morphed, _) = play(instrument(Devices.SYNTH, base + ("osc1Position" to 0.9f)), 69, 0.5, 0.1)
+        assertTrue("morph position changes the spectrum", rms(FloatArray(first.size) { first[it] - morphed[it] }) > 0.005)
+        assertEquals("wavetable oscillator stays at concert A", 0.0, cents(pitchOf(first, rate / 4, 440.0), 440.0), 4.0)
+
+        for (table in 1 until WavetableBank.TABLE_COUNT) {
+            val signal = play(instrument(Devices.SYNTH, base + ("osc1Table" to table.toFloat())), 60, 0.35, 0.1).first
+            assertTrue("wavetable $table is audible", rms(signal, rate / 10, rate / 4) > 0.01)
+            assertFalse("wavetable $table has no NaNs", signal.any { it.isNaN() })
+        }
+    }
 
     private fun instrument(type: DeviceType, values: Map<String, Float> = emptyMap()): Instrument {
         val inst = type.create() as Instrument
@@ -409,11 +516,11 @@ class PluginTest {
         var p = Project(name = "plugins", bpm = 128f, tracks = 1)
         val pattern = p.addPattern("p").let { p = it.first; it.second }
         val beat = PPQ
-        for ((i, type) in listOf(Devices.FM, Devices.STRING).withIndex()) {
-            val preset = Presets.forType(type.id).first()
+        for ((i, type) in listOf(Devices.FM, Devices.STRING, Devices.SYNTH).withIndex()) {
+            val preset = if (type.id == Devices.SYNTH.id) Presets.synth("wt_harmonic_sweep") else Presets.forType(type.id).first()
             val id = p.addChannel(type.id, type.id, params = preset.params).let { p = it.first; it.second }
             p = p.setNotes(pattern, id, List(16) { Note(it * beat / 4, beat / 4, 48 + i * 12 + it % 5 * 3, 0.8f) })
-            for (fx in listOf("flanger", "tremolo", "stereo", "tape")) p = p.addEffect(id, fx).first
+            for (fx in listOf("flanger", "tremolo", "stereo", "tape", "peq")) p = p.addEffect(id, fx).first
         }
         p = p.addPatternClip(pattern, 0, 0, p.ticksPerBar * 64).first
 

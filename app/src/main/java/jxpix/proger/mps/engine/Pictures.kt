@@ -5,7 +5,10 @@ import jxpix.proger.mps.engine.dsp.Adsr
 import jxpix.proger.mps.engine.dsp.Biquad
 import jxpix.proger.mps.engine.dsp.FastMath
 import jxpix.proger.mps.engine.dsp.Fft
+import jxpix.proger.mps.engine.dsp.WavetableBank
 import jxpix.proger.mps.engine.effects.Ott
+import jxpix.proger.mps.engine.effects.ParametricEq
+import jxpix.proger.mps.engine.instruments.PolySynth
 import jxpix.proger.mps.model.Scales
 import jxpix.proger.mps.model.isBlackKey
 import kotlin.math.PI
@@ -262,6 +265,7 @@ object Pictures {
         val s = Sketch()
         return when (typeId) {
             "eq" -> eq(s, v)
+            "peq" -> parametricEq(s, v)
             "filter" -> filter(s, v)
             "comp" -> compressor(s, v)
             "limiter" -> limiter(s, v)
@@ -286,8 +290,14 @@ object Pictures {
             "repeat" -> repeat(s, type, v, bpm)
             "wah" -> wah(s, v)
             "synth" -> when (group) {
-                R.string.g_osc1 -> oscillator(s, v("osc1Wave").roundToInt(), v("osc1Level"), v("pulseWidth"))
-                R.string.g_osc2 -> oscillator(s, v("osc2Wave").roundToInt(), v("osc2Level"), v("pulseWidth"))
+                R.string.g_osc1 -> oscillator(
+                    s, v("osc1Wave").roundToInt(), v("osc1Level"), v("pulseWidth"),
+                    v("osc1Table").roundToInt(), v("osc1Position"),
+                )
+                R.string.g_osc2 -> oscillator(
+                    s, v("osc2Wave").roundToInt(), v("osc2Level"), v("pulseWidth"),
+                    v("osc2Table").roundToInt(), v("osc2Position"),
+                )
                 R.string.g_filter -> synthFilter(s, v)
                 R.string.g_amp_env -> envelope(s, v("ampAttack"), v("ampDecay"), v("ampSustain"), v("ampRelease"))
                 R.string.g_filter_env -> envelope(s, v("fltAttack"), v("fltDecay"), v("fltSustain"), v("fltRelease"))
@@ -425,6 +435,59 @@ object Pictures {
         s.response(-24f, 24f, Ink.MAIN, fill = true, db = curve)
         for (f in floatArrayOf(v("lowFreq"), v("midFreq"), v("highFreq"))) {
             s.marks += Dot(xOf(f), ((curve(f) + 24f) / 48f).coerceIn(0f, 1f), Ink.MAIN)
+        }
+        return s.done(Live.SPECTRUM)
+    }
+
+    /** Combined magnitude response of all active bands, using the same filters as the DSP. */
+    fun parametricEqDb(v: (String) -> Float, maximumDynamicRange: Boolean = false): (Float) -> Float {
+        val filters = Array(ParametricEq.BAND_COUNT) { Biquad() }
+        val active = BooleanArray(ParametricEq.BAND_COUNT)
+        for (band in 0 until ParametricEq.BAND_COUNT) {
+            val prefix = "b${band + 1}"
+            val type = v("${prefix}Type").roundToInt().coerceIn(ParametricEq.OFF, ParametricEq.NOTCH)
+            if (type == ParametricEq.OFF) continue
+            active[band] = true
+            val mode = if (maximumDynamicRange) v("${prefix}DynamicMode").roundToInt() else ParametricEq.DYNAMIC_OFF
+            val dynamicGain = if (type == ParametricEq.BELL || type == ParametricEq.LOW_SHELF || type == ParametricEq.HIGH_SHELF) {
+                when (mode) {
+                    ParametricEq.DYNAMIC_DOWNWARD -> -v("${prefix}Range")
+                    ParametricEq.DYNAMIC_UPWARD -> v("${prefix}Range")
+                    else -> 0f
+                }
+            } else 0f
+            ParametricEq.configureBand(
+                filters[band], type, v("${prefix}Freq"), v("${prefix}Q"), v("${prefix}Gain") + dynamicGain, RATE,
+            )
+        }
+        return { f ->
+            var sum = 0f
+            for (band in 0 until ParametricEq.BAND_COUNT) if (active[band]) sum += filters[band].magnitudeDb(f, RATE)
+            sum + v("output")
+        }
+    }
+
+    private fun parametricEq(s: Sketch, v: (String) -> Float): Picture {
+        val curve = parametricEqDb(v)
+        val hasDynamicBands = (0 until ParametricEq.BAND_COUNT).any { band ->
+            val prefix = "b${band + 1}"
+            val shape = v("${prefix}Type").roundToInt()
+            val mode = v("${prefix}DynamicMode").roundToInt()
+            val range = v("${prefix}Range")
+            mode != ParametricEq.DYNAMIC_OFF && range > 0f &&
+                (shape == ParametricEq.BELL || shape == ParametricEq.LOW_SHELF || shape == ParametricEq.HIGH_SHELF)
+        }
+        val dynamicLimit = if (hasDynamicBands) parametricEqDb(v, maximumDynamicRange = true) else null
+        s.frequencies()
+        s.zero(-36f, 30f)
+        if (dynamicLimit != null) s.response(-36f, 30f, Ink.SOFT, db = dynamicLimit)
+        s.response(-36f, 30f, Ink.MAIN, fill = true, db = curve)
+        for (band in 0 until ParametricEq.BAND_COUNT) {
+            val prefix = "b${band + 1}"
+            if (v("${prefix}Type").roundToInt() != ParametricEq.OFF) {
+                val f = v("${prefix}Freq")
+                s.marks += Dot(xOf(f), ((curve(f) + 36f) / 66f).coerceIn(0f, 1f), Ink.MAIN)
+            }
         }
         return s.done(Live.SPECTRUM)
     }
@@ -885,16 +948,17 @@ object Pictures {
 
     // ------------------------------------------------------------------ instruments
 
-    private fun oscillator(s: Sketch, wave: Int, level: Float, pulse: Float): Picture {
+    private fun oscillator(s: Sketch, wave: Int, level: Float, pulse: Float, table: Int, position: Float): Picture {
         s.marks += Rule(false, 0.5f)
         var seed = 0x2F6E2B1
-        s.plot(Ink.MAIN, points = if (wave == 4) 120 else 240) { x ->
+        s.plot(Ink.MAIN, points = if (wave == PolySynth.WAVE_NOISE) 120 else 240) { x ->
             val phase = (x * 2f) % 1f
             val value = when (wave) {
-                0 -> sin(2.0 * PI * phase).toFloat()
-                1 -> 1f - 4f * abs(((phase + 0.25f) % 1f) - 0.5f)
-                2 -> 2f * ((phase + 0.5f) % 1f) - 1f
-                3 -> if (phase < pulse) 1f else -1f
+                PolySynth.WAVE_SINE -> sin(2.0 * PI * phase).toFloat()
+                PolySynth.WAVE_TRIANGLE -> 1f - 4f * abs(((phase + 0.25f) % 1f) - 0.5f)
+                PolySynth.WAVE_SAW -> 2f * ((phase + 0.5f) % 1f) - 1f
+                PolySynth.WAVE_SQUARE -> if (phase < pulse) 1f else -1f
+                PolySynth.WAVE_WAVETABLE -> WavetableBank.sample(table, position, phase)
                 else -> {
                     // noise: the same every time it is drawn
                     seed = seed xor (seed shl 13)

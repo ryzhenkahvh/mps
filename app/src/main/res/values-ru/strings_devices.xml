@@ -3,7 +3,7 @@
 <resources>
     <!-- Инструменты -->
     <string name="dev_synth">Синтезатор</string>
-    <string name="dev_synth_desc">Басы, лиды, пэды и клавиши. Много готовых звуков.</string>
+    <string name="dev_synth_desc">Два аналоговых или вейвтейбл-осциллятора, морфинг таблиц, унисон, фильтры, огибающие и LFO.</string>
     <string name="dev_drum">Ударные</string>
     <string name="dev_drum_desc">Бочка, снейр, клэп, хэты и другое. Каждый звук настраивается.</string>
     <string name="dev_sampler">Сэмплер</string>
@@ -54,6 +54,8 @@
     <string name="p_octave">Октава</string>
     <string name="p_level">Уровень</string>
     <string name="p_pulse_width">Ширина импульса</string>
+    <string name="p_wt_table">Вейвтейбл</string>
+    <string name="p_wt_position">Позиция WT</string>
     <string name="p_semitones">Полутоны</string>
     <string name="p_detune">Расстройка</string>
     <string name="p_sub">Суб</string>
@@ -126,6 +128,13 @@
         <item>Пила</item>
         <item>Квадрат</item>
         <item>Шум</item>
+        <item>Вейвтейбл</item>
+    </string-array>
+    <string-array name="arr_wavetables">
+        <item>Гармоники</item>
+        <item>Форманта</item>
+        <item>Гласные</item>
+        <item>Цифровая</item>
     </string-array>
     <string-array name="arr_lfo_waves">
         <item>Синус</item>
@@ -202,6 +211,8 @@
     <string name="cat_keys">Клавиши</string>
     <string name="cat_pad">Пэды</string>
     <string name="cat_fx">Эффекты</string>
+    <string name="cat_synthwave">Синтвейв</string>
+    <string name="cat_wavetable">Вейвтейбл</string>
 
     <string name="pre_init">Классическая пила</string>
     <string name="pre_deep_bass">Глубокий бас</string>
@@ -222,6 +233,19 @@
     <string name="pre_warm_chords">Тёплые аккорды</string>
     <string name="pre_riser">Нарастание</string>
     <string name="pre_air">Воздух</string>
+
+    <string name="pre_neon_bass">Неоновый бас</string>
+    <string name="pre_midnight_pulse">Полуночный пульс</string>
+    <string name="pre_arcade_lead">Аркадный лид</string>
+    <string name="pre_afterglow_lead">Лид «Послесвечение»</string>
+    <string name="pre_sunset_brass">Закатные духовые</string>
+    <string name="pre_night_drive_pad">Пэд «Ночная трасса»</string>
+    <string name="pre_vhs_pluck">VHS-плак</string>
+    <string name="pre_wt_harmonic">Гармонический свип</string>
+    <string name="pre_wt_vowel">Гласные облака</string>
+    <string name="pre_wt_digital_bass">Цифровой бас</string>
+    <string name="pre_wt_metal_pluck">Металлический щипок</string>
+    <string name="pre_wt_formant_lead">Формантный лид</string>
 
     <!-- Шаблоны -->
     <string name="tpl_empty">Пустой проект</string>
@@ -506,5 +530,67 @@
         <item>1/16</item>
         <item>1/16T</item>
         <item>1/32</item>
+    </string-array>
+
+    <!-- Eight-band parametric EQ -->
+    <string name="fx_param_eq">Параметрический эквалайзер</string>
+    <string name="fx_param_eq_desc">Восемь настраиваемых полос: колокола, полки, срезы и режекторный фильтр; колокола и полки могут динамически реагировать на уровень сигнала. Над настройками показаны кривая и спектр.</string>
+    <string name="g_peq_bands">Восемь полос</string>
+    <string name="peq_output">Выходное усиление</string>
+    <string name="peq_graph_hint">Перетаскивайте активные точки. Нажмите на пустое место, чтобы добавить колокольную полосу. Мягкая кривая показывает максимальный динамический диапазон.</string>
+    <string name="peq_dynamic_mode">Динамический режим</string>
+    <string name="peq_dynamic_threshold">Порог</string>
+    <string name="peq_dynamic_range">Динамический диапазон</string>
+    <string name="peq_dynamic_attack">Атака динамики</string>
+    <string name="peq_dynamic_release">Восстановление динамики</string>
+    <string name="fxp_eq_low_cut">Срез низа</string>
+    <string name="fxp_eq_vocal">Чёткость вокала</string>
+    <string name="fxp_eq_air">Воздушность</string>
+    <string name="fxp_eq_dynamic_vocal">Динамическая коррекция вокала</string>
+    <string name="peq_b1_type">Полоса 1 · форма</string>
+    <string name="peq_b1_freq">Полоса 1 · частота</string>
+    <string name="peq_b1_gain">Полоса 1 · усиление</string>
+    <string name="peq_b1_q">Полоса 1 · Q</string>
+    <string name="peq_b2_type">Полоса 2 · форма</string>
+    <string name="peq_b2_freq">Полоса 2 · частота</string>
+    <string name="peq_b2_gain">Полоса 2 · усиление</string>
+    <string name="peq_b2_q">Полоса 2 · Q</string>
+    <string name="peq_b3_type">Полоса 3 · форма</string>
+    <string name="peq_b3_freq">Полоса 3 · частота</string>
+    <string name="peq_b3_gain">Полоса 3 · усиление</string>
+    <string name="peq_b3_q">Полоса 3 · Q</string>
+    <string name="peq_b4_type">Полоса 4 · форма</string>
+    <string name="peq_b4_freq">Полоса 4 · частота</string>
+    <string name="peq_b4_gain">Полоса 4 · усиление</string>
+    <string name="peq_b4_q">Полоса 4 · Q</string>
+    <string name="peq_b5_type">Полоса 5 · форма</string>
+    <string name="peq_b5_freq">Полоса 5 · частота</string>
+    <string name="peq_b5_gain">Полоса 5 · усиление</string>
+    <string name="peq_b5_q">Полоса 5 · Q</string>
+    <string name="peq_b6_type">Полоса 6 · форма</string>
+    <string name="peq_b6_freq">Полоса 6 · частота</string>
+    <string name="peq_b6_gain">Полоса 6 · усиление</string>
+    <string name="peq_b6_q">Полоса 6 · Q</string>
+    <string name="peq_b7_type">Полоса 7 · форма</string>
+    <string name="peq_b7_freq">Полоса 7 · частота</string>
+    <string name="peq_b7_gain">Полоса 7 · усиление</string>
+    <string name="peq_b7_q">Полоса 7 · Q</string>
+    <string name="peq_b8_type">Полоса 8 · форма</string>
+    <string name="peq_b8_freq">Полоса 8 · частота</string>
+    <string name="peq_b8_gain">Полоса 8 · усиление</string>
+    <string name="peq_b8_q">Полоса 8 · Q</string>
+    <string-array name="arr_param_eq_types">
+        <item>Выкл.</item>
+        <item>Колокол</item>
+        <item>Низкая полка</item>
+        <item>Высокая полка</item>
+        <item>ФНЧ</item>
+        <item>ФВЧ</item>
+        <item>Режектор</item>
+    </string-array>
+    <string-array name="arr_param_eq_dynamic_modes">
+        <item>Выкл.</item>
+        <item>Ослабление выше порога</item>
+        <item>Усиление ниже порога</item>
     </string-array>
 </resources>

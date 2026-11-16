@@ -24,6 +24,7 @@ import jxpix.proger.mps.engine.effects.Compressor
 import jxpix.proger.mps.engine.effects.Delay
 import jxpix.proger.mps.engine.effects.Distortion
 import jxpix.proger.mps.engine.effects.Eq3
+import jxpix.proger.mps.engine.effects.ParametricEq
 import jxpix.proger.mps.engine.effects.FilterFx
 import jxpix.proger.mps.engine.effects.Limiter
 import jxpix.proger.mps.engine.effects.Phaser
@@ -46,6 +47,7 @@ object Presets {
     private const val SAW = 2f
     private const val SQUARE = 3f
     private const val NOISE = 4f
+    private const val WT = 5f
 
     private const val LP12 = 0f
     private const val LP24 = 1f
@@ -76,6 +78,8 @@ object Presets {
     private val KEYS = R.string.cat_keys
     private val PAD = R.string.cat_pad
     private val FX = R.string.cat_fx
+    private val SYNTHWAVE = R.string.cat_synthwave
+    private val WAVETABLE = R.string.cat_wavetable
 
     val synth: List<Preset> = listOf(
         synth("init", R.string.pre_init, LEAD),
@@ -199,6 +203,114 @@ object Presets {
             *amp(0.01f, 0.6f, 0.7f, 0.4f), *flt(0.01f, 0.5f, 0.35f, 0.4f), "velSens" to 0.4f, "level" to 0.6f,
         ),
 
+        // ------------------------------------------------------------------ synthwave bank
+        synth(
+            "neon_bass", R.string.pre_neon_bass, SYNTHWAVE,
+            "osc1Wave" to SAW, "osc2Wave" to SQUARE, "osc2Oct" to -1f, "osc2Level" to 0.32f, "osc2Detune" to -5f,
+            "subLevel" to 0.45f, "filterType" to LP24, "cutoff" to 260f, "resonance" to 0.18f,
+            "envAmount" to 0.34f, "keyTrack" to 0.42f, "drive" to 0.16f,
+            *amp(0.003f, 0.28f, 0.72f, 0.1f), *flt(0.002f, 0.24f, 0.18f, 0.08f),
+            "mode" to MONO, "glide" to 0.06f, "velSens" to 0.18f, "level" to 0.66f,
+        ),
+        synth(
+            "midnight_pulse", R.string.pre_midnight_pulse, SYNTHWAVE,
+            "osc1Wave" to SQUARE, "pulseWidth" to 0.34f, "osc2Wave" to SAW, "osc2Oct" to -1f,
+            "osc2Level" to 0.28f, "osc2Detune" to 4f, "subLevel" to 0.3f,
+            "filterType" to LP24, "cutoff" to 360f, "resonance" to 0.22f, "envAmount" to 0.4f,
+            "drive" to 0.12f, *amp(0.004f, 0.24f, 0.64f, 0.09f), *flt(0.003f, 0.2f, 0.12f, 0.08f),
+            "mode" to LEGATO, "glide" to 0.1f, "velSens" to 0.16f, "level" to 0.62f,
+        ),
+        synth(
+            "arcade_lead", R.string.pre_arcade_lead, SYNTHWAVE,
+            "osc1Wave" to SAW, "osc2Wave" to SQUARE, "pulseWidth" to 0.42f, "osc2Level" to 0.38f, "osc2Detune" to -7f,
+            "unison" to 3f, "uniDetune" to 0.25f, "uniSpread" to 0.65f,
+            "filterType" to LP12, "cutoff" to 3200f, "resonance" to 0.18f, "envAmount" to 0.24f,
+            *amp(0.006f, 0.22f, 0.82f, 0.24f), *flt(0.006f, 0.24f, 0.55f, 0.2f),
+            "lfoRate" to 5.2f, "lfoPitch" to 0.09f, "lfoCutoff" to 0.07f,
+            "mode" to LEGATO, "glide" to 0.06f, "velSens" to 0.3f, "level" to 0.58f,
+        ),
+        synth(
+            "afterglow_lead", R.string.pre_afterglow_lead, SYNTHWAVE,
+            "osc1Wave" to SAW, "osc2Wave" to SAW, "osc2Level" to 0.34f, "osc2Detune" to 11f,
+            "unison" to 5f, "uniDetune" to 0.34f, "uniSpread" to 0.82f,
+            "filterType" to LP12, "cutoff" to 5100f, "resonance" to 0.1f, "envAmount" to 0.12f,
+            *amp(0.018f, 0.38f, 0.74f, 0.34f), "lfoWave" to 1f, "lfoRate" to 0.28f,
+            "lfoPitch" to 0.025f, "lfoCutoff" to 0.1f, "velSens" to 0.3f, "level" to 0.5f,
+        ),
+        synth(
+            "sunset_brass", R.string.pre_sunset_brass, SYNTHWAVE,
+            "osc1Wave" to SAW, "osc2Wave" to SQUARE, "osc2Level" to 0.5f, "osc2Detune" to -6f,
+            "unison" to 3f, "uniDetune" to 0.18f, "uniSpread" to 0.56f,
+            "filterType" to LP12, "cutoff" to 1450f, "resonance" to 0.18f, "envAmount" to 0.48f,
+            "keyTrack" to 0.25f, "drive" to 0.1f,
+            *amp(0.035f, 0.32f, 0.72f, 0.25f), *flt(0.025f, 0.3f, 0.42f, 0.22f),
+            "velSens" to 0.3f, "level" to 0.58f,
+        ),
+        synth(
+            "night_drive_pad", R.string.pre_night_drive_pad, SYNTHWAVE,
+            "osc1Wave" to SAW, "osc2Wave" to TRI, "osc2Level" to 0.55f, "osc2Detune" to 8f,
+            "subLevel" to 0.15f, "unison" to 5f, "uniDetune" to 0.3f, "uniSpread" to 1f,
+            "filterType" to LP12, "cutoff" to 1650f, "resonance" to 0.08f, "envAmount" to 0.12f,
+            "keyTrack" to 0.35f, "drive" to 0.05f,
+            *amp(0.65f, 1.1f, 0.8f, 1.6f), *flt(0.7f, 1.3f, 0.6f, 1.4f),
+            "lfoRate" to 0.18f, "lfoPitch" to 0.03f, "lfoCutoff" to 0.14f,
+            "velSens" to 0.2f, "level" to 0.48f,
+        ),
+        synth(
+            "vhs_pluck", R.string.pre_vhs_pluck, SYNTHWAVE,
+            "osc1Wave" to SAW, "osc2Wave" to SQUARE, "osc2Level" to 0.32f, "osc2Detune" to 5f,
+            "unison" to 3f, "uniDetune" to 0.18f, "uniSpread" to 0.55f,
+            "filterType" to LP12, "cutoff" to 2500f, "resonance" to 0.12f, "envAmount" to 0.4f,
+            *amp(0.002f, 0.45f, 0.08f, 0.28f), *flt(0.002f, 0.35f, 0.05f, 0.25f),
+            "lfoRate" to 0.5f, "lfoCutoff" to 0.06f, "velSens" to 0.55f, "level" to 0.55f,
+        ),
+
+        // ------------------------------------------------------------ wavetable sounds
+        synth(
+            "wt_harmonic_sweep", R.string.pre_wt_harmonic, WAVETABLE,
+            "osc1Wave" to WT, "osc1Table" to 0f, "osc1Position" to 0.38f,
+            "osc2Wave" to WT, "osc2Table" to 1f, "osc2Position" to 0.64f, "osc2Oct" to 1f,
+            "osc2Level" to 0.28f, "osc2Detune" to 5f, "unison" to 3f, "uniDetune" to 0.22f, "uniSpread" to 0.72f,
+            "filterType" to LP12, "cutoff" to 7200f, "resonance" to 0.12f, "envAmount" to 0.08f,
+            *amp(0.025f, 0.4f, 0.78f, 0.45f), "lfoRate" to 0.22f, "lfoCutoff" to 0.08f, "level" to 0.58f,
+        ),
+        synth(
+            "wt_vowel_cloud", R.string.pre_wt_vowel, WAVETABLE,
+            "osc1Wave" to WT, "osc1Table" to 2f, "osc1Position" to 0.72f,
+            "osc2Wave" to WT, "osc2Table" to 1f, "osc2Position" to 0.4f, "osc2Oct" to 1f, "osc2Level" to 0.38f,
+            "unison" to 5f, "uniDetune" to 0.28f, "uniSpread" to 0.95f,
+            "filterType" to LP12, "cutoff" to 2600f, "resonance" to 0.1f,
+            *amp(0.55f, 1.1f, 0.82f, 1.5f), *flt(0.4f, 1f, 0.7f, 1.4f),
+            "lfoRate" to 0.18f, "lfoCutoff" to 0.13f, "lfoPitch" to 0.02f, "level" to 0.48f,
+        ),
+        synth(
+            "wt_digital_bass", R.string.pre_wt_digital_bass, WAVETABLE,
+            "osc1Wave" to WT, "osc1Table" to 3f, "osc1Position" to 0.61f,
+            "osc2Wave" to WT, "osc2Table" to 0f, "osc2Position" to 0.85f, "osc2Oct" to -1f,
+            "osc2Level" to 0.25f, "subLevel" to 0.32f,
+            "filterType" to LP24, "cutoff" to 420f, "resonance" to 0.24f, "envAmount" to 0.35f, "drive" to 0.18f,
+            *amp(0.003f, 0.28f, 0.78f, 0.1f), *flt(0.002f, 0.22f, 0.16f, 0.08f),
+            "mode" to MONO, "glide" to 0.08f, "velSens" to 0.22f, "level" to 0.62f,
+        ),
+        synth(
+            "wt_metal_pluck", R.string.pre_wt_metal_pluck, WAVETABLE,
+            "osc1Wave" to WT, "osc1Table" to 3f, "osc1Position" to 0.88f,
+            "osc2Wave" to WT, "osc2Table" to 1f, "osc2Position" to 0.3f, "osc2Oct" to 1f, "osc2Level" to 0.22f,
+            "unison" to 3f, "uniDetune" to 0.16f, "uniSpread" to 0.58f,
+            "filterType" to LP12, "cutoff" to 6200f, "resonance" to 0.08f,
+            *amp(0.002f, 0.36f, 0.06f, 0.32f), *flt(0.002f, 0.28f, 0.05f, 0.25f),
+            "velSens" to 0.62f, "level" to 0.56f,
+        ),
+        synth(
+            "wt_formant_lead", R.string.pre_wt_formant_lead, WAVETABLE,
+            "osc1Wave" to WT, "osc1Table" to 1f, "osc1Position" to 0.57f,
+            "osc2Wave" to WT, "osc2Table" to 2f, "osc2Position" to 0.68f, "osc2Level" to 0.36f, "osc2Detune" to 4f,
+            "unison" to 3f, "uniDetune" to 0.22f, "uniSpread" to 0.62f,
+            "filterType" to LP12, "cutoff" to 4300f, "resonance" to 0.14f, "envAmount" to 0.16f,
+            *amp(0.012f, 0.34f, 0.72f, 0.3f), *flt(0.01f, 0.28f, 0.45f, 0.24f),
+            "lfoRate" to 4.2f, "lfoCutoff" to 0.08f, "lfoPitch" to 0.04f, "level" to 0.54f,
+        ),
+
         // ------------------------------------------------------------------ effects
         synth(
             "riser", R.string.pre_riser, FX,
@@ -240,6 +352,27 @@ object Presets {
                 of(t, "eq_clean", R.string.fxp_less_mud, "lowGain" to -6f, "lowFreq" to 180f, "midGain" to -3f, "midFreq" to 350f, "midQ" to 1.2f),
                 of(t, "eq_smile", R.string.fxp_smile, "lowGain" to 5f, "lowFreq" to 90f, "midGain" to -4f, "midFreq" to 900f, "midQ" to 0.7f, "highGain" to 5f, "highFreq" to 9000f),
                 of(t, "eq_phone", R.string.fxp_telephone, "lowGain" to -18f, "lowFreq" to 400f, "midGain" to 8f, "midFreq" to 1800f, "midQ" to 1.2f, "highGain" to -18f, "highFreq" to 3000f),
+            )
+        },
+        ParametricEq.TYPE.let { t ->
+            t.id to listOf(
+                of(t, "peq_cut", R.string.fxp_eq_low_cut, "b1Type" to ParametricEq.HIGH_PASS.toFloat(), "b1Freq" to 32f, "b1Q" to 0.707f),
+                of(t, "peq_vocal", R.string.fxp_eq_vocal,
+                    "b1Type" to ParametricEq.LOW_SHELF.toFloat(), "b1Freq" to 120f, "b1Gain" to -1.5f, "b1Q" to 0.707f,
+                    "b2Type" to ParametricEq.BELL.toFloat(), "b2Freq" to 320f, "b2Gain" to -2.5f, "b2Q" to 1.4f,
+                    "b3Type" to ParametricEq.BELL.toFloat(), "b3Freq" to 3200f, "b3Gain" to 2.5f, "b3Q" to 1.1f,
+                    "b4Type" to ParametricEq.HIGH_SHELF.toFloat(), "b4Freq" to 10000f, "b4Gain" to 1.5f, "b4Q" to 0.707f,
+                ),
+                of(t, "peq_air", R.string.fxp_eq_air,
+                    "b5Type" to ParametricEq.BELL.toFloat(), "b5Freq" to 4200f, "b5Gain" to 1.5f, "b5Q" to 0.9f,
+                    "b8Type" to ParametricEq.HIGH_SHELF.toFloat(), "b8Freq" to 9500f, "b8Gain" to 3f, "b8Q" to 0.707f,
+                ),
+                of(t, "peq_dynamic_vocal", R.string.fxp_eq_dynamic_vocal,
+                    "b1Type" to ParametricEq.HIGH_PASS.toFloat(), "b1Freq" to 75f, "b1Q" to 0.707f,
+                    "b3Type" to ParametricEq.BELL.toFloat(), "b3Freq" to 3200f, "b3Gain" to 0f, "b3Q" to 1.6f,
+                    "b3DynamicMode" to ParametricEq.DYNAMIC_DOWNWARD.toFloat(), "b3Threshold" to -22f, "b3Range" to 5f,
+                    "dynamicAttack" to 8f, "dynamicRelease" to 140f,
+                ),
             )
         },
         Compressor.TYPE.let { t ->

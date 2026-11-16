@@ -52,13 +52,13 @@ MPS — приложение для Android, в котором можно соб
 
 **Звук**
 - **Ударные** — 11 синтезируемых звуков: бочка, 808-бас, снейр, клэп, хэты, том, римшот, ковбелл, крэш, шейкер.
-- **Синтезатор** — два осциллятора, саб, шум, фильтр, две огибающие, LFO, унисон; 19 готовых пресетов.
+- **Синтезатор** — два осциллятора с классическими волнами и выбором из 4 морфируемых вейвтейбл-таблиц с mip-уровнями против алиасинга, саб, шум, фильтр, огибающие, LFO, унисон; 31 пресет, включая банки Synthwave и Wavetable.
 - **FM-синтезатор** — звонкие и «стеклянные» тембры, которых не даёт обычный синтезатор: электропиано, колокол,
   стеклянные клавиши, маримба, орган, медные и плотный бас.
 - **Струна** — физическая модель щипковой струны: гитара, нейлон, арфа, кото, клавесин, глушёная струна, щипковый бас.
 - **Сэмплер** — играет по нотам любой аудиофайл с телефона или звук из «Моих звуков».
 - **Аудиоканалы** — запись с микрофона и импорт лупов прямо в плейлист.
-- **24 эффекта** — эквалайзер, компрессор, реверб, дилэй, фильтр, дисторшн, хорус, фэйзер, флэнжер, биткрашер,
+- **25 эффектов** — трёхполосный эквалайзер и 8-полосный параметрический EQ с динамическими колоколами и полками, восходящей/нисходящей обработкой, графиком с перетаскиванием точек и анализатором спектра, компрессор, реверб, дилэй, фильтр, дисторшн, хорус, фэйзер, флэнжер, биткрашер,
   тремоло / автопан, «качалка» (эффект сайдчейна), стереоширина, лента и лимитер. До 6 на канал и столько же на мастер.
   - для голоса: **коррекция тона** (подтягивает голос к нотам тональности — от незаметной правки до «роботного»
     звучания), **сдвиг тона** (выше или ниже без изменения скорости), **гейт** и **де-эссер**;
@@ -82,7 +82,7 @@ MPS — приложение для Android, в котором можно соб
 - **Мои звуки** — общая для всех проектов библиотека ваших аудиофайлов: добавьте сразу несколько, прослушайте,
   переименуйте. Любой звук одним нажатием становится новым каналом, звуком уже открытого сэмплера или клипом
   в плейлисте. Запись с микрофона и файл, загруженный в сэмплер, тоже можно оставить в библиотеке.
-- **Пресеты** — у каждого инструмента и эффекта есть готовые настройки (19 у синтезатора, по 7 у FM-синтезатора
+- **Пресеты** — у каждого инструмента и эффекта есть готовые настройки (31 у синтезатора, включая 7 синтвейв- и 5 вейвтейбл-пресетов, по 7 у FM-синтезатора
   и струны, от трёх до шести у каждого эффекта), а свои можно сохранить под именем — они будут видны во всех проектах
   ([как это выглядит](docs/screenshots/landscape_presets.png)).
 
@@ -208,9 +208,10 @@ MP3-кодировщик — [jump3r](https://git.iem.at/sciss/jump3r), пере
 **MPS is in beta.** The app is free while the beta lasts; after the beta it will be paid.
 
 MPS is a pocket music studio for Android built around the FL Studio workflow: channel rack (step sequencer),
-piano roll, playlist, mixer, keyboard and pads. It ships with a drum synthesizer, a polyphonic synthesizer with
-19 presets, an FM synthesizer, a plucked-string model, a sampler, audio tracks with microphone recording,
-24 effects (among them pitch correction to the key of the song, a pitch shifter, a noise gate and a de-esser for
+piano roll, playlist, mixer, keyboard and pads. It ships with a drum synthesizer, a polyphonic virtual-analog/wavetable synthesizer with 31 factory presets
+including dedicated seven-patch synthwave and five-patch wavetable banks, an FM synthesizer, a plucked-string model,
+a sampler, audio tracks with microphone recording,
+25 effects, including an eight-band parametric equalizer with per-band upward/downward dynamics, a draggable response graph and live spectrum analyzer, pitch correction to the key of the song, a pitch shifter, a noise gate and a de-esser for
 vocals, half-time, beat repeat, an OTT compressor and auto-wah for beats, and 3D sound that moves a source around the
 head in headphones), built-in and user presets for every instrument and effect, a library of your own sounds shared
 by all projects, a key of the song that is marked in the piano roll and on the keys, a generator that writes chords,

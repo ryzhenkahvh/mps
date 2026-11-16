@@ -18,6 +18,7 @@ layout(t('download_title'), t('download_description'), static function () use ($
         <a class="button primary big" href="/download/get.php" rel="nofollow"><?= e(t('download_button')) ?></a>
         <p class="note"><?= $facts(t('download_meta', $apk['version'] ?: '1.0', $apk['megabytes'], $apk['date'])) ?></p>
         <p class="note"><?= e(t('install_requirements')) ?> <?= e(t('download_beta')) ?></p>
+        <p class="note"><?= e(t('download_upgrade_notice')) ?></p>
       </div>
     <?php else: ?>
       <div class="download-box">

@@ -3,6 +3,8 @@ package jxpix.proger.mps.ui.components
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -10,6 +12,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -24,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke as Outline
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -46,6 +50,7 @@ import jxpix.proger.mps.engine.Rule
 import jxpix.proger.mps.engine.Stroke
 import jxpix.proger.mps.engine.Tap
 import jxpix.proger.mps.engine.dsp.Fft
+import jxpix.proger.mps.engine.effects.ParametricEq
 import jxpix.proger.mps.model.DeviceState
 import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.ui.Fmt
@@ -56,6 +61,8 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.min
@@ -122,6 +129,10 @@ fun DevicePicture(
     sounding: () -> Boolean,
     modifier: Modifier = Modifier,
     height: Dp = 96.dp,
+    selectedBand: Int? = null,
+    onParams: ((List<Pair<String, Float>>) -> Unit)? = null,
+    onParamEnd: (() -> Unit)? = null,
+    onBandSelected: ((Int) -> Unit)? = null,
 ) {
     val c = Mps.colors
     val res = LocalResources.current
@@ -156,9 +167,128 @@ fun DevicePicture(
     val description = stringResource(R.string.picture_of, stringResource(type.nameRes))
     val left = stringResource(R.string.side_left)
     val right = stringResource(R.string.side_right)
+    val latestParams = rememberUpdatedState(params)
+    val latestParamBatch = rememberUpdatedState(onParams)
+    val latestParamEnd = rememberUpdatedState(onParamEnd)
+    val latestBandSelected = rememberUpdatedState(onBandSelected)
+    val interactiveEq = type.id == ParametricEq.TYPE_ID && onParams != null && onBandSelected != null
+    val input = if (interactiveEq) {
+        Modifier.pointerInput(type.id, group) {
+            val pad = 6.dp.toPx()
+            val slop = viewConfiguration.touchSlop
+            val hitRadius = 26.dp.toPx()
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val contentWidth = (size.width - 2f * pad).coerceAtLeast(1f)
+                val contentHeight = (size.height - 2f * pad).coerceAtLeast(1f)
+                val snapshot = latestParams.value
+                fun value(band: Int, suffix: String): Float {
+                    val id = "b${band + 1}$suffix"
+                    return snapshot[id] ?: type.spec(id)?.default ?: 0f
+                }
+                val response = Pictures.parametricEqDb(v = { id -> snapshot[id] ?: type.spec(id)?.default ?: 0f })
+                var hitBand = -1
+                var nearest = hitRadius
+                for (band in 0 until ParametricEq.BAND_COUNT) {
+                    val kind = value(band, "Type").roundToInt()
+                    if (kind == ParametricEq.OFF) continue
+                    val freq = value(band, "Freq")
+                    val y = ((response(freq) + 36f) / 66f).coerceIn(0f, 1f)
+                    val point = Offset(pad + Pictures.xOf(freq) * contentWidth, pad + (1f - y) * contentHeight)
+                    val distance = (point - down.position).getDistance()
+                    if (distance < nearest) {
+                        nearest = distance
+                        hitBand = band
+                    }
+                }
+                var movedPastSlop = false
+                var dragging = false
+                var cancelled = false
+                var released = false
+                var startFreq = 0f
+                var startGain = 0f
+                var startQ = 0f
+                var startNodeX = 0f
+                var startPointerX = 0f
+                var gainBand = false
+                try {
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            released = true
+                            break
+                        }
+                        val travel = (change.position - down.position).getDistance()
+                        if (!dragging && travel > slop) {
+                            movedPastSlop = true
+                            if (hitBand >= 0 && !change.isConsumed) {
+                                dragging = true
+                                latestBandSelected.value?.invoke(hitBand)
+                                startFreq = value(hitBand, "Freq")
+                                startGain = value(hitBand, "Gain")
+                                startQ = value(hitBand, "Q")
+                                startNodeX = Pictures.xOf(startFreq)
+                                startPointerX = ((down.position.x - pad) / contentWidth).coerceIn(0f, 1f)
+                                val kind = value(hitBand, "Type").roundToInt()
+                                gainBand = kind == ParametricEq.BELL || kind == ParametricEq.LOW_SHELF || kind == ParametricEq.HIGH_SHELF
+                                change.consume()
+                            } else if (change.isConsumed) {
+                                cancelled = true
+                                break
+                            }
+                        } else if (dragging) {
+                            change.consume()
+                        }
+                        if (dragging) {
+                            val pointerX = ((change.position.x - pad) / contentWidth).coerceIn(0f, 1f)
+                            val freq = Pictures.freqAt((pointerX + startNodeX - startPointerX).coerceIn(0f, 1f))
+                            val deltaUp = (down.position.y - change.position.y) / contentHeight
+                            val values = ArrayList<Pair<String, Float>>(2)
+                            values += "b${hitBand + 1}Freq" to freq
+                            if (gainBand) {
+                                values += "b${hitBand + 1}Gain" to (startGain + deltaUp * 48f).coerceIn(-24f, 24f)
+                            } else {
+                                values += "b${hitBand + 1}Q" to (startQ * exp(deltaUp * ln(100f))).coerceIn(0.1f, 10f)
+                            }
+                            latestParamBatch.value?.invoke(values)
+                        }
+                    }
+                } finally {
+                    if (dragging) latestParamEnd.value?.invoke()
+                }
+                if (released && !cancelled && !movedPastSlop && !dragging) {
+                    if (hitBand >= 0) {
+                        latestBandSelected.value?.invoke(hitBand)
+                    } else {
+                        val newBand = (0 until ParametricEq.BAND_COUNT).firstOrNull {
+                            value(it, "Type").roundToInt() == ParametricEq.OFF
+                        }
+                        if (newBand != null) {
+                            val x = ((down.position.x - pad) / contentWidth).coerceIn(0f, 1f)
+                            val y = (1f - (down.position.y - pad) / contentHeight).coerceIn(0f, 1f)
+                            val freq = Pictures.freqAt(x)
+                            val base = response(freq)
+                            val gain = (-36f + y * 66f - base).coerceIn(-24f, 24f)
+                            latestBandSelected.value?.invoke(newBand)
+                            latestParamBatch.value?.invoke(
+                                listOf(
+                                    "b${newBand + 1}Type" to ParametricEq.BELL.toFloat(),
+                                    "b${newBand + 1}Freq" to freq,
+                                    "b${newBand + 1}Gain" to gain,
+                                ),
+                            )
+                            latestParamEnd.value?.invoke()
+                        }
+                    }
+                }
+            }
+        }
+    } else Modifier
 
     Canvas(
-        modifier.height(height).clip(RoundedCornerShape(10.dp)).background(c.surfaceHigh).semantics { contentDescription = description },
+        modifier.height(height).clip(RoundedCornerShape(10.dp)).background(c.surfaceHigh)
+            .semantics { contentDescription = description }
+            .then(input),
     ) {
         val p = picture ?: return@Canvas
         // something moves in the picture: it is drawn again on every frame the studio counts
@@ -244,6 +374,39 @@ fun DevicePicture(
                     }
                     paint.textAlign = if (m.align < 0) Paint.Align.LEFT else if (m.align > 0) Paint.Align.RIGHT else Paint.Align.CENTER
                     drawContext.canvas.nativeCanvas.drawText(text, px(m.x), py(m.y), paint)
+                }
+            }
+        }
+
+        if (type.id == ParametricEq.TYPE_ID && selectedBand != null) {
+            val selected = selectedBand.coerceIn(0, ParametricEq.BAND_COUNT - 1)
+            var ordinal = 0
+            var selectedOrdinal = -1
+            for (band in 0..selected) {
+                val id = "b${band + 1}Type"
+                val kind = (params[id] ?: type.spec(id)?.default ?: 0f).roundToInt()
+                if (kind != ParametricEq.OFF) {
+                    if (band == selected) selectedOrdinal = ordinal
+                    ordinal++
+                }
+            }
+            if (selectedOrdinal >= 0) {
+                var seen = 0
+                var node: Dot? = null
+                for (mark in p.marks) {
+                    if (mark is Dot) {
+                        if (seen == selectedOrdinal) {
+                            node = mark
+                            break
+                        }
+                        seen++
+                    }
+                }
+                node?.let {
+                    val center = Offset(px(it.x), py(it.y))
+                    drawCircle(c.bg, 9.dp.toPx(), center)
+                    drawCircle(color, 6.5.dp.toPx(), center)
+                    drawCircle(c.text, 2.5.dp.toPx(), center)
                 }
             }
         }

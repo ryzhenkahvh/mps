@@ -311,6 +311,22 @@ class Biquad {
         set((1f + cs) * 0.5f, -(1f + cs), (1f + cs) * 0.5f, 1f + alpha, -2f * cs, 1f - alpha)
     }
 
+    /** Constant-skirt-gain band-pass detector, with unity gain at the centre frequency. */
+    fun setBandPass(freq: Float, q: Float, sampleRate: Float) {
+        val w0 = FastMath.TWO_PI * freq.coerceIn(10f, sampleRate * 0.47f) / sampleRate
+        val cs = cos(w0)
+        val alpha = sin(w0) / (2f * q)
+        set(alpha, 0f, -alpha, 1f + alpha, -2f * cs, 1f - alpha)
+    }
+
+    /** Constant-skirt-gain notch filter, with its rejection depth controlled by [q]. */
+    fun setNotch(freq: Float, q: Float, sampleRate: Float) {
+        val w0 = FastMath.TWO_PI * freq.coerceIn(10f, sampleRate * 0.47f) / sampleRate
+        val cs = cos(w0)
+        val alpha = sin(w0) / (2f * q)
+        set(1f, -2f * cs, 1f, 1f + alpha, -2f * cs, 1f - alpha)
+    }
+
     /** Magnitude response in dB at [freq]; handy for drawing EQ curves. */
     fun magnitudeDb(freq: Float, sampleRate: Float): Float {
         val w = FastMath.TWO_PI * freq / sampleRate

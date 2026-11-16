@@ -14,6 +14,7 @@ import jxpix.proger.mps.engine.Picture
 import jxpix.proger.mps.engine.Pictures
 import jxpix.proger.mps.engine.Rule
 import jxpix.proger.mps.engine.Stroke
+import jxpix.proger.mps.engine.effects.ParametricEq
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -122,10 +123,10 @@ class PictureTest {
     }
 
     /** By how many dB a loud tone of [freq] comes out louder or quieter than it went in. */
-    private fun tone(typeId: String, over: Map<String, Float>, freq: Float): Float {
+    private fun tone(typeId: String, over: Map<String, Float>, freq: Float, amplitude: Float = 1f): Float {
         val fx = Lab.effect(typeId, array(Devices[typeId]!!, over), rate)!!
         val n = rate / 3
-        val dry = FloatArray(n) { sin(2.0 * Math.PI * freq * it / rate).toFloat() }
+        val dry = FloatArray(n) { sin(2.0 * Math.PI * freq * it / rate).toFloat() * amplitude }
         val l = dry.copyOf()
         val r = dry.copyOf()
         Lab.run(fx, l, r, Lab.context(rate, 120f, false))
@@ -136,6 +137,56 @@ class PictureTest {
             b += l[i] * l[i]
         }
         return (10.0 * log10(b / a + 1e-20)).toFloat()
+    }
+
+    @Test
+    fun parametricEqCurveMatchesTheEightBandAudioProcessor() {
+        val eq = mapOf(
+            "b1Type" to ParametricEq.HIGH_PASS.toFloat(), "b1Freq" to 35f, "b1Q" to 0.707f,
+            "b2Type" to ParametricEq.LOW_SHELF.toFloat(), "b2Freq" to 140f, "b2Gain" to 3f,
+            "b3Type" to ParametricEq.BELL.toFloat(), "b3Freq" to 320f, "b3Gain" to -4f, "b3Q" to 1.5f,
+            "b5Type" to ParametricEq.HIGH_SHELF.toFloat(), "b5Freq" to 12000f, "b5Gain" to 2f,
+            "b8Type" to ParametricEq.NOTCH.toFloat(), "b8Freq" to 1000f, "b8Q" to 5f,
+            "output" to 1.5f,
+        )
+        val drawn = Pictures.parametricEqDb(values(Devices[ParametricEq.TYPE_ID]!!, eq))
+        val real = heard(ParametricEq.TYPE_ID, eq)
+        for (i in probes.indices) {
+            assertEquals("parametric EQ at ${probes[i]} Hz", real[i], drawn(probes[i]), 0.9f)
+        }
+
+        val flat = heard(ParametricEq.TYPE_ID, emptyMap())
+        assertTrue("all bands bypassed is a transparent wire", flat.all { abs(it) < 0.2f })
+    }
+
+    @Test
+    fun dynamicParametricEqRespondsToLevelAndShowsItsMaximumRange() {
+        val type = Devices[ParametricEq.TYPE_ID]!!
+        val neutral = mapOf(
+            "b1Type" to ParametricEq.BELL.toFloat(), "b1Freq" to 1000f,
+            "b1Gain" to 0f, "b1Q" to 1.6f,
+        )
+        val downward = neutral + mapOf(
+            "b1DynamicMode" to ParametricEq.DYNAMIC_DOWNWARD.toFloat(),
+            "b1Threshold" to -22f, "b1Range" to 5f,
+            "dynamicAttack" to 8f, "dynamicRelease" to 140f,
+        )
+        val flatLoud = tone(ParametricEq.TYPE_ID, neutral, 1000f)
+        val reducedLoud = tone(ParametricEq.TYPE_ID, downward, 1000f)
+        assertTrue("a loud tone is reduced by the dynamic bell", reducedLoud < flatLoud - 3f)
+
+        val flatQuiet = tone(ParametricEq.TYPE_ID, neutral, 1000f, amplitude = 0.01f)
+        val reducedQuiet = tone(ParametricEq.TYPE_ID, downward, 1000f, amplitude = 0.01f)
+        assertEquals("below threshold the downward band stays neutral", flatQuiet, reducedQuiet, 0.8f)
+
+        val upward = downward + ("b1DynamicMode" to ParametricEq.DYNAMIC_UPWARD.toFloat())
+        val boostedQuiet = tone(ParametricEq.TYPE_ID, upward, 1000f, amplitude = 0.01f)
+        assertTrue("an upward band lifts a quiet tone", boostedQuiet > flatQuiet + 3f)
+
+        val baseline = Pictures.parametricEqDb(values(type, downward))
+        val maximumDynamic = Pictures.parametricEqDb(values(type, downward), maximumDynamicRange = true)
+        assertEquals("the base curve is the static EQ setting", 0f, baseline(1000f), 0.1f)
+        assertEquals("the soft curve shows the full downward range", -5f, maximumDynamic(1000f), 0.1f)
     }
 
     @Test

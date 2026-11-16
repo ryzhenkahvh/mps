@@ -11,6 +11,7 @@ import jxpix.proger.mps.engine.effects.DeEsser
 import jxpix.proger.mps.engine.effects.HalfTime
 import jxpix.proger.mps.engine.effects.BeatRepeat
 import jxpix.proger.mps.engine.effects.Ott
+import jxpix.proger.mps.engine.effects.ParametricEq
 import jxpix.proger.mps.engine.effects.AutoWah
 import jxpix.proger.mps.engine.effects.Flanger
 import jxpix.proger.mps.engine.instruments.StringSynth
@@ -55,6 +56,7 @@ object Devices {
 
     val effects: List<DeviceType> = listOf(
         Eq3.TYPE,
+        ParametricEq.TYPE,
         Compressor.TYPE,
         Reverb.TYPE,
         Delay.TYPE,

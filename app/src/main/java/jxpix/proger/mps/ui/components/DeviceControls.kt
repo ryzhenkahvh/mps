@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,11 +44,15 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import jxpix.proger.mps.R
 import jxpix.proger.mps.engine.DeviceType
 import jxpix.proger.mps.engine.ParamSpec
+import jxpix.proger.mps.engine.effects.ParametricEq
+import jxpix.proger.mps.engine.instruments.PolySynth
 import jxpix.proger.mps.engine.ParamUnit
 import jxpix.proger.mps.engine.Pictures
 import jxpix.proger.mps.model.DeviceState
+import jxpix.proger.mps.model.setParam
 import jxpix.proger.mps.studio.Studio
 import jxpix.proger.mps.ui.ParamNumber
 import jxpix.proger.mps.ui.Ic
@@ -206,7 +212,24 @@ fun DeviceParams(
     studio: Studio? = null,
     sounding: () -> Boolean = { false },
 ) {
-    val specs = remember(type, skip) { type.params.filter { it.id !in skip } }
+    if (type.id == ParametricEq.TYPE_ID && studio != null && skip.isEmpty()) {
+        ParametricEqControls(type, state, color, onParam, onEnd, modifier, framed, before, studio, sounding)
+        return
+    }
+    val showWt1 = type.id == PolySynth.TYPE_ID && state.param("osc1Wave").roundToInt() == PolySynth.WAVE_WAVETABLE
+    val showWt2 = type.id == PolySynth.TYPE_ID && state.param("osc2Wave").roundToInt() == PolySynth.WAVE_WAVETABLE
+    val showPulseWidth = type.id != PolySynth.TYPE_ID ||
+        state.param("osc1Wave").roundToInt() == PolySynth.WAVE_SQUARE || state.param("osc2Wave").roundToInt() == PolySynth.WAVE_SQUARE
+    val specs = remember(type, skip, showWt1, showWt2, showPulseWidth) {
+        type.params.filter { spec ->
+            if (spec.id in skip) false else when (spec.id) {
+                "osc1Table", "osc1Position" -> showWt1
+                "osc2Table", "osc2Position" -> showWt2
+                "pulseWidth" -> showPulseWidth
+                else -> true
+            }
+        }
+    }
     // consecutive parameters of the same group form one panel
     val groups = remember(specs) {
         val out = ArrayList<Pair<Int, List<ParamSpec>>>()
@@ -261,6 +284,154 @@ fun DeviceParams(
         }
     }
     PanelColumns(panels, modifier, allowTwo = framed)
+}
+
+/** Focused editor for the eight-band EQ: one graph, a band selector and controls only for the selected band. */
+@Composable
+private fun ParametricEqControls(
+    type: DeviceType,
+    state: DeviceState,
+    color: Color,
+    onParam: (String, Float) -> Unit,
+    onEnd: () -> Unit,
+    modifier: Modifier,
+    framed: Boolean,
+    before: List<@Composable () -> Unit>,
+    studio: Studio,
+    sounding: () -> Boolean,
+) {
+    var selectedBand by remember(state.uid) { mutableStateOf(0) }
+    val short = LocalConfiguration.current.screenHeightDp < 480
+    val graphHeight = if (short) 124.dp else 174.dp
+    val onGraphParams: (List<Pair<String, Float>>) -> Unit = { changes ->
+        studio.edit("peq${state.uid}") { project ->
+            changes.fold(project) { current, change -> current.setParam(state.uid, change.first, change.second) }
+        }
+    }
+    val content: @Composable () -> Unit = {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            before.forEach { it() }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth >= 600.dp) {
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        DevicePicture(
+                            studio, type, R.string.g_peq_bands, state, color, sounding, Modifier.width(320.dp),
+                            height = graphHeight, selectedBand = selectedBand, onParams = onGraphParams, onParamEnd = onEnd,
+                            onBandSelected = { selectedBand = it },
+                        )
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                stringResource(R.string.peq_graph_hint), color = Mps.colors.textDim,
+                                fontSize = 11.sp, lineHeight = 15.sp,
+                            )
+                            ParametricEqBandSelector(state, color, selectedBand) { selectedBand = it }
+                            ParametricEqBandControls(type, state, selectedBand, color, onParam, onEnd)
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        DevicePicture(
+                            studio, type, R.string.g_peq_bands, state, color, sounding, Modifier.fillMaxWidth(),
+                            height = graphHeight, selectedBand = selectedBand, onParams = onGraphParams, onParamEnd = onEnd,
+                            onBandSelected = { selectedBand = it },
+                        )
+                        Text(
+                            stringResource(R.string.peq_graph_hint), color = Mps.colors.textDim,
+                            fontSize = 11.sp, lineHeight = 15.sp,
+                        )
+                        ParametricEqBandSelector(state, color, selectedBand) { selectedBand = it }
+                        ParametricEqBandControls(type, state, selectedBand, color, onParam, onEnd)
+                    }
+                }
+            }
+        }
+    }
+    if (framed) {
+        Panel(stringResource(R.string.g_peq_bands), modifier = modifier) { content() }
+    } else {
+        Column(modifier.fillMaxWidth()) { content() }
+    }
+}
+
+@Composable
+private fun ParametricEqBandSelector(
+    state: DeviceState,
+    color: Color,
+    selectedBand: Int,
+    onSelect: (Int) -> Unit,
+) {
+    val c = Mps.colors
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(ParametricEq.BAND_COUNT) { band ->
+            val active = state.param("b${band + 1}Type").roundToInt() != ParametricEq.OFF
+            Chip(
+                text = "B${band + 1}",
+                onClick = { onSelect(band) },
+                selected = band == selectedBand,
+                dot = when {
+                    !active -> c.textDim
+                    band == selectedBand -> c.onAccent
+                    else -> color
+                },
+                maxWidth = 68.dp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParametricEqBandControls(
+    type: DeviceType,
+    state: DeviceState,
+    band: Int,
+    color: Color,
+    onParam: (String, Float) -> Unit,
+    onEnd: () -> Unit,
+) {
+    val prefix = "b${band + 1}"
+    val shape = state.param("${prefix}Type").roundToInt()
+    val dynamicMode = state.param("${prefix}DynamicMode").roundToInt()
+    val dynamicShape = shape == ParametricEq.BELL || shape == ParametricEq.LOW_SHELF || shape == ParametricEq.HIGH_SHELF
+    val baseIds = when (shape) {
+        ParametricEq.OFF -> listOf("${prefix}Type", "${prefix}Freq")
+        ParametricEq.BELL -> listOf("${prefix}Type", "${prefix}Freq", "${prefix}Gain", "${prefix}Q")
+        ParametricEq.LOW_SHELF, ParametricEq.HIGH_SHELF -> listOf("${prefix}Type", "${prefix}Freq", "${prefix}Gain")
+        else -> listOf("${prefix}Type", "${prefix}Freq", "${prefix}Q")
+    }
+    val visibleIds = if (dynamicShape) {
+        baseIds + listOf("${prefix}DynamicMode") + (
+            if (dynamicMode != ParametricEq.DYNAMIC_OFF) listOf("${prefix}Threshold", "${prefix}Range") else emptyList()
+        )
+    } else baseIds
+    val specs = remember(type, band, shape, dynamicMode) { visibleIds.mapNotNull(type::spec) }
+    CellGrid(specs.size, minCell = 116.dp) { index ->
+        val spec = specs[index]
+        ParamControl(spec, state.param(spec.id), color, onChange = { onParam(spec.id, it) }, onEnd = onEnd)
+    }
+    val hasDynamicBands = (0 until ParametricEq.BAND_COUNT).any { index ->
+        val currentPrefix = "b${index + 1}"
+        val currentShape = state.param("${currentPrefix}Type").roundToInt()
+        val currentMode = state.param("${currentPrefix}DynamicMode").roundToInt()
+        currentMode != ParametricEq.DYNAMIC_OFF &&
+            (currentShape == ParametricEq.BELL || currentShape == ParametricEq.LOW_SHELF || currentShape == ParametricEq.HIGH_SHELF)
+    }
+    if (hasDynamicBands) {
+        val timing = listOfNotNull(type.spec("dynamicAttack"), type.spec("dynamicRelease"))
+        CellGrid(timing.size, minCell = 116.dp) { index ->
+            val spec = timing[index]
+            ParamControl(spec, state.param(spec.id), color, onChange = { onParam(spec.id, it) }, onEnd = onEnd)
+        }
+    }
+    val output = type.spec("output")
+    if (output != null) {
+        CellGrid(1, minCell = 116.dp) {
+            ParamControl(output, state.param(output.id), color, onChange = { onParam(output.id, it) }, onEnd = onEnd)
+        }
+    }
 }
 
 /**
