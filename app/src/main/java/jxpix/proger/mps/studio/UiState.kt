@@ -81,7 +81,7 @@ class UiState {
 
     // playlist
     val playlist = GridView()
-    /** 0 = bar, 1 = beat, 2 = step. */
+    /** 0 = bar, 1 = beat, 2 = sixteenth; 3–8 are finer and triplet subdivisions. */
     var playlistSnap by mutableIntStateOf(0)
     var playlistGridW = 1f
     var playlistGridH = 1f

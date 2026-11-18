@@ -126,8 +126,16 @@ private fun snapTicks(p: Project, mode: Int): Int = when (mode) {
     4 -> PPQ / 8
     5 -> PPQ / 3
     6 -> PPQ / 6
+    7 -> PPQ / 12
+    8 -> PPQ / 16
     else -> p.ticksPerBar
 }
+
+@Composable
+private fun playlistSnapNames(): List<String> = listOf(
+    stringResource(R.string.snap_bar), stringResource(R.string.snap_beat), stringResource(R.string.snap_step),
+    "1/8", "1/32", "1/8T", "1/16T", "1/32T", "1/64",
+)
 
 /** Playlist: patterns and recordings arranged on a timeline to form the whole track. */
 @Composable
@@ -149,10 +157,7 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
         if (uri != null) studio.importToPlaylist(uri)
     }
     // The first three indices retain the previous Bar / Beat / Step mapping.
-    val snapNames = listOf(
-        stringResource(R.string.snap_bar), stringResource(R.string.snap_beat), stringResource(R.string.snap_step),
-        "1/8", "1/32", "1/8T", "1/16T",
-    )
+    val snapNames = playlistSnapNames()
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().height(50.dp).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -314,6 +319,7 @@ private fun ClipBar(studio: Studio, clip: Clip) {
     val p = studio.project
     val res = LocalResources.current
     val title = if (clip.isAudio) (clip.sample ?: "").substringBeforeLast('.') else p.pattern(clip.patternId)?.name ?: "—"
+    var gridTools by remember(clip.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(c.surface)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
         // On a low screen (a phone held sideways) the automation lane and this bar together would leave
@@ -371,6 +377,7 @@ private fun ClipBar(studio: Studio, clip: Clip) {
                 val sample = clip.sample
                 if (sample != null) IconBtn(Ic.Save, stringResource(R.string.sound_keep), { studio.saveToLibrary(sample) }, size = 42.dp)
             }
+            IconBtn(Ic.Grid, stringResource(R.string.grid_tools), { gridTools = true }, size = 42.dp)
             IconBtn(Ic.Copy, stringResource(R.string.duplicate), {
                 var id = 0
                 studio.edit { q -> q.duplicateClip(clip.id).also { id = it.second }.first }
@@ -392,6 +399,37 @@ private fun ClipBar(studio: Studio, clip: Clip) {
             }, size = 42.dp, tint = c.record)
             IconBtn(Ic.Close, stringResource(R.string.deselect), { ui.selectedClip = 0 }, size = 42.dp, tint = c.textDim)
         }
+    }
+    if (gridTools) {
+        val snap = snapTicks(p, ui.playlistSnap)
+        val snapNames = playlistSnapNames()
+        GridToolsSheet(
+            snapLabel = snapNames[ui.playlistSnap.coerceIn(snapNames.indices)], snapTicks = snap,
+            onMove = { delta ->
+                studio.edit { q -> q.updateClip(clip.id) { current ->
+                    val start = (current.start.toLong() + delta).coerceIn(0L, (Int.MAX_VALUE - current.length).toLong()).toInt()
+                    if (start == current.start) current else current.copy(start = start)
+                } }
+            },
+            onLength = { delta ->
+                studio.edit { q -> q.updateClip(clip.id) { current ->
+                    val data = if (current.isAudio) studio.samples[current.sample] else null
+                    val audioLimit = if (data == null) Int.MAX_VALUE else
+                        max(1.0, (data.durationSeconds - current.offset) / q.secondsPerTick).coerceAtMost(Int.MAX_VALUE.toDouble()).toInt()
+                    // Existing clips may already exceed their available recording; never shorten one as a side effect of '+'.
+                    val limit = min(max(audioLimit, current.length), Int.MAX_VALUE - current.start)
+                    val length = adjustGridLength(current.length, delta, limit)
+                    if (length == current.length) current else current.copy(length = length)
+                } }
+            },
+            onTrack = { delta ->
+                studio.edit { q -> q.updateClip(clip.id) { current ->
+                    val track = (current.track + delta).coerceIn(0, q.tracks - 1)
+                    if (track == current.track) current else current.copy(track = track)
+                } }
+            },
+            onDismiss = { gridTools = false },
+        )
     }
 }
 

@@ -33,6 +33,14 @@ class GridMathTest {
     }
 
     @Test
+    fun preciseLengthEditsStayPositiveAndRespectLimits() {
+        assertEquals(1, adjustGridLength(3, -120, 1000))
+        assertEquals(121, adjustGridLength(120, 1, 1000))
+        assertEquals(200, adjustGridLength(199, 120, 200))
+        assertEquals(Int.MAX_VALUE, adjustGridLength(Int.MAX_VALUE, 120, Int.MAX_VALUE))
+    }
+
+    @Test
     fun zoomKeepsAnchorAndClampsAtContentEdges() {
         assertEquals(250f, zoomScrollX(100f, 50f, 1f, 2f, 1000f), 0.001f)
         assertEquals(0f, zoomScrollX(0f, 100f, 2f, 1f, 1000f), 0.001f)

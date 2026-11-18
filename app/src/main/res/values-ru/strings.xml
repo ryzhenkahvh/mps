@@ -95,6 +95,15 @@
     <string name="select_all">Выбрать все</string>
     <string name="deselect">Снять выделение</string>
     <string name="quantize">Выровнять по сетке</string>
+    <string name="grid_tools">Точное редактирование сетки</string>
+    <string name="grid_tools_hint">Каждое нажатие можно отменить. Шаг сетки: %1$s. Точная настройка: 1 тик (480 тиков в четверти).</string>
+    <string name="grid_move_step">Сдвиг на шаг сетки</string>
+    <string name="grid_move_tick">Сдвиг на 1 тик</string>
+    <string name="grid_length_step">Длина на шаг сетки</string>
+    <string name="grid_length_tick">Длина на 1 тик</string>
+    <string name="grid_track">Переместить между дорожками</string>
+    <string name="grid_new_note_length">Длина новых нот</string>
+    <string name="grid_length_ticks">%1$d тиков; независимо от шага сетки</string>
     <string name="clear_notes">Очистить ноты</string>
     <string name="ghost_notes">Показывать другие каналы</string>
     <string name="automation">Автоматизация</string>

@@ -23,3 +23,7 @@ internal fun boundNoteMove(delta: Int, minStart: Int, maxStart: Int, patternTick
     val highest = Math.floorDiv(patternTicks - 1 - maxStart, snap) * snap
     return if (lowest <= highest) delta.coerceIn(lowest, highest) else 0
 }
+
+/** Duration stays positive and cannot overflow its end position. */
+internal fun adjustGridLength(length: Int, delta: Int, maxLength: Int): Int =
+    (length.toLong() + delta).coerceIn(1L, maxLength.coerceAtLeast(1).toLong()).toInt()

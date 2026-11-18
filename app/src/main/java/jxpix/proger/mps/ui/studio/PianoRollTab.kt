@@ -116,6 +116,8 @@ fun PianoRollTab(studio: Studio) {
     var channelSheet by remember { mutableStateOf(false) }
     var patternSheet by remember { mutableStateOf(false) }
     var snapSheet by remember { mutableStateOf(false) }
+    var noteLengthSheet by remember { mutableStateOf(false) }
+    var gridTools by remember { mutableStateOf(false) }
     var moreSheet by remember { mutableStateOf(false) }
     var keySheet by remember { mutableStateOf(false) }
     var generatorSheet by remember { mutableStateOf(false) }
@@ -125,15 +127,16 @@ fun PianoRollTab(studio: Studio) {
     val selected = remember(notes, ui.rollSelection) {
         if (ui.rollSelection.isEmpty()) emptySet() else ui.rollSelection.intersect(notes.toSet())
     }
-    LaunchedEffect(pattern.id, channel?.id) { ui.rollSelection = emptySet() }
+    LaunchedEffect(pattern.id, channel?.id) { ui.rollSelection = emptySet(); gridTools = false }
+    LaunchedEffect(selected.isEmpty()) { if (selected.isEmpty()) gridTools = false }
 
     /** Changes the selected notes and keeps them selected. */
     fun mapSelected(key: String?, f: (Note) -> Note) {
         val ch = channel ?: return
         val mapped = HashSet<Note>()
-        studio.edit(key) { p ->
-            p.setNotes(pattern.id, ch.id, notes.map { n -> if (n in selected) f(n).also { mapped += it } else n })
-        }
+        val updated = notes.map { n -> if (n in selected) f(n).also { mapped += it } else n }
+        if (updated == notes) return
+        studio.edit(key) { p -> p.setNotes(pattern.id, ch.id, updated) }
         ui.rollSelection = mapped
     }
 
@@ -174,6 +177,7 @@ fun PianoRollTab(studio: Studio) {
                     velocity = selected.sumOf { it.velocity.toDouble() }.toFloat() / selected.size,
                     onVelocity = { v -> mapSelected("velocity") { it.copy(velocity = v) } },
                     onVelocityEnd = { studio.commit() },
+                    onGridTools = { gridTools = true },
                     pan = selected.sumOf { it.pan.toDouble() }.toFloat() / selected.size,
                     onPan = { v -> mapSelected("note-pan") { it.copy(pan = v) } },
                     onTranspose = { d ->
@@ -227,11 +231,36 @@ fun PianoRollTab(studio: Studio) {
             SNAPS.forEachIndexed { i, ticks ->
                 SheetItem(SNAP_LABELS[i], {
                     ui.rollSnap = ticks
-                    ui.rollNoteLength = ticks
                     snapSheet = false
                 }, selected = ui.rollSnap == ticks)
             }
         }
+    }
+    if (noteLengthSheet) {
+        AppSheet({ noteLengthSheet = false }, title = stringResource(R.string.grid_new_note_length)) {
+            val lengths = listOf(4 * PPQ to "1/1", 2 * PPQ to "1/2") + SNAPS.indices.map { SNAPS[it] to SNAP_LABELS[it] }
+            lengths.forEach { (ticks, label) ->
+                SheetItem(label, { ui.rollNoteLength = ticks; noteLengthSheet = false }, selected = ui.rollNoteLength == ticks)
+            }
+        }
+    }
+    if (gridTools && channel != null && selected.isNotEmpty()) {
+        GridToolsSheet(
+            snapLabel = snapLabel(ui.rollSnap), snapTicks = ui.rollSnap,
+            onMove = { delta ->
+                val minStart = selected.minOf { it.start }
+                val maxStart = selected.maxOf { it.start }
+                val limit = studio.project.patternLength(pattern)
+                if (minStart >= 0 && maxStart < limit) {
+                    val move = boundNoteMove(delta, minStart, maxStart, limit, kotlin.math.abs(delta))
+                    if (move != 0) mapSelected(null) { it.copy(start = it.start + move) }
+                }
+            },
+            onLength = { delta ->
+                mapSelected(null) { n -> n.copy(length = adjustGridLength(n.length, delta, Int.MAX_VALUE - n.start.coerceAtLeast(0))) }
+            },
+            onDismiss = { gridTools = false },
+        )
     }
     if (keySheet) KeySheet(studio) { keySheet = false }
     if (generatorSheet) GeneratorSheet(studio) { generatorSheet = false }
@@ -243,6 +272,10 @@ fun PianoRollTab(studio: Studio) {
                 generatorSheet = true
             }, icon = Ic.Bolt, description = stringResource(R.string.gen_desc))
             SheetDivider()
+            SheetItem(stringResource(R.string.grid_new_note_length), {
+                moreSheet = false
+                noteLengthSheet = true
+            }, icon = Ic.Grid, description = stringResource(R.string.grid_length_ticks, ui.rollNoteLength))
             SheetItem(stringResource(R.string.select_all), {
                 ui.rollSelection = notes.toSet()
                 moreSheet = false
@@ -315,6 +348,7 @@ private fun SelectionBar(
     velocity: Float,
     onVelocity: (Float) -> Unit,
     onVelocityEnd: () -> Unit,
+    onGridTools: () -> Unit,
     pan: Float,
     onPan: (Float) -> Unit,
     onTranspose: (Int) -> Unit,
@@ -352,7 +386,7 @@ private fun SelectionBar(
                     textAlign = TextAlign.End,
                 )
             }
-            Spacer(Modifier.width(10.dp))
+            IconBtn(Ic.Grid, stringResource(R.string.grid_tools), onGridTools, size = 40.dp)
         }
         Row(
             Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically,

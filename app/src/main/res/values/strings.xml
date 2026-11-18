@@ -96,6 +96,15 @@
     <string name="select_all">Select all</string>
     <string name="deselect">Deselect</string>
     <string name="quantize">Snap to grid</string>
+    <string name="grid_tools">Precise grid editing</string>
+    <string name="grid_tools_hint">Each press is one undoable edit. Grid step: %1$s. Fine adjustment: 1 tick (480 ticks per quarter note).</string>
+    <string name="grid_move_step">Move by grid step</string>
+    <string name="grid_move_tick">Move by 1 tick</string>
+    <string name="grid_length_step">Length by grid step</string>
+    <string name="grid_length_tick">Length by 1 tick</string>
+    <string name="grid_track">Move between tracks</string>
+    <string name="grid_new_note_length">Length of new notes</string>
+    <string name="grid_length_ticks">%1$d ticks; independent of grid snap</string>
     <string name="clear_notes">Clear notes</string>
     <string name="ghost_notes">Show other channels</string>
     <string name="automation">Automation</string>
