@@ -111,6 +111,9 @@ fun RackTab(studio: Studio) {
         val page = ui.rackPage.coerceIn(0, pages - 1)
         val firstStep = page * barsVisible * stepsPerBar
         val stepCount = barsVisible * stepsPerBar
+        // The final page can be shorter than the pages before it. Keep cell widths
+        // aligned, but don't allow editing steps beyond the pattern's end.
+        val validSteps = rackValidSteps(pattern.bars * stepsPerBar, firstStep, stepCount)
         val following = studio.playing && !studio.songMode
 
         // Follow the play head from page to page, until the user picks a page or edits a step:
@@ -154,7 +157,7 @@ fun RackTab(studio: Studio) {
                 LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(top = 2.dp, bottom = 16.dp)) {
                     items(p.channels, key = { it.id }) { ch ->
                         ChannelRow(
-                            studio, ch, pattern.id, pattern.notesOf(ch.id), firstStep, stepCount,
+                            studio, ch, pattern.id, pattern.notesOf(ch.id), firstStep, stepCount, validSteps,
                             selected = ch.id == studio.channelId, onEdit = { follow = false }, onMenu = {
                                 studio.selectChannel(ch.id)
                                 menuFor = ch.id
@@ -206,6 +209,7 @@ private fun ChannelRow(
     notes: List<Note>,
     firstStep: Int,
     stepCount: Int,
+    validSteps: Int,
     selected: Boolean,
     onEdit: () -> Unit,
     onMenu: () -> Unit,
@@ -269,7 +273,7 @@ private fun ChannelRow(
                 }
                 // rows whose notes all sit on the step note are shown as steps, melodies as a preview
                 ch.isDrum || notes.all { it.pitch == ch.rootNote } ->
-                    StepRow(studio, ch, patternId, notes, firstStep, stepCount, color, dim = ch.mute, onEdit = onEdit)
+                    StepRow(studio, ch, patternId, notes, firstStep, stepCount, validSteps, color, dim = ch.mute, onEdit = onEdit)
                 else -> MelodyPreview(notes, firstStep, stepCount, color, stringResource(R.string.melody_preview) + ": " + ch.name) {
                     studio.selectChannel(ch.id)
                     studio.ui.tab = Tab.PIANO
@@ -288,6 +292,7 @@ private fun StepRow(
     notes: List<Note>,
     firstStep: Int,
     stepCount: Int,
+    validSteps: Int,
     color: Color,
     dim: Boolean,
     onEdit: () -> Unit,
@@ -313,7 +318,7 @@ private fun StepRow(
             }
         }
     }
-    val active = remember(velocities) { velocities.count { it > 0f } }
+    val active = remember(velocities, validSteps) { velocities.take(validSteps).count { it > 0f } }
     val stepA = c.stepA
     val stepB = c.stepB
     val markColor = if (c.dark) Color.Black else Color.White
@@ -322,18 +327,20 @@ private fun StepRow(
             .fillMaxSize()
             .semantics {
                 contentDescription = ch.name
-                stateDescription = "$active / $stepCount"
+                stateDescription = "$active / $validSteps"
             }
-            .pointerInput(patternId, ch.id, firstStep, stepCount) {
+            .pointerInput(patternId, ch.id, firstStep, stepCount, validSteps) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val slop = viewConfiguration.touchSlop
                     val stepW = size.width.toFloat() / stepCount
                     val first = (down.position.x / stepW).toInt().coerceIn(0, stepCount - 1)
+                    if (first >= validSteps) return@awaitEachGesture
                     val turnOn = !stepActive(latestNotes, firstStep + first)
                     val channel = latestChannel
 
                     fun set(index: Int, key: String?) {
+                        if (index !in 0 until validSteps) return
                         latestOnEdit()
                         studio.edit(key) { it.setStep(patternId, channel.id, firstStep + index, turnOn) }
                     }
@@ -381,6 +388,11 @@ private fun StepRow(
         val radius = CornerRadius(4.dp.toPx())
         val alpha = if (dim) 0.4f else 1f
         for (i in 0 until stepCount) {
+            if (i >= validSteps) {
+                drawRoundRect(c.line.copy(alpha = 0.25f), topLeft = Offset(i * w + gap / 2, 0f),
+                    size = Size((w - gap).coerceAtLeast(0f), size.height), cornerRadius = radius)
+                continue
+            }
             val v = velocities[i]
             val beat = ((firstStep + i) / 4) % 2 == 0
             val col = if (v > 0f) color.copy(alpha = (0.5f + 0.5f * v) * alpha) else if (beat) stepA else stepB

@@ -451,10 +451,10 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
                 },
                 onZoom = { factor, centroid ->
                     val cx = centroid.x - headerW
-                    val tick = (view.scrollX + cx) / view.pxPerTick
-                    val px = (view.pxPerTick * factor).coerceIn(minPx(), maxPx)
+                    val oldPx = view.pxPerTick
+                    val px = (oldPx * factor).coerceIn(minPx(), maxPx)
                     view.pxPerTick = px
-                    view.scrollX = max(0f, tick * px - cx)
+                    view.scrollX = zoomScrollX(view.scrollX, cx, oldPx, px, maxScrollX())
                 },
             )
         }
@@ -638,6 +638,14 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
                         for (beat in 1 until p.beatsPerBar) {
                             val bx = x + beat * beatPx
                             drawLine(c.line.copy(alpha = 0.6f), Offset(bx, rulerH), Offset(bx, lanesBottom), thin)
+                        }
+                    }
+                    // Show the actual step-snap positions when zoomed in enough to use them.
+                    if (ui.playlistSnap == 2 && TICKS_PER_STEP * px >= 9f * dp) {
+                        for (step in 1 until p.stepsPerBar) {
+                            if ((step * TICKS_PER_STEP) % PPQ == 0) continue
+                            val stepX = x + step * TICKS_PER_STEP * px
+                            drawLine(c.line.copy(alpha = 0.4f), Offset(stepX, rulerH), Offset(stepX, lanesBottom), thin)
                         }
                     }
                     bar++

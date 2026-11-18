@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.Velocity
@@ -53,13 +54,19 @@ class PanZoom(
      * Runs after the first finger went down on empty space.
      * Returns true when the gesture was a plain tap (no movement, one finger).
      */
-    suspend fun AwaitPointerEventScope.track(down: PointerInputChange, slop: Float): Boolean {
+    suspend fun AwaitPointerEventScope.track(
+        down: PointerInputChange,
+        slop: Float,
+        initialEvent: PointerEvent? = null,
+    ): Boolean {
         val tracker = VelocityTracker()
         tracker.addPosition(down.uptimeMillis, down.position)
         var moving = false
         var multi = false
+        var pending = initialEvent
         while (true) {
-            val event = awaitPointerEvent()
+            val event = pending ?: awaitPointerEvent()
+            pending = null
             val pressed = event.changes.count { it.pressed }
             if (pressed == 0) break
             if (pressed >= 2) {

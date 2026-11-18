@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -474,10 +475,10 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                 },
                 onZoom = { factor, centroid ->
                     val cx = centroid.x - keyW
-                    val tick = (view.scrollX + cx) / view.pxPerTick
-                    val px = (view.pxPerTick * factor).coerceIn(ui.rollMinPx, maxPx)
+                    val oldPx = view.pxPerTick
+                    val px = (oldPx * factor).coerceIn(ui.rollMinPx, maxPx)
                     view.pxPerTick = px
-                    view.scrollX = max(0f, tick * px - cx)
+                    view.scrollX = zoomScrollX(view.scrollX, cx, oldPx, px, maxScrollX())
                 },
             )
         }
@@ -616,6 +617,7 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                                 // ---- empty space: what the finger does next decides the gesture.
                                 // 0 = lifted (a tap), 1 = moved or joined by a second finger (scroll / zoom),
                                 // null = held still long enough (selection box)
+                                var firstPanEvent: PointerEvent? = null
                                 val early: Int? = if (y >= rulerH && x >= keyW) {
                                     withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                                         var outcome = -1
@@ -624,10 +626,11 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                                             val change = event.changes.firstOrNull { it.id == down.id }
                                             outcome = when {
                                                 change == null || !change.pressed -> 0
-                                                event.changes.size > 1 -> 1
+                                                event.changes.count { it.pressed } > 1 -> 1
                                                 hypot(change.position.x - x, change.position.y - y) > slop -> 1
                                                 else -> -1
                                             }
+                                            if (outcome == 1) firstPanEvent = event
                                         }
                                         outcome
                                     }
@@ -660,7 +663,7 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                                     return@awaitEachGesture
                                 }
 
-                                val tap = if (early == 0) true else with(panZoom) { track(down, slop) }
+                                val tap = if (early == 0) true else with(panZoom) { track(down, slop, firstPanEvent) }
                                 if (tap && y >= rulerH && x >= keyW) {
                                     if (m.selected.isNotEmpty()) {
                                         ui.rollSelection = emptySet()
