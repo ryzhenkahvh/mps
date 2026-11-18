@@ -83,7 +83,9 @@ return [
         'download_button' => 'Скачать APK',
         'download_meta' => 'Бета-версия %s · %s МБ · %s',
         'download_beta' => 'Бета-версия бесплатна, но это временно: после беты приложение станет платным.',
+        'download_upgrade_context' => 'Если установленная версия подписана другим ключом:',
         'download_upgrade_notice' => 'Для установки обновления необходимо удалить старую версию приложения.',
+        'download_upgrade_backup' => 'Перед удалением экспортируйте проекты в файлы .mps: локальные данные приложения могут быть удалены. Сборка 1.5.1 подписана тем же ключом, что и 1.5.',
         'download_changes_h' => 'Что нового в 1.5.1',
         'download_changes' => [
             'Настраиваемая сетка и отключаемый магнит, точные сдвиги и изменение длины нот и клипов.',
@@ -247,7 +249,9 @@ return [
         'download_button' => 'Download the APK',
         'download_meta' => 'Beta %s · %s MB · %s',
         'download_beta' => 'The beta is free, but only for now: after the beta the app will be paid.',
+        'download_upgrade_context' => 'If the installed version was signed with a different key:',
         'download_upgrade_notice' => 'To install the update, you must uninstall the old version of the app.',
+        'download_upgrade_backup' => 'Before uninstalling, export projects to .mps files: local app data may be deleted. Version 1.5.1 is signed with the same key as 1.5.',
         'download_changes_h' => 'What’s new in 1.5.1',
         'download_changes' => [
             'Adjustable grid and optional snap, precise movement and length controls for notes and clips.',
