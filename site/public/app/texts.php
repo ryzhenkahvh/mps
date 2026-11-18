@@ -84,6 +84,12 @@ return [
         'download_meta' => 'Бета-версия %s · %s МБ · %s',
         'download_beta' => 'Бета-версия бесплатна, но это временно: после беты приложение станет платным.',
         'download_upgrade_notice' => 'Для установки обновления необходимо удалить старую версию приложения.',
+        'download_changes_h' => 'Что нового в 1.5.1',
+        'download_changes' => [
+            'Настраиваемая сетка и отключаемый магнит, точные сдвиги и изменение длины нот и клипов.',
+            'Нож для разрезания нот и аудиоклипов; выбор длины новых нот и поиск пресетов.',
+            'Сообщество и аккаунт заметнее на главном экране; история изменений в приложении.',
+        ],
         'download_soon_h' => 'Приложение скоро появится здесь',
         'download_soon' => 'Мы готовим первую сборку. Расскажите в опросе, как вы делаете музыку, и оставьте контакт — напишем, когда можно будет скачать.',
         'install_h2' => 'Как установить',
@@ -241,7 +247,13 @@ return [
         'download_button' => 'Download the APK',
         'download_meta' => 'Beta %s · %s MB · %s',
         'download_beta' => 'The beta is free, but only for now: after the beta the app will be paid.',
-        'download_upgrade_notice' => 'To install the update, you must uninstall the old version of the app.'
+        'download_upgrade_notice' => 'To install the update, you must uninstall the old version of the app.',
+        'download_changes_h' => 'What’s new in 1.5.1',
+        'download_changes' => [
+            'Adjustable grid and optional snap, precise movement and length controls for notes and clips.',
+            'Knife for splitting notes and audio clips; independent new-note length and preset search.',
+            'Community and account are easier to find on the home screen; an in-app changelog.',
+        ],
         'download_soon_h' => 'The app will be here soon',
         'download_soon' => 'We are preparing the first build. Tell us in the survey how you make music and leave a contact: we will write when the download is ready.',
         'install_h2' => 'How to install',

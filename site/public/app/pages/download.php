@@ -28,6 +28,15 @@ layout(t('download_title'), t('download_description'), static function () use ($
       </div>
     <?php endif; ?>
 
+    <?php if ($apk && version_compare($apk['version'] ?: '0', '1.5.1', '>=')): ?>
+      <h2><?= e(t('download_changes_h')) ?></h2>
+      <ul class="steps">
+        <?php foreach (Site::list('download_changes') as $change): ?>
+          <li><?= e($change) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+
     <h2><?= e(t('install_h2')) ?></h2>
     <ol class="steps">
       <?php foreach (Site::list('install') as $step): ?>
