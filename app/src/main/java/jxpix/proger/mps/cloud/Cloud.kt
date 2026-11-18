@@ -138,6 +138,8 @@ class Cloud(private val app: Context, private val studio: Studio) {
         private set
 
     var askSignIn by mutableStateOf(false)
+    /** Open the registration tab first when the user chose to create an account. */
+    var signUpFirst by mutableStateOf(false)
     var signingIn by mutableStateOf(false)
         private set
     var signInError by mutableStateOf<Kind?>(null)
@@ -298,6 +300,7 @@ class Cloud(private val app: Context, private val studio: Studio) {
         store(s)
         session = s
         askSignIn = false
+        signUpFirst = false
         signInError = null
         leaveCodeStep()
         me = null
@@ -618,8 +621,27 @@ class Cloud(private val app: Context, private val studio: Studio) {
         if (items.isEmpty() && !loading) refresh()
     }
 
+    /** Opens the community first so its existing account and authentication sheets remain the single entry point. */
+    fun showAccount(create: Boolean = false) {
+        closeItem()
+        closeAuthor()
+        show()
+        if (!configured) return
+        val current = session
+        if (current == null) {
+            signUpFirst = create
+            signInError = null
+            askSignIn = true
+        } else {
+            showAuthor(current.userId)
+        }
+    }
+
     fun hide() {
         stopPlaying()
+        askSignIn = false
+        signUpFirst = false
+        signInError = null
         visible = false
     }
 

@@ -16,6 +16,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -81,6 +83,7 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
     var renameFor by remember { mutableStateOf<ProjectInfo?>(null) }
     var deleteFor by remember { mutableStateOf<ProjectInfo?>(null) }
     var opening by remember { mutableStateOf(false) }
+    var changes by rememberSaveable { mutableStateOf(false) }
     // the project whose file is being saved; survives the trip to the system file picker
     var exportId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -103,15 +106,13 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Ic.Logo, "MPS", Modifier.size(width = 96.dp, height = 34.dp), tint = c.text)
             Spacer(Modifier.weight(1f))
-            Chip(stringResource(R.string.community), { studio.cloud.show() }, icon = Ic.People)
-            Spacer(Modifier.width(4.dp))
             IconBtn(Ic.Help, stringResource(R.string.help), onHelp, tint = c.textDim)
             IconBtn(Ic.Settings, stringResource(R.string.settings), onSettings, tint = c.textDim)
         }
-        Text(
-            stringResource(R.string.app_tagline), Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp), color = c.textDim,
-            fontSize = 13.sp,
-        )
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.app_tagline), Modifier.weight(1f), color = c.textDim, fontSize = 13.sp)
+            Chip(stringResource(R.string.home_whats_new), { changes = true }, icon = Ic.Info)
+        }
     }
     val templateRow: @Composable () -> Unit = {
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -170,6 +171,7 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             Row(Modifier.fillMaxSize()) {
                 LazyColumn(Modifier.weight(0.47f).fillMaxHeight(), contentPadding = PaddingValues(bottom = 24.dp)) {
                     item(key = "header") { header() }
+                    item(key = "community") { CommunityCard(studio) }
                     item(key = "start") { SectionTitle(stringResource(R.string.home_start)) }
                     item(key = "templates") { templateRow() }
                     item(key = "demo") { demoCard() }
@@ -184,6 +186,7 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
         } else {
             LazyColumn(Modifier.fillMaxSize().widthIn(max = 720.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
                 item(key = "header") { header() }
+                item(key = "community") { CommunityCard(studio) }
                 item(key = "start") { SectionTitle(stringResource(R.string.home_start)) }
                 item(key = "templates") { templateRow() }
                 item(key = "demo") { demoCard() }
@@ -193,6 +196,8 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             }
         }
     }
+
+    if (changes) ChangesSheet { changes = false }
 
     menuFor?.let { info ->
         AppSheet(onDismiss = { menuFor = null }, title = info.name) {
@@ -245,6 +250,66 @@ fun HomeScreen(studio: Studio, onSettings: () -> Unit, onHelp: () -> Unit) {
             },
             onDismiss = { deleteFor = null },
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CommunityCard(studio: Studio) {
+    val c = Mps.colors
+    val cloud = studio.cloud
+    val signedIn = cloud.session != null
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(20.dp)).background(c.accentSoft)
+            .border(1.dp, c.lineStrong, RoundedCornerShape(20.dp)).padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(c.accent), contentAlignment = Alignment.Center) {
+                Icon(Ic.People, null, Modifier.size(22.dp), tint = c.onAccent)
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.community), color = c.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.home_community_title), color = c.text, fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+            }
+        }
+        Text(stringResource(R.string.home_community_desc), Modifier.padding(top = 10.dp),
+            color = c.text, fontSize = 13.sp, lineHeight = 18.sp)
+        val username = cloud.me?.username
+        val status = when {
+            !cloud.configured -> stringResource(R.string.home_community_unavailable)
+            !signedIn -> stringResource(R.string.home_community_guest)
+            username.isNullOrBlank() -> stringResource(R.string.home_community_signed_generic)
+            else -> stringResource(R.string.home_community_signed, username)
+        }
+        Text(status, Modifier.padding(top = 6.dp), color = c.textDim, fontSize = 12.sp, lineHeight = 16.sp)
+        FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (cloud.configured) {
+                Chip(stringResource(if (signedIn) R.string.cloud_profile else R.string.home_account_action),
+                    { cloud.showAccount(create = !signedIn) }, selected = true, icon = Ic.Person)
+            }
+            Chip(stringResource(R.string.home_community_browse), { cloud.show() }, icon = Ic.People)
+        }
+    }
+}
+
+@Composable
+private fun ChangesSheet(onDismiss: () -> Unit) {
+    val c = Mps.colors
+    AppSheet(onDismiss, title = stringResource(R.string.home_whats_new)) {
+        Text("1.5.1", Modifier.padding(horizontal = 20.dp, vertical = 8.dp).semantics { heading() },
+            color = c.accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        for (id in listOf(R.string.changes_151_grid, R.string.changes_151_knife, R.string.changes_151_workflow, R.string.changes_151_community)) {
+            Text("• " + stringResource(id), Modifier.padding(start = 20.dp, end = 20.dp, bottom = 9.dp),
+                color = c.text, fontSize = 14.sp, lineHeight = 20.sp)
+        }
+        Text("1.5-beta", Modifier.padding(horizontal = 20.dp, vertical = 8.dp).semantics { heading() },
+            color = c.accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("• " + stringResource(R.string.changes_15), Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp),
+            color = c.text, fontSize = 14.sp, lineHeight = 20.sp)
     }
 }
 

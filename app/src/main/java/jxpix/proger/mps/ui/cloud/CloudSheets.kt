@@ -453,7 +453,7 @@ internal fun AuthSheet(studio: Studio) {
     val cloud = studio.cloud
     val c = Mps.colors
     val context = LocalContext.current
-    var mode by rememberSaveable { mutableIntStateOf(0) }
+    var mode by rememberSaveable { mutableIntStateOf(if (cloud.signUpFirst) 1 else 0) }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
@@ -469,6 +469,7 @@ internal fun AuthSheet(studio: Studio) {
     }
 
     val title = when {
+        codeFor == null && mode == 1 -> R.string.cloud_sign_up
         codeFor == null -> R.string.cloud_sign_in_title
         reset -> R.string.cloud_password_title
         else -> R.string.cloud_code_title
@@ -476,6 +477,7 @@ internal fun AuthSheet(studio: Studio) {
     AppSheet({
         // the code step stays: the person may be on the way to the mail app and back
         cloud.askSignIn = false
+        cloud.signUpFirst = false
         cloud.signInError = null
     }, title = stringResource(title), message = studio.message) {
         if (codeFor != null) {
