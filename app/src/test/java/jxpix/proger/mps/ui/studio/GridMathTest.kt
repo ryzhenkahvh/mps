@@ -12,6 +12,27 @@ class GridMathTest {
     }
 
     @Test
+    fun quantizeRespectsPatternEndAndPreservesHiddenNotes() {
+        assertEquals(120, quantizePatternStart(70, 120, 1920))
+        assertEquals(0, quantizePatternStart(59, 120, 1920))
+        assertEquals(1800, quantizePatternStart(1919, 120, 1920))
+        assertEquals(60, quantizePatternStart(99, 60, 100))
+        assertEquals(0, quantizePatternStart(19, 120, 20))
+        assertEquals(1920, quantizePatternStart(1920, 120, 1920))
+        assertEquals(3840, quantizePatternStart(3840, 120, 1920))
+        assertEquals(-1, quantizePatternStart(-1, 120, 1920))
+    }
+
+    @Test
+    fun groupMoveStaysInPatternWithoutChangingRelativeTiming() {
+        assertEquals(-120, boundNoteMove(-480, 130, 710, 960, 120))
+        assertEquals(240, boundNoteMove(480, 130, 710, 960, 120))
+        assertEquals(0, boundNoteMove(120, 0, 960, 960, 120))
+        assertEquals(-120, boundNoteMove(-120, 240, 1000, 960, 120))
+        assertEquals(0, boundNoteMove(-120, 10, 1000, 960, 120))
+    }
+
+    @Test
     fun zoomKeepsAnchorAndClampsAtContentEdges() {
         assertEquals(250f, zoomScrollX(100f, 50f, 1f, 2f, 1000f), 0.001f)
         assertEquals(0f, zoomScrollX(0f, 100f, 2f, 1f, 1000f), 0.001f)

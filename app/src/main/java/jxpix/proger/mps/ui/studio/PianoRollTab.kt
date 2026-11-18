@@ -101,8 +101,8 @@ internal val KEY_WIDTH = 46.dp
 private val RULER_HEIGHT = 24.dp
 private val ROW_HEIGHT = 22.dp
 
-private val SNAPS = intArrayOf(PPQ, PPQ / 2, PPQ / 4, PPQ / 8, PPQ / 6)
-private val SNAP_LABELS = arrayOf("1/4", "1/8", "1/16", "1/32", "1/16T")
+private val SNAPS = intArrayOf(PPQ, PPQ / 2, PPQ / 3, PPQ / 4, PPQ / 6, PPQ / 8, PPQ / 12, PPQ / 16)
+private val SNAP_LABELS = arrayOf("1/4", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T", "1/64")
 
 fun snapLabel(ticks: Int): String = SNAP_LABELS.getOrElse(SNAPS.indexOf(ticks)) { "1/16" }
 
@@ -255,9 +255,8 @@ fun PianoRollTab(studio: Studio) {
                 studio.edit { p ->
                     p.setNotes(pattern.id, channel.id, notes.map { n ->
                         if (all || n in selected) {
-                            var start = (n.start / snap.toFloat()).roundToInt() * snap
-                            if (start >= limit) start -= snap
-                            n.copy(start = max(0, start)).also { if (!all) mapped += it }
+                            val start = quantizePatternStart(n.start, snap, limit)
+                            n.copy(start = start).also { if (!all) mapped += it }
                         } else n
                     })
                 }
@@ -593,8 +592,7 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                                             if (wasSelected) ui.rollSelection = result.toSet()
                                         }
                                     } else {
-                                        while (maxStart + dTicks >= m.patternTicks) dTicks -= snap
-                                        while (minStart + dTicks < 0) dTicks += snap
+                                        dTicks = boundNoteMove(dTicks, minStart, maxStart, m.patternTicks, snap)
                                         val dPitch = (-dy / rowH).roundToInt().coerceIn(LOW_PITCH - lowest, HIGH_PITCH - highest)
                                         if (dTicks != lastTicks || dPitch != lastPitch) {
                                             if (dPitch != lastPitch) studio.preview(m.channelId, target.pitch + dPitch, target.velocity)

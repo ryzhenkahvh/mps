@@ -122,6 +122,10 @@ private fun buildPreviews(p: Project): Map<Int, PatternPreview> {
 private fun snapTicks(p: Project, mode: Int): Int = when (mode) {
     1 -> PPQ
     2 -> TICKS_PER_STEP
+    3 -> PPQ / 2
+    4 -> PPQ / 8
+    5 -> PPQ / 3
+    6 -> PPQ / 6
     else -> p.ticksPerBar
 }
 
@@ -133,6 +137,7 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     val p = studio.project
     val pattern = studio.currentPattern
     var patternSheet by remember { mutableStateOf(false) }
+    var snapSheet by remember { mutableStateOf(false) }
     var audioSheet by remember { mutableStateOf(false) }
     var moreSheet by remember { mutableStateOf(false) }
     var soundsSheet by remember { mutableStateOf(false) }
@@ -143,7 +148,11 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) studio.importToPlaylist(uri)
     }
-    val snapNames = listOf(stringResource(R.string.snap_bar), stringResource(R.string.snap_beat), stringResource(R.string.snap_step))
+    // The first three indices retain the previous Bar / Beat / Step mapping.
+    val snapNames = listOf(
+        stringResource(R.string.snap_bar), stringResource(R.string.snap_beat), stringResource(R.string.snap_step),
+        "1/8", "1/32", "1/8T", "1/16T",
+    )
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().height(50.dp).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -165,7 +174,7 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
                 }
             }
             Spacer(Modifier.width(6.dp))
-            Chip(snapNames[ui.playlistSnap.coerceIn(0, 2)], { ui.playlistSnap = (ui.playlistSnap + 1) % 3 }, icon = Ic.Grid)
+            Chip(snapNames[ui.playlistSnap.coerceIn(snapNames.indices)], { snapSheet = true }, icon = Ic.Grid)
             Spacer(Modifier.width(6.dp))
             Chip(stringResource(R.string.add_audio), { audioSheet = true }, icon = Ic.Mic)
             IconBtn(Ic.More, stringResource(R.string.more), { moreSheet = true })
@@ -205,6 +214,16 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
     }
 
     if (patternSheet) PatternSheet(studio) { patternSheet = false }
+    if (snapSheet) {
+        AppSheet({ snapSheet = false }, title = stringResource(R.string.snap)) {
+            snapNames.forEachIndexed { index, name ->
+                SheetItem(name, {
+                    ui.playlistSnap = index
+                    snapSheet = false
+                }, selected = ui.playlistSnap == index)
+            }
+        }
+    }
     if (arrangeSheet) ArrangeSheet(studio) { arrangeSheet = false }
     if (audioSheet) {
         AppSheet({ audioSheet = false }, title = stringResource(R.string.add_audio)) {
@@ -640,12 +659,16 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
                             drawLine(c.line.copy(alpha = 0.6f), Offset(bx, rulerH), Offset(bx, lanesBottom), thin)
                         }
                     }
-                    // Show the actual step-snap positions when zoomed in enough to use them.
-                    if (ui.playlistSnap == 2 && TICKS_PER_STEP * px >= 9f * dp) {
-                        for (step in 1 until p.stepsPerBar) {
-                            if ((step * TICKS_PER_STEP) % PPQ == 0) continue
-                            val stepX = x + step * TICKS_PER_STEP * px
-                            drawLine(c.line.copy(alpha = 0.4f), Offset(stepX, rulerH), Offset(stepX, lanesBottom), thin)
+                    // Draw the chosen subdivisions only when they remain legible.
+                    val subdivision = snapTicks(p, ui.playlistSnap)
+                    if (subdivision < PPQ && subdivision * px >= 9f * dp) {
+                        var tick = subdivision
+                        while (tick < ticksPerBar) {
+                            if (tick % PPQ != 0) {
+                                val stepX = x + tick * px
+                                drawLine(c.line.copy(alpha = 0.4f), Offset(stepX, rulerH), Offset(stepX, lanesBottom), thin)
+                            }
+                            tick += subdivision
                         }
                     }
                     bar++
