@@ -7,17 +7,26 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jxpix.proger.mps.R
@@ -34,6 +43,7 @@ import jxpix.proger.mps.ui.Ic
 import jxpix.proger.mps.ui.components.AppSheet
 import jxpix.proger.mps.ui.components.Chip
 import jxpix.proger.mps.ui.components.ConfirmDialog
+import jxpix.proger.mps.ui.components.IconBtn
 import jxpix.proger.mps.ui.components.SheetDivider
 import jxpix.proger.mps.ui.components.SheetLabel
 import jxpix.proger.mps.ui.components.TextInputDialog
@@ -69,48 +79,82 @@ fun PresetSheet(studio: Studio, uid: Int, onDismiss: () -> Unit, onApplied: () -
     var deleting by remember { mutableStateOf(false) }
     var toDelete by remember { mutableStateOf<UserPreset?>(null) }
     val current = presetName(device)
+    var search by rememberSaveable(uid) { mutableStateOf("") }
+    val needle = search.trim()
+    val resources = LocalResources.current
+    val focus = LocalFocusManager.current
+    val visibleOwn = remember(own, needle) { own.filter { presetMatches(needle, it.name) } }
+    val visibleBuiltIn = remember(builtIn, needle, resources) {
+        builtIn.filter { preset ->
+            val category = if (preset.categoryRes == 0) "" else resources.getString(preset.categoryRes)
+            presetMatches(needle, resources.getString(preset.nameRes), category)
+        }
+    }
+    val groups = remember(visibleBuiltIn) { visibleBuiltIn.groupBy { it.categoryRes } }
+    val savePresetButton: @Composable () -> Unit = {
+        Chip(stringResource(R.string.preset_save), { focus.clearFocus(); saving = true }, selected = true, icon = Ic.Save)
+    }
 
     AppSheet(onDismiss, title = stringResource(R.string.presets_of, stringResource(type.nameRes))) {
-        Row(Modifier.fillMaxWidth().padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { SheetLabel(stringResource(R.string.presets_own)) }
-            Chip(stringResource(R.string.preset_save), { saving = true }, selected = true, icon = Ic.Save)
-        }
-        if (own.isEmpty()) {
-            Text(
-                stringResource(R.string.presets_own_empty), Modifier.padding(horizontal = 20.dp, vertical = 6.dp), color = c.textDim,
-                fontSize = 13.sp, lineHeight = 18.sp,
-            )
-        } else {
-            FlowRow(
-                Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                for (preset in own) {
-                    Chip(
-                        preset.name,
-                        {
-                            if (deleting) toDelete = preset
-                            else {
-                                studio.applyUserPreset(uid, preset)
-                                onApplied()
-                            }
-                        },
-                        selected = !deleting && device.preset == USER_PRESET_PREFIX + preset.name,
-                        trailing = if (deleting) Ic.Close else null,
-                    )
+        OutlinedTextField(
+            value = search,
+            onValueChange = { if (it.length <= 48) search = it },
+            singleLine = true,
+            label = { Text(stringResource(R.string.preset_search)) },
+            leadingIcon = { Icon(Ic.Search, null, Modifier.size(20.dp)) },
+            trailingIcon = {
+                if (search.isNotEmpty()) {
+                    IconBtn(Ic.Close, stringResource(R.string.preset_search_clear), { search = "" }, size = 40.dp, iconSize = 18.dp)
                 }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+
+        if (needle.isEmpty() || visibleOwn.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { SheetLabel(stringResource(R.string.presets_own)) }
+                savePresetButton()
             }
-            Chip(
-                stringResource(if (deleting) R.string.done else R.string.preset_delete_mode), { deleting = !deleting },
-                Modifier.padding(start = 16.dp, top = 2.dp, bottom = 6.dp), icon = if (deleting) Ic.Check else Ic.Delete,
-            )
+            if (own.isEmpty()) {
+                Text(
+                    stringResource(R.string.presets_own_empty), Modifier.padding(horizontal = 20.dp, vertical = 6.dp), color = c.textDim,
+                    fontSize = 13.sp, lineHeight = 18.sp,
+                )
+            } else {
+                FlowRow(
+                    Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    for (preset in visibleOwn) {
+                        Chip(
+                            preset.name,
+                            {
+                                if (deleting) toDelete = preset
+                                else {
+                                    focus.clearFocus()
+                                    studio.applyUserPreset(uid, preset)
+                                    onApplied()
+                                }
+                            },
+                            selected = !deleting && device.preset == USER_PRESET_PREFIX + preset.name,
+                            trailing = if (deleting) Ic.Close else null,
+                        )
+                    }
+                }
+                Chip(
+                    stringResource(if (deleting) R.string.done else R.string.preset_delete_mode), { deleting = !deleting },
+                    Modifier.padding(start = 16.dp, top = 2.dp, bottom = 6.dp), icon = if (deleting) Ic.Check else Ic.Delete,
+                )
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().padding(end = 16.dp), horizontalArrangement = Arrangement.End) { savePresetButton() }
         }
 
-        if (builtIn.isNotEmpty()) {
+        if (groups.isNotEmpty()) {
             SheetDivider()
             SheetLabel(stringResource(R.string.presets_built_in))
-            // synth presets come in categories, the others are one short list
-            val groups = remember(builtIn) { builtIn.groupBy { it.categoryRes } }
             for ((category, list) in groups) {
                 if (category != 0) {
                     Text(
@@ -124,12 +168,20 @@ fun PresetSheet(studio: Studio, uid: Int, onDismiss: () -> Unit, onApplied: () -
                 ) {
                     for (preset in list) {
                         Chip(stringResource(preset.nameRes), {
+                            focus.clearFocus()
                             studio.edit { it.applyPreset(uid, preset) }
                             onApplied()
                         }, selected = preset.id == device.preset)
                     }
                 }
             }
+        }
+        if (needle.isNotEmpty() && visibleOwn.isEmpty() && visibleBuiltIn.isEmpty()) {
+            Text(
+                stringResource(R.string.preset_search_empty),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp), color = c.textDim,
+                fontSize = 13.sp, lineHeight = 18.sp,
+            )
         }
     }
 
@@ -156,4 +208,10 @@ fun PresetSheet(studio: Studio, uid: Int, onDismiss: () -> Unit, onApplied: () -
             onDismiss = { toDelete = null },
         )
     }
+}
+
+/** Case-insensitive search through a preset's display name and optional category. */
+internal fun presetMatches(query: String, name: String, category: String = ""): Boolean {
+    val term = query.trim()
+    return term.isEmpty() || name.contains(term, ignoreCase = true) || category.contains(term, ignoreCase = true)
 }
