@@ -391,11 +391,18 @@ private fun LaneCanvas(
                         if (lastTick < 0 || lastTick == tick) {
                             next += AutoPoint(tick, value)
                         } else {
+                            // With magnet off, fill a fast stroke with a bounded number of points,
+                            // rather than generating one point for every tick across a long pattern.
+                            val stride = if (snap == 1) max(1, (to - from + 127) / 128) else snap
                             var t = from
                             while (t <= to) {
                                 val f = (t - lastTick).toFloat() / (tick - lastTick)
                                 next += AutoPoint(t, lastValue + (value - lastValue) * f)
-                                t += snap
+                                t += stride
+                            }
+                            if (snap == 1 && (to - from) % stride != 0) {
+                                val f = (to - lastTick).toFloat() / (tick - lastTick)
+                                next += AutoPoint(to, lastValue + (value - lastValue) * f)
                             }
                         }
                         studio.edit("automation") { m.host.write(it, m.channelId, m.device, m.param, next) }

@@ -1,6 +1,11 @@
 package jxpix.proger.mps.ui.studio
 
+import jxpix.proger.mps.model.Clip
+import jxpix.proger.mps.model.Note
+import jxpix.proger.mps.model.Project
+import jxpix.proger.mps.model.splitClip
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GridMathTest {
@@ -30,6 +35,33 @@ class GridMathTest {
         assertEquals(0, boundNoteMove(120, 0, 960, 960, 120))
         assertEquals(-120, boundNoteMove(-120, 240, 1000, 960, 120))
         assertEquals(0, boundNoteMove(-120, 10, 1000, 960, 120))
+    }
+
+    @Test
+    fun knifeUsesNearestGridOrSingleTickWithMagnetOff() {
+        assertEquals(120, gridCutTick(170f, 120))
+        assertEquals(240, gridCutTick(185f, 120))
+        assertEquals(171, gridCutTick(170.6f, 1))
+        assertEquals(0, gridCutTick(-2f, 1))
+        val note = Note(start = 100, length = 200, pitch = 64, velocity = 0.6f, pan = -0.3f)
+        assertNull(splitGridNote(note, 100))
+        assertNull(splitGridNote(note, 300))
+        val parts = splitGridNote(note, 180)!!
+        assertEquals(note.copy(length = 80), parts.first)
+        assertEquals(note.copy(start = 180, length = 120), parts.second)
+    }
+
+    @Test
+    fun audioCutPreservesSourcePositionAndProperties() {
+        val clip = Clip(id = 1, track = 0, start = 100, length = 960, channelId = 2,
+            sample = "take.wav", offset = 0.75f, gain = 0.6f, pan = -0.3f)
+        val project = Project(bpm = 120f, clips = listOf(clip), nextId = 10)
+        val cut = project.splitClip(1, 580)
+        assertEquals(2, cut.clips.size)
+        assertEquals(clip.copy(length = 480), cut.clips[0])
+        assertEquals(clip.copy(id = 10, start = 580, length = 480, offset = 1.25f), cut.clips[1])
+        assertEquals(project, project.splitClip(1, 100))
+        assertEquals(project, project.splitClip(1, 1060))
     }
 
     @Test

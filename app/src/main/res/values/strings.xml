@@ -97,6 +97,12 @@
     <string name="deselect">Deselect</string>
     <string name="quantize">Snap to grid</string>
     <string name="grid_tools">Precise grid editing</string>
+    <string name="grid_snap_off">Off</string>
+    <string name="grid_knife">Knife mode</string>
+    <string name="grid_knife_notes_hint">Knife on: tap a note to cut at the nearest grid line. Drag empty space to scroll. Tap the scissors again to exit.</string>
+    <string name="grid_knife_clips_hint">Knife on: tap an audio clip to cut at the nearest grid line. Drag empty space to scroll. Tap the scissors again to exit.</string>
+    <string name="grid_knife_edge">No cut here. Tap farther from the edge, or choose a finer grid or turn snap off.</string>
+    <string name="grid_knife_pattern">Pattern clips cannot be cut here without restarting their pattern. Open the pattern to cut its notes instead.</string>
     <string name="grid_tools_hint">Each press is one undoable edit. Grid step: %1$s. Fine adjustment: 1 tick (480 ticks per quarter note).</string>
     <string name="grid_move_step">Move by grid step</string>
     <string name="grid_move_tick">Move by 1 tick</string>

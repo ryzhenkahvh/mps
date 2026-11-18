@@ -122,6 +122,7 @@ fun PianoRollTab(studio: Studio) {
     var keySheet by remember { mutableStateOf(false) }
     var generatorSheet by remember { mutableStateOf(false) }
     val res = LocalResources.current
+    val rollSnapName = if (ui.rollSnap == 1) stringResource(R.string.grid_snap_off) else snapLabel(ui.rollSnap)
 
     val notes = if (channel == null) emptyList() else pattern.notesOf(channel.id)
     val selected = remember(notes, ui.rollSelection) {
@@ -151,7 +152,12 @@ fun PianoRollTab(studio: Studio) {
                 Chip(pattern.name, { patternSheet = true }, Modifier.weight(1f, fill = false), trailing = Ic.DropDown, maxWidth = 150.dp)
             }
             Spacer(Modifier.width(6.dp))
-            Chip(snapLabel(ui.rollSnap), { snapSheet = true }, icon = Ic.Grid)
+            Chip(rollSnapName, { snapSheet = true }, icon = Ic.Grid)
+            IconBtn(Ic.Cut, stringResource(R.string.grid_knife), {
+                ui.rollKnife = !ui.rollKnife
+                if (ui.rollKnife) studio.message = res.getString(R.string.grid_knife_notes_hint)
+            }, modifier = Modifier.semantics { this.selected = ui.rollKnife },
+                tint = if (ui.rollKnife) c.onAccent else c.text, background = if (ui.rollKnife) c.accent else Color.Transparent)
             IconBtn(Ic.More, stringResource(R.string.more), { moreSheet = true })
         }
         if (channel == null || channel.isAudio) {
@@ -228,6 +234,7 @@ fun PianoRollTab(studio: Studio) {
     if (patternSheet) PatternSheet(studio) { patternSheet = false }
     if (snapSheet) {
         AppSheet({ snapSheet = false }, title = stringResource(R.string.snap)) {
+            SheetItem(stringResource(R.string.grid_snap_off), { ui.rollSnap = 1; snapSheet = false }, selected = ui.rollSnap == 1)
             SNAPS.forEachIndexed { i, ticks ->
                 SheetItem(SNAP_LABELS[i], {
                     ui.rollSnap = ticks
@@ -246,7 +253,7 @@ fun PianoRollTab(studio: Studio) {
     }
     if (gridTools && channel != null && selected.isNotEmpty()) {
         GridToolsSheet(
-            snapLabel = snapLabel(ui.rollSnap), snapTicks = ui.rollSnap,
+            snapLabel = rollSnapName, snapTicks = ui.rollSnap,
             onMove = { delta ->
                 val minStart = selected.minOf { it.start }
                 val maxStart = selected.maxOf { it.start }
@@ -471,6 +478,7 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
     var pressedKey by remember { mutableIntStateOf(-1) }
     var marquee by remember { mutableStateOf<Rect?>(null) }
     val haptics = LocalHapticFeedback.current
+    val resources = LocalResources.current
 
     val labelPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
     val description = stringResource(R.string.tab_piano) + ": " + channel.name
@@ -593,6 +601,33 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                             }
 
                             val target = hit
+                            if (ui.rollKnife && target == null) {
+                                with(panZoom) { track(down, slop) }
+                                return@awaitEachGesture
+                            }
+                            if (ui.rollKnife && target != null) {
+                                // A tap cuts one note. A drag still pans, including when started over a note.
+                                val tap = with(panZoom) { track(down, slop) }
+                                if (tap) {
+                                    val at = gridCutTick((x - keyW + sx) / px, m.snap)
+                                    val parts = splitGridNote(target, at)
+                                    if (parts == null) {
+                                        studio.message = resources.getString(R.string.grid_knife_edge)
+                                    } else {
+                                        val index = m.notes.indexOfLast { it === target }
+                                        if (index >= 0) {
+                                            val updated = m.notes.toMutableList().apply {
+                                                this[index] = parts.first
+                                                add(index + 1, parts.second)
+                                            }
+                                            studio.edit { it.setNotes(m.patternId, m.channelId, updated) }
+                                            if (target in m.selected) ui.rollSelection = (m.selected - target) + parts.first + parts.second
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
+                                    }
+                                }
+                                return@awaitEachGesture
+                            }
                             if (target != null) {
                                 // ---- move or resize
                                 studio.preview(m.channelId, target.pitch, target.velocity)
@@ -696,7 +731,7 @@ private fun RollCanvas(studio: Studio, pattern: Pattern, channel: Channel, notes
                                 }
 
                                 val tap = if (early == 0) true else with(panZoom) { track(down, slop, firstPanEvent) }
-                                if (tap && y >= rulerH && x >= keyW) {
+                                if (tap && !ui.rollKnife && y >= rulerH && x >= keyW) {
                                     if (m.selected.isNotEmpty()) {
                                         ui.rollSelection = emptySet()
                                     } else {

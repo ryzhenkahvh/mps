@@ -96,6 +96,12 @@
     <string name="deselect">Снять выделение</string>
     <string name="quantize">Выровнять по сетке</string>
     <string name="grid_tools">Точное редактирование сетки</string>
+    <string name="grid_snap_off">Выкл.</string>
+    <string name="grid_knife">Режим ножа</string>
+    <string name="grid_knife_notes_hint">Нож включён: нажмите на ноту, чтобы разрезать её по ближайшей линии. Пустое место можно тянуть для прокрутки. Повторное нажатие ножниц выключит нож.</string>
+    <string name="grid_knife_clips_hint">Нож включён: нажмите на аудиоклип, чтобы разрезать его по ближайшей линии. Пустое место можно тянуть для прокрутки. Повторное нажатие ножниц выключит нож.</string>
+    <string name="grid_knife_edge">Здесь разрез невозможен. Нажмите дальше от края, выберите более мелкую сетку или выключите магнит.</string>
+    <string name="grid_knife_pattern">При разрезании паттерн-клип перезапустил бы паттерн. Откройте паттерн и разрежьте его ноты.</string>
     <string name="grid_tools_hint">Каждое нажатие можно отменить. Шаг сетки: %1$s. Точная настройка: 1 тик (480 тиков в четверти).</string>
     <string name="grid_move_step">Сдвиг на шаг сетки</string>
     <string name="grid_move_tick">Сдвиг на 1 тик</string>

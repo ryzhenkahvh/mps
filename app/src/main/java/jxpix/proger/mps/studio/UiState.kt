@@ -65,6 +65,7 @@ class UiState {
     // piano roll
     val roll = GridView()
     var rollSnap by mutableIntStateOf(TICKS_PER_STEP)
+    var rollKnife by mutableStateOf(false)
     var rollNoteLength by mutableIntStateOf(TICKS_PER_STEP)
     var rollGhosts by mutableStateOf(true)
     var rollSelection by mutableStateOf<Set<Note>>(emptySet())
@@ -83,6 +84,7 @@ class UiState {
     val playlist = GridView()
     /** 0 = bar, 1 = beat, 2 = sixteenth; 3–8 are finer and triplet subdivisions. */
     var playlistSnap by mutableIntStateOf(0)
+    var playlistKnife by mutableStateOf(false)
     var playlistGridW = 1f
     var playlistGridH = 1f
     var selectedClip by mutableIntStateOf(0)

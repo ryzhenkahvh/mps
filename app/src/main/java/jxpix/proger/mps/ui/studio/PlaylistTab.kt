@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -128,13 +129,14 @@ private fun snapTicks(p: Project, mode: Int): Int = when (mode) {
     6 -> PPQ / 6
     7 -> PPQ / 12
     8 -> PPQ / 16
+    9 -> 1 // snap off: retain tick precision
     else -> p.ticksPerBar
 }
 
 @Composable
 private fun playlistSnapNames(): List<String> = listOf(
     stringResource(R.string.snap_bar), stringResource(R.string.snap_beat), stringResource(R.string.snap_step),
-    "1/8", "1/32", "1/8T", "1/16T", "1/32T", "1/64",
+    "1/8", "1/32", "1/8T", "1/16T", "1/32T", "1/64", stringResource(R.string.grid_snap_off),
 )
 
 /** Playlist: patterns and recordings arranged on a timeline to form the whole track. */
@@ -180,6 +182,11 @@ fun PlaylistTab(studio: Studio, onRecordMic: () -> Unit) {
             }
             Spacer(Modifier.width(6.dp))
             Chip(snapNames[ui.playlistSnap.coerceIn(snapNames.indices)], { snapSheet = true }, icon = Ic.Grid)
+            IconBtn(Ic.Cut, stringResource(R.string.grid_knife), {
+                ui.playlistKnife = !ui.playlistKnife
+                if (ui.playlistKnife) studio.message = res.getString(R.string.grid_knife_clips_hint)
+            }, modifier = Modifier.semantics { this.selected = ui.playlistKnife },
+                tint = if (ui.playlistKnife) c.onAccent else c.text, background = if (ui.playlistKnife) c.accent else Color.Transparent)
             Spacer(Modifier.width(6.dp))
             Chip(stringResource(R.string.add_audio), { audioSheet = true }, icon = Ic.Mic)
             IconBtn(Ic.More, stringResource(R.string.more), { moreSheet = true })
@@ -589,6 +596,21 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
                             }
 
                             val target = hit
+                            if (ui.playlistKnife && target != null) {
+                                val tap = with(panZoom) { track(down, slop) }
+                                if (tap) {
+                                    val at = gridCutTick((x - headerW + sx) / px, snap)
+                                    when {
+                                        !target.isAudio -> studio.message = res.getString(R.string.grid_knife_pattern)
+                                        at <= target.start || at >= target.end -> studio.message = res.getString(R.string.grid_knife_edge)
+                                        else -> {
+                                            studio.edit { it.splitClip(target.id, at) }
+                                            ui.selectedClip = target.id
+                                        }
+                                    }
+                                }
+                                return@awaitEachGesture
+                            }
                             if (target != null) {
                                 // ---- move or stretch a clip
                                 var moved = false
@@ -619,7 +641,7 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
                                             studio.edit("clip-drag") { it.updateClip(target.id) { cl -> cl.copy(length = length) } }
                                         }
                                     } else {
-                                        while (target.start + dTicks < 0) dTicks += snap
+                                        dTicks = max(dTicks, -Math.floorDiv(target.start, snap) * snap)
                                         val track = (target.track + (dy / trackH).roundToInt()).coerceIn(0, pr.tracks - 1)
                                         if (dTicks != lastTicks || track != lastTrack) {
                                             lastTicks = dTicks
@@ -633,7 +655,7 @@ private fun Timeline(studio: Studio, modifier: Modifier) {
                             } else {
                                 // ---- empty space: drag to scroll, pinch to zoom, tap to place the pattern
                                 val tap = with(panZoom) { track(down, slop) }
-                                if (tap && x >= headerW && y >= rulerH) {
+                                if (tap && !ui.playlistKnife && x >= headerW && y >= rulerH) {
                                     val track = floor((y - rulerH + sy) / trackH).toInt()
                                     val pattern = studio.currentPattern
                                     if (ui.selectedClip != 0) {

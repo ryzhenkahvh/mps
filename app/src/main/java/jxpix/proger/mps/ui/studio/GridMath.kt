@@ -1,6 +1,8 @@
 package jxpix.proger.mps.ui.studio
 
+import jxpix.proger.mps.model.Note
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 /** Number of cells belonging to the pattern on a fixed-width rack page. */
 internal fun rackValidSteps(totalSteps: Int, firstStep: Int, pageSteps: Int): Int =
@@ -27,3 +29,13 @@ internal fun boundNoteMove(delta: Int, minStart: Int, maxStart: Int, patternTick
 /** Duration stays positive and cannot overflow its end position. */
 internal fun adjustGridLength(length: Int, delta: Int, maxLength: Int): Int =
     (length.toLong() + delta).coerceIn(1L, maxLength.coerceAtLeast(1).toLong()).toInt()
+
+/** A cut lands on the closest grid line; snap = 1 represents magnet off. */
+internal fun gridCutTick(tick: Float, snap: Int): Int =
+    ((tick.toDouble() / snap).roundToLong() * snap).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+
+/** Splitting preserves pitch, velocity and pan, and does nothing on either edge. */
+internal fun splitGridNote(note: Note, at: Int): Pair<Note, Note>? {
+    if (at <= note.start || at >= note.end) return null
+    return note.copy(length = at - note.start) to note.copy(start = at, length = note.end - at)
+}
